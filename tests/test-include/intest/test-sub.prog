@@ -1,0 +1,3 @@
+fn test_sub() {
+  print("test_sub");
+}

@@ -1,0 +1,18 @@
+fn main() {
+  int a[5];
+  int b;
+  chr c;
+
+  for b in range(0, 5, 1) {
+    set(a[b], b);
+  }
+  set(a[4], 97);
+
+  # test assigement to c
+  set(c, a[4]);
+  print(c);
+  for b in range(0, 5, 1) {
+    print(a[b]);
+    print("\n");
+  }
+}

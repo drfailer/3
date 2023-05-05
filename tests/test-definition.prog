@@ -1,0 +1,16 @@
+fn test() {
+  print("test");
+  return 2;
+}
+
+fn times_two(int a) -> int {
+  return tms(a, 2);
+}
+
+fn main() {
+  int b;
+  test();
+  set(b, 3);
+  set(b, times_two(b, 4));
+  print(b);
+}

@@ -1,0 +1,17 @@
+fn add3(int a, int b, int c) -> int {
+	return add(a, add(b, c));
+}
+
+# On ne peut afficher qu’une string OU une variable
+fn affiche(int n) {
+	print("nombre: ");
+	print(n);
+}
+
+fn main() {
+	int a;
+  int b;
+	read(a);
+	set(b, 4);
+	affiche(add3(a, b, 5));
+}

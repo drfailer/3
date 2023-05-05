@@ -1,0 +1,12 @@
+fn hello() {
+  print("hello");
+}
+
+fn hello(int something) {
+  print("world");
+}
+
+fn main() {
+  hello();
+}
+

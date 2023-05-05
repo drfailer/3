@@ -1,0 +1,22 @@
+# erreur de valeur de retour
+fn procedure() {
+  return 4;
+}
+
+fn fonc(int a) -> int {
+  flt b;
+  set(b, tms(1.3, a));
+  return b; # avertissement: type de retour
+}
+
+# # erreur: pas de fonction main
+fn main_() {
+  int a;
+  chr c;
+  set(a, 'a'); # avertissement: a de type int
+  set(b, 5); # erreur: de définition
+  set(c, fonc(4)); # avertissement sur le type avec les funcall aussi
+
+  fonction(a, b); # erreur: fonction non définie et b non défini
+}
+
