@@ -14,9 +14,6 @@ std::string typeToString(Type type)
     case CHR:
       output = "chr";
       break;
-    case BOOL:
-      output = "bool";
-      break;
     default:
       output = "void";
       break;
