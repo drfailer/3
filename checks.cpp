@@ -10,6 +10,7 @@ bool isDefined(std::string name, int line, int column, std::list<Type> &type) {
         std::optional<Symbol> sym = contextManager.lookup(name);
 
         if (!sym.has_value()) {
+                // TODO: this should be not in the errMgr, not here
                 defined = false;
                 std::ostringstream oss;
                 oss << "undefined Symbol '" << name << "'";
@@ -65,7 +66,11 @@ bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
 
 void checkType(std::string name, int line, int column, Type expected,
                Type founded) {
-        if (expected != founded && founded != VOID && expected != VOID) {
+        if (founded == VOID || expected == VOID) {
+                return;
+        }
+
+        if (expected != founded) {
                 std::ostringstream oss;
                 oss << "assignment at " << line << ":" << column << " " << name
                     << " is of type " << typeToString(expected)

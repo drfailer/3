@@ -17,6 +17,11 @@ void ContextManager::newSymbol(std::string name, std::list<Type> type,
         currentScope->add(name, type, kind);
 }
 
+void ContextManager::newSymbol(std::string name, std::list<Type> type, unsigned int size,
+                               Kind kind) {
+        currentScope->add(name, type, size, kind);
+}
+
 std::optional<Symbol> ContextManager::lookup(std::string name) const {
         return currentScope->lookup(name);
 }

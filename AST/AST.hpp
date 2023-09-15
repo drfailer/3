@@ -129,6 +129,7 @@ class Array : public Variable {
         ~Array() = default;
 
       protected:
+        // TODO: this should be unsigned
         int size;
 };
 

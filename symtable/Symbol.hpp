@@ -8,16 +8,20 @@ enum Kind { FUN_PARAM, LOCAL_VAR, LOCAL_ARRAY, FUNCTION };
 
 class Symbol {
       public:
-        Kind getKind() const;
-        std::list<Type> getType() const;
         std::string getName() const;
+        std::list<Type> getType() const;
+        int getSize() const { return size; }
+        Kind getKind() const;
         Symbol(std::string name, std::list<Type> type, Kind kind);
+        Symbol(std::string name, std::list<Type> type, unsigned int size,
+               Kind kind);
         Symbol() = default;
         ~Symbol() = default;
 
       private:
         std::string name;
         std::list<Type> type;
+        unsigned int size; // size for arrays
         Kind kind;
 };
 

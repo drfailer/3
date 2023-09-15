@@ -1,4 +1,5 @@
 #include "AST.hpp"
+#include "Types.hpp"
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -6,6 +7,7 @@
 #include <ostream>
 #include <string>
 #include <type_traits>
+#include <cstring>
 
 void indent(std::ofstream &fs, int lvl) {
         for (int i = 0; i < lvl; ++i) {
@@ -54,6 +56,13 @@ void Value::compile(std::ofstream &fs, int lvl) {
         case CHR:
                 fs << "'" << value.c << "'";
                 break;
+        case ARR_CHR: {
+                // WARN: the '"' are in the string (this may change).
+                // TODO: this doesn't work, the value is technically correct but
+                // it doesn't take in count the size of the targeted array.
+                std::string str = value.s;
+                fs << "[c for c in " << str << "]+[0]";
+        } break;
         default:
                 break;
         }
@@ -195,24 +204,41 @@ void Assignement::display() {
 
 void Assignement::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
-        variable->compile(fs, lvl); // TODO: gérer le cast
-        fs << "=";
-        switch (variable->getType()) {
-        case INT:
-                fs << "int(";
-                break;
-        case CHR:
-                fs << "chr(";
-                break;
-        case FLT:
-                fs << "float(";
-                break;
-        default:
-                fs << "(";
-                break;
+        // TODO: find a better way to handle this case
+        if (variable->getType() == ARR_CHR && value->getType() == ARR_CHR) {
+                std::shared_ptr<Array> array = std::dynamic_pointer_cast<Array>(variable);
+                std::shared_ptr<Value> val = std::dynamic_pointer_cast<Value>(value);
+                // WARN: the value contains the '"'
+                std::string str = val->getValue().s;
+                unsigned int size = std::min(array->getSize(), (int) str.size() - 2 + 1);
+
+                // reset the array before assignement of the string
+                fs << array->getId() << "=[0 for _ in range(" << array->getSize() << ")]" << std::endl;
+                indent(fs, lvl);
+                fs << "for _ZZ_TRANSPILER_STRINGSET_INDEX in range(" << size - 1 << "):" << std::endl;
+                indent(fs, lvl + 1);
+                fs << variable->getId() << "[_ZZ_TRANSPILER_STRINGSET_INDEX]=";
+                fs << str << "[_ZZ_TRANSPILER_STRINGSET_INDEX]";
+        } else {
+                variable->compile(fs, lvl);
+                fs << "=";
+                switch (variable->getType()) {
+                case INT:
+                        fs << "int(";
+                        break;
+                case CHR:
+                        fs << "chr(";
+                        break;
+                case FLT:
+                        fs << "float(";
+                        break;
+                default:
+                        fs << "(";
+                        break;
+                }
+                value->compile(fs, lvl);
+                fs << ")";
         }
-        value->compile(fs, lvl);
-        fs << ")";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -255,6 +281,7 @@ std::list<std::shared_ptr<TypedElement>> Funcall::getParams() const {
 std::string Funcall::getFunctionName() const { return functionName; }
 
 void Funcall::compile(std::ofstream &fs, int lvl) {
+        // TODO: there is more work to do when we pas a string to the function
         indent(fs, lvl);
         fs << functionName << "(";
         for (std::shared_ptr<ASTNode> p : params) {

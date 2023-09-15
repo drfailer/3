@@ -1,16 +1,33 @@
+fn test(chr str[100]) {
+  print(str);
+  print("\n");
+  print(str[2]);
+  print("\n");
+}
+
 fn main() {
   int a[5];
+  chr string[10];
   int b;
   chr c;
+
+  # test assignement to string
+  set(string, "hello");
+
+  print(string);
+  print("\n");
+  test(string);
+  test("hello");
 
   for b in range(0, 5, 1) {
     set(a[b], b);
   }
   set(a[4], 97);
 
-  # test assigement to c
+  # test assignement to c
   set(c, a[4]);
   print(c);
+  print("\n");
   for b in range(0, 5, 1) {
     print(a[b]);
     print("\n");

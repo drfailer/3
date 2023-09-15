@@ -1,6 +1,7 @@
 %{
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <FlexLexer.h>
 #include <fstream>
 #include <filesystem>
@@ -146,7 +147,7 @@ paramDeclaration:
         | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
                 DEBUG("new param: " << $2);
                 contextManager.newSymbol($2, std::list<Type>($t), LOCAL_ARRAY);
-                pb.pushFunctionParam(Array($2, $size, $t));
+                pb.pushFunctionParam(Array($2, $size, getArrayType($t)));
         }
         ;
 
@@ -258,8 +259,16 @@ container:
                 DEBUG("new param variable");
                 std::list<Type> type;
                 std::shared_ptr<Variable> v;
+
+                // TODO: this is really bad, the function isDefined will be
+                // changed !
                 if (isDefined($1, @1.begin.line, @1.begin.column, type)) {
-                        v = std::make_shared<Variable>($1, type.back());
+                        if (isArray(type.back())) {
+                                Symbol sym = contextManager.lookup($1).value();
+                                v = std::make_shared<Array>($1, sym.getSize(), type.back());
+                        } else {
+                                v = std::make_shared<Variable>($1, type.back());
+                        }
                 } else {
                         v = std::make_shared<Variable>($1, VOID);
                 }
@@ -273,14 +282,14 @@ container:
                 if (isDefined($1, @1.begin.line, @1.begin.column, type)) {
                         std::optional<Symbol> sym = contextManager.lookup($1);
                         // error if the symbol is not an array
-                                if (sym.value().getKind() != LOCAL_ARRAY) {
-                                        std::ostringstream oss;
-                                        oss << $1 << " can't be used as an array at "
-                                            << @1.begin.line << ":" << @2.begin.column
-                                            << "." << std::endl;
-                                        errMgr.newError(oss.str());
-                                }
-                        v = std::make_shared<ArrayAccess>($1, -1, type.back(), $index);
+                        if (sym.value().getKind() != LOCAL_ARRAY) {
+                                std::ostringstream oss;
+                                oss << $1 << " can't be used as an array at "
+                                    << @1.begin.line << ":" << @2.begin.column
+                                    << "." << std::endl;
+                                errMgr.newError(oss.str());
+                        }
+                        v = std::make_shared<ArrayAccess>($1, -1, getValueType(type.back()), $index);
                 } else {
                         v = std::make_shared<ArrayAccess>($1, -1, VOID, $index);
                 }
@@ -374,9 +383,9 @@ declaration:
         | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
                 DEBUG("new array declaration: " << $2);
                 std::list<Type> t;
-                t.push_back($t);
-                contextManager.newSymbol($2, t, LOCAL_ARRAY);
-                pb.pushBlock(std::make_shared<ArrayDeclaration>($2, $size, $t));
+                t.push_back(getArrayType($t));
+                contextManager.newSymbol($2, t, $size, LOCAL_ARRAY);
+                pb.pushBlock(std::make_shared<ArrayDeclaration>($2, $size, getArrayType($t)));
         }
         ;
 
@@ -414,7 +423,12 @@ value:
                 DEBUG("new char: " << $1);
                 type_t v = { .c = $1 };
                 $$ = Value(v, CHR);
-                // TODO: add the string value
+        }
+        | STRING {
+                DEBUG("new char: " << $1);
+                type_t v = {0};
+                memcpy(v.s, $1.c_str(), $1.size());
+                $$ = Value(v, ARR_CHR);
         }
         ;
 

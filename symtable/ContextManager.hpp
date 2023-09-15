@@ -10,6 +10,7 @@ class ContextManager {
         void leaveScope();
         Symtable getScope() const; // NOTE: may be wrong
         void newSymbol(std::string name, std::list<Type> type, Kind kind);
+        void newSymbol(std::string name, std::list<Type> type, unsigned int size, Kind kind);
         std::optional<Symbol> lookup(std::string name) const;
         ContextManager() : currentScope(std::make_shared<Symtable>()) {}
         ~ContextManager() = default;

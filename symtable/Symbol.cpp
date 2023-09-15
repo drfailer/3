@@ -1,7 +1,10 @@
 #include "Symbol.hpp"
 
+Symbol::Symbol(std::string name, std::list<Type> type, unsigned int size, Kind kind)
+    : name(name), type(type), size(size), kind(kind) {}
+
 Symbol::Symbol(std::string name, std::list<Type> type, Kind kind)
-    : name(name), type(type), kind(kind) {}
+    : Symbol(name, type, 1, kind) {}
 
 std::string Symbol::getName() const { return name; }
 

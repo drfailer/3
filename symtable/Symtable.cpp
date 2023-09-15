@@ -50,6 +50,20 @@ void Symtable::add(std::string name, std::list<Type> type, Kind kind) {
         table[name] = Symbol(name, type, kind);
 }
 
+/**
+ * @brief  Add a new Symbol to the symtable.
+ *
+ * @param  name   Name of the new symbol.
+ * @param  scope  Scope where the symbol has been declared.
+ * @param  type   Type of the new symbol.
+ * @param  size   Size of the data (for arrays).
+ * @param  kind   Kind of the new symbol (param, local variable, ...)
+ */
+void Symtable::add(std::string name, std::list<Type> type, unsigned int size,
+                   Kind kind) {
+        table[name] = Symbol(name, type, size, kind);
+}
+
 std::shared_ptr<Symtable> Symtable::getFather() const { return father; }
 
 std::list<std::shared_ptr<Symtable>> Symtable::getChildScopes() const {
