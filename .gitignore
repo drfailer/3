@@ -6,3 +6,5 @@ parser.cpp
 parser.hpp
 position.hh
 stack.hh
+.cache/clangd/index
+compile_commands.json
