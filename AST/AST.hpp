@@ -18,7 +18,7 @@
 - [x] add the utilities functions in bison file
 
 # TODO - Parser
-- [ ] add arrays to set (assignement)
+- [ ] add arrays to set (assignment)
 - [ ] add arrays to the other rules
 =============================================================================*/
 
@@ -158,16 +158,16 @@ class ArrayAccess : public Array {
 /******************************************************************************/
 
 /**
- * @brief  Represent an assignement operation. The "ifdef" check of the
+ * @brief  Represent an assignment operation. The "ifdef" check of the
  *         variable is done in the parser using the table of symbols.
  */
-class Assignement : public ASTNode {
+class Assignment : public ASTNode {
       public:
         std::shared_ptr<Variable> getVariable() const { return variable; }
         std::shared_ptr<TypedElement> getValue() const { return value; }
         void display() override;
         void compile(std::ofstream &, int) override;
-        Assignement(std::shared_ptr<Variable>, std::shared_ptr<TypedElement>);
+        Assignment(std::shared_ptr<Variable>, std::shared_ptr<TypedElement>);
 
       private:
         std::shared_ptr<Variable> variable;

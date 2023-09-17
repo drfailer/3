@@ -190,19 +190,19 @@ void Block::compile(std::ofstream &fs, int lvl) {
 
 /* -------------------------------------------------------------------------- */
 
-Assignement::Assignement(std::shared_ptr<Variable> variable,
+Assignment::Assignment(std::shared_ptr<Variable> variable,
                          std::shared_ptr<TypedElement> value)
     : variable(variable), value(value) {}
 
-void Assignement::display() {
-        std::cout << "Assignement(";
+void Assignment::display() {
+        std::cout << "Assignment(";
         variable->display();
         std::cout << ",";
         value->display();
         std::cout << ")" << std::endl;
 }
 
-void Assignement::compile(std::ofstream &fs, int lvl) {
+void Assignment::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         // TODO: find a better way to handle this case
         if (variable->getType() == ARR_CHR && value->getType() == ARR_CHR) {
@@ -212,7 +212,7 @@ void Assignement::compile(std::ofstream &fs, int lvl) {
                 std::string str = val->getValue().s;
                 unsigned int size = std::min(array->getSize(), (int) str.size() - 2 + 1);
 
-                // reset the array before assignement of the string
+                // reset the array before assignment of the string
                 fs << array->getId() << "=[0 for _ in range(" << array->getSize() << ")]" << std::endl;
                 indent(fs, lvl);
                 fs << "for _ZZ_TRANSPILER_STRINGSET_INDEX in range(" << size - 1 << "):" << std::endl;

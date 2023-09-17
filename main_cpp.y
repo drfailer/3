@@ -53,7 +53,7 @@
         std::string currentFunction = "";
 
         std::list<std::pair<std::shared_ptr<Funcall>, std::pair<int, int>>> funcallsToCheck;
-        std::list<std::pair<std::shared_ptr<Assignement>, std::pair<int, int>>> assignementsToCheck;
+        std::list<std::pair<std::shared_ptr<Assignment>, std::pair<int, int>>> assignmentsToCheck;
 }
 
 %token <long long>  INT
@@ -225,7 +225,7 @@ command:
         print
         | read
         | declaration
-        | assignement
+        | assignment
         | funcall { pb.pushBlock($1); }
         ;
 
@@ -389,21 +389,21 @@ declaration:
         }
         ;
 
-assignement:
+assignment:
         SET'('container[c] COMMA inlineSymbol[ic]')' {
-                DEBUG("new assignement");
+                DEBUG("new assignment");
                 Type icType = $ic->getType();
                 std::shared_ptr<Variable> v = std::static_pointer_cast<Variable>($c);
-                std::shared_ptr<Assignement> newAssignement = std::make_shared<Assignement>(v, $ic);
+                std::shared_ptr<Assignment> newAssignment = std::make_shared<Assignment>(v, $ic);
 
                 if (std::static_pointer_cast<Funcall>($ic)) { // if funcall
                         // this is a funcall so we have to wait the end of the parsing to check
                         std::pair<int, int> position = std::make_pair(@c.begin.line, @c.begin.column);
-                        assignementsToCheck.push_back(std::pair(newAssignement, position));
+                        assignmentsToCheck.push_back(std::pair(newAssignment, position));
                 } else {
                         checkType(v->getId(), @c.begin.line, @c.begin.column, $c->getType(), icType);
                 }
-                pb.pushBlock(newAssignement);
+                pb.pushBlock(newAssignment);
                 // TODO: check the type for strings -> array of char
         }
         ;
@@ -540,8 +540,8 @@ void makeExecutable(std::string file) {
  * the function in which we make the call. This force to parse all the functions
  * to have a complete table of symbol before checking the types.
  */
-void checkAssignements() {
-        for (auto ap : assignementsToCheck) {
+void checkAssignments() {
+        for (auto ap : assignmentsToCheck) {
                 checkType(ap.first->getVariable()->getId(),
                           ap.second.first, ap.second.second,
                           ap.first->getVariable()->getType(),
@@ -587,7 +587,7 @@ void compile(std::string fileName, std::string outputName) {
         interpreter::Parser parser{ &scanner, pb };
         parser.parse();
         checkFuncalls();
-        checkAssignements();
+        checkAssignments();
 
         // loock for main
         std::optional<Symbol> sym = contextManager.lookup("main");

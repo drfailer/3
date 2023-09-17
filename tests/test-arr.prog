@@ -11,7 +11,7 @@ fn main() {
   int b;
   chr c;
 
-  # test assignement to string
+  # test assignment to string
   set(string, "hello");
 
   print(string);
@@ -24,7 +24,7 @@ fn main() {
   }
   set(a[4], 97);
 
-  # test assignement to c
+  # test assignment to c
   set(c, a[4]);
   print(c);
   print("\n");
