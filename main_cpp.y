@@ -144,6 +144,10 @@ paramDeclaration:
         }
         | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
                 DEBUG("new param: " << $2);
+                // TODO: remove the size of the array. The size should be set at
+                // -1 (or any default value) in order to specify that we don't
+                // want to check the size at compile time when we treat the
+                // function
                 contextManager.newSymbol($2, std::list<Type>($t), LOCAL_ARRAY);
                 pb.pushFunctionParam(Array($2, $size, getArrayType($t)));
         }
@@ -280,9 +284,9 @@ container:
                                 errMgr.addBadArrayUsageError($1, @1.begin.line,
                                                              @1.begin.column);
                         }
-                        v = std::make_shared<ArrayAccess>($1, -1, getValueType(type.back()), $index);
+                        v = std::make_shared<ArrayAccess>($1, getValueType(type.back()), $index);
                 } else {
-                        v = std::make_shared<ArrayAccess>($1, -1, VOID, $index);
+                        v = std::make_shared<ArrayAccess>($1, VOID, $index);
                 }
                 $$ = v;
         }

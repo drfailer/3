@@ -101,9 +101,9 @@ void ArrayDeclaration::compile(std::ofstream &fs, int lvl) {
         fs << getId() << "=[0 for _ in range(" << size << ")]";
 }
 
-ArrayAccess::ArrayAccess(std::string name, int size, Type type,
+ArrayAccess::ArrayAccess(std::string name, Type type,
                          std::shared_ptr<ASTNode> index)
-    : Array(name, size, type), index(index) {}
+    : Array(name, -1, type), index(index) {}
 
 std::shared_ptr<ASTNode> ArrayAccess::getIndex() const { return index; }
 

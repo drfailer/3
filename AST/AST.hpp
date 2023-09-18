@@ -146,7 +146,7 @@ class ArrayAccess : public Array {
         void display() override;
         void compile(std::ofstream &, int) override;
         std::shared_ptr<ASTNode> getIndex() const;
-        ArrayAccess(std::string, int, Type, std::shared_ptr<ASTNode>);
+        ArrayAccess(std::string, Type, std::shared_ptr<ASTNode>);
         ~ArrayAccess() = default;
 
       private:
