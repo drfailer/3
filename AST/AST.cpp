@@ -253,7 +253,7 @@ void Declaration::display() {
 
 void Declaration::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
-        fs << "# " << typeToString(variable.getType()) << " "
+        fs << "# " << variable.getType() << " "
            << variable.getId();
 }
 
@@ -404,10 +404,11 @@ BinaryOperation::BinaryOperation(std::shared_ptr<ASTNode> left,
 
 Type selectType(Type left, Type right) {
         Type type;
-        if (left == INT && right == INT)
+        if (left == INT && right == INT) {
                 type = INT;
-        else
+        } else {
                 type = FLT;
+        }
         return type;
 }
 

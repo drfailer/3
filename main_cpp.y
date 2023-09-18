@@ -104,11 +104,9 @@ function:
                 std::optional<Symbol> sym = contextManager.lookup($name);
                 // error on function redefinition
                 if (sym.has_value()) {
-                        std::ostringstream oss;
-                        oss << "redefinition of '" << $name << "()' at "
-                            << @name.begin.line << ":" << @name.begin.column
-                            << "." << std::endl;
-                        errMgr.newError(oss.str());
+                        errMgr.addMultipleDefinitionError($name,
+                                                          @name.begin.line,
+                                                          @name.begin.column);
                         return 1;
                 }
                 std::list<Type> funType = pb.getParamsTypes();
@@ -190,26 +188,22 @@ code:
         | commands code
         | RETURN inlineSymbol[rs] SEMI {
                 std::optional<Symbol> sym = contextManager.lookup(currentFunction);
-                Type rtType = $rs->getType();
-                Type functionType = sym.value().getType().back();
+                Type foundType = $rs->getType();
+                Type expectedType = sym.value().getType().back();
                 std::ostringstream oss;
 
-                if (functionType == VOID) { // no return allowed
-                        oss << "founded return statement in " << currentFunction
-                            << " at " << @1
-                            << " which is of type void" << std::endl;
-                        errMgr.newError(oss.str());
-                } else if (functionType != rtType && rtType != VOID) {
-                        // must check if rtType is not void because of the
+                if (expectedType == VOID) { // no return allowed
+                        errMgr.addUnexpectedReturnError(currentFunction,
+                                                        @1.begin.line,
+                                                        @1.begin.column);
+                } else if (expectedType != foundType && foundType != VOID) {
+                        // must check if foundType is not void because of the
                         // buildin function (add, ...) which are not in the
                         // symtable
-                        oss << "in " << currentFunction
-                            << " at " << @1
-                            << " return of type " << typeToString(rtType)
-                            << " but this function is of type "
-                            << typeToString(functionType)
-                            << std::endl;
-                        errMgr.newWarning(oss.str());
+                        errMgr.addReturnTypeWarning(currentFunction,
+                                                    @1.begin.line,
+                                                    @1.begin.column,
+                                                    foundType, expectedType);
                 }
                 // else verify the type and throw a warning
                 pb.pushBlock(std::make_shared<Return>($rs));
@@ -283,11 +277,8 @@ container:
                         std::optional<Symbol> sym = contextManager.lookup($1);
                         // error if the symbol is not an array
                         if (sym.value().getKind() != LOCAL_ARRAY) {
-                                std::ostringstream oss;
-                                oss << $1 << " can't be used as an array at "
-                                    << @1.begin.line << ":" << @2.begin.column
-                                    << "." << std::endl;
-                                errMgr.newError(oss.str());
+                                errMgr.addBadArrayUsageError($1, @1.begin.line,
+                                                             @1.begin.column);
                         }
                         v = std::make_shared<ArrayAccess>($1, -1, getValueType(type.back()), $index);
                 } else {
@@ -510,7 +501,7 @@ while:
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
         std::ostringstream oss;
         oss << msg << " at: " << loc << std::endl;
-        errMgr.newError(oss.str());
+        errMgr.addError(oss.str());
 }
 
 /* Run interactive parser. It was used during the beginning of the project. */
@@ -559,17 +550,20 @@ void checkFuncalls() {
                 std::list<Type> expectedType;
 
                 if (sym.has_value()) {
-                        // get the founded return type (types of the parameters)
+                        // get the found return type (types of the parameters)
                         std::list<Type> funcallType = getTypes(fp.first->getParams());
                         fp.first->setType(expectedType.back());
                         expectedType = sym.value().getType();
                         expectedType.pop_back(); // remove the return type
 
                         if (checkTypeError(expectedType, funcallType)) {
-                                reportTypeError(fp.first->getFunctionName(), fp.second.first, fp.second.second, expectedType, funcallType);
+                                errMgr.addFuncallTypeError(fp.first->getFunctionName(),
+                                                           fp.second.first,
+                                                           fp.second.second,
+                                                           expectedType, funcallType);
                         }
                 } else {
-                        reportDefinitionError(fp.first->getFunctionName(), fp.second.first, fp.second.second);
+                        errMgr.addUndefinedSymbolError(fp.first->getFunctionName(), fp.second.first, fp.second.second);
                 }
         }
 }
@@ -592,7 +586,7 @@ void compile(std::string fileName, std::string outputName) {
         // loock for main
         std::optional<Symbol> sym = contextManager.lookup("main");
         if (!sym.has_value()) {
-                errMgr.newError("no entry point.");
+                errMgr.addNoEntryPointError();
         }
         // report errors and warnings
         errMgr.report();

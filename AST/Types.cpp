@@ -1,32 +1,40 @@
 #include "Types.hpp"
+#include <iostream>
+#include <list>
 
-std::string typeToString(Type type) {
-        std::string output;
-
+std::ostream& operator<<(std::ostream& os, const Type& type) {
         switch (type) {
         case INT:
-                output = "int";
+                os << "int";
                 break;
         case FLT:
-                output = "flt";
+                os << "flt";
                 break;
         case CHR:
-                output = "chr";
+                os << "chr";
                 break;
         case ARR_INT:
-                output = "int[]";
+                os << "int[]";
                 break;
         case ARR_FLT:
-                output = "flt[]";
+                os << "flt[]";
                 break;
         case ARR_CHR:
-                output = "chr[]";
+                os << "chr[]";
                 break;
         default:
-                output = "void";
+                os << "void";
                 break;
         }
-        return output;
+        return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const std::list<Type> types) {
+        for (Type type : types) {
+                os << type << " -> ";
+        }
+        os << "." << std::endl;
+        return os;
 }
 
 Type getArrayType(Type type) {

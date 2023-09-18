@@ -12,40 +12,12 @@ bool isDefined(std::string name, int line, int column, std::list<Type> &type) {
         if (!sym.has_value()) {
                 // TODO: this should be not in the errMgr, not here
                 defined = false;
-                std::ostringstream oss;
-                oss << "undefined Symbol '" << name << "'";
-                oss << " at: " << line << ":" << column << std::endl;
-                errMgr.newError(oss.str());
+                errMgr.addUndefinedSymbolError(name, line, column);
                 type = std::list<Type>();
         } else {
                 type = sym.value().getType();
         }
         return defined;
-}
-
-void printType(std::ostringstream &oss, std::list<Type> types) {
-        for (Type t : types) {
-                oss << typeToString(t) << " -> ";
-        }
-        oss << "." << std::endl;
-}
-
-void reportDefinitionError(std::string name, int line, int column) {
-        std::ostringstream oss;
-        oss << "undefined Symbol '" << name << "'";
-        oss << " at: " << line << ":" << column << std::endl;
-        errMgr.newError(oss.str());
-}
-
-void reportTypeError(std::string name, int line, int column,
-                     std::list<Type> expected, std::list<Type> founded) {
-        std::ostringstream oss;
-        oss << "Type error: at " << line << ":" << column << " in " << name
-            << ": the expected type was:" << std::endl;
-        printType(oss, expected);
-        oss << "founded:" << std::endl;
-        printType(oss, founded);
-        errMgr.newError(oss.str());
 }
 
 bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
@@ -65,18 +37,13 @@ bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
 }
 
 void checkType(std::string name, int line, int column, Type expected,
-               Type founded) {
-        if (founded == VOID || expected == VOID) {
+               Type found) {
+        if (found == VOID || expected == VOID) {
                 return;
         }
 
-        if (expected != founded) {
-                std::ostringstream oss;
-                oss << "assignment at " << line << ":" << column << " " << name
-                    << " is of type " << typeToString(expected)
-                    << " but the value assigned is of type "
-                    << typeToString(founded) << std::endl;
-                errMgr.newWarning(oss.str());
+        if (expected != found) {
+                errMgr.addTypeAssignedWarning(name, line, column, expected, found);
         }
 }
 

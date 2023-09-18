@@ -3,6 +3,11 @@ fn procedure() {
   return 4;
 }
 
+# redefinition error
+# fn procedure(int a) {
+#   print(a);
+# }
+
 fn fonc(int a) -> int {
   flt b;
   set(b, tms(1.3, a));
@@ -16,6 +21,7 @@ fn main_() {
   set(a, 'a'); # avertissement: a de type int
   set(b, 5); # erreur: de définition
   set(c, fonc(4)); # avertissement sur le type avec les funcall aussi
+  set(c, fonc(4, 3)); # type error
 
   fonction(a, b); # erreur: fonction non définie et b non défini
 }
