@@ -384,19 +384,27 @@ funcall:
         ;
 
 declaration:
-        type[t] IDENTIFIER {
-                DEBUG("new declaration: " << $2);
+        type[t] IDENTIFIER[name] {
+                DEBUG("new declaration: " << $name);
+                // redefinitions are not allowed:
+                if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
+                        errMgr.addMultipleDefinitionError($name, @name.begin.line, @name.begin.column);
+                }
                 std::list<Type> t;
                 t.push_back($t);
                 contextManager.newSymbol($2, t, LOCAL_VAR);
                 pb.pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
         }
-        | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
+        | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
                 DEBUG("new array declaration: " << $2);
+                // redefinitions are not allowed:
+                if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
+                        errMgr.addMultipleDefinitionError($name, @name.begin.line, @name.begin.column);
+                }
                 std::list<Type> t;
                 t.push_back(getArrayType($t));
-                contextManager.newSymbol($2, t, $size, LOCAL_ARRAY);
-                pb.pushBlock(std::make_shared<ArrayDeclaration>($2, $size, getArrayType($t)));
+                contextManager.newSymbol($name, t, $size, LOCAL_ARRAY);
+                pb.pushBlock(std::make_shared<ArrayDeclaration>($name, $size, getArrayType($t)));
         }
         ;
 
