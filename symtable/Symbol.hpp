@@ -1,6 +1,6 @@
 #ifndef __SYMBOL__
 #define __SYMBOL__
-#include "../AST/Types.hpp"
+#include "ast/Types.hpp"
 #include <iostream>
 #include <list>
 

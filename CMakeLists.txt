@@ -17,9 +17,11 @@ add_custom_target(lexer ALL flex main_cpp.l
                   COMMENT "building lexer")
 
 add_executable(prog parser.cpp lexer.cpp
-  AST/AST.cpp AST/Program.cpp AST/ProgramBuilder.cpp
-  AST/Types.cpp symtable/Symtable.cpp symtable/Symbol.cpp
+  ast/AST.cpp ast/Program.cpp ast/ProgramBuilder.cpp
+  ast/Types.cpp symtable/Symtable.cpp symtable/Symbol.cpp
   symtable/ContextManager.cpp
   errorManager/ErrorManager.cpp
   preprocessor/preprocessor.cpp
   checks.cpp)
+
+include_directories(.)

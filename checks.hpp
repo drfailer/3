@@ -1,6 +1,6 @@
 #ifndef CHECKS_HPP
 #define CHECKS_HPP
-#include "AST/ProgramBuilder.hpp"
+#include "ast/ProgramBuilder.hpp"
 #include "errorManager/ErrorManager.hpp"
 #include "preprocessor/preprocessor.hpp"
 #include "symtable/ContextManager.hpp"

@@ -5,8 +5,8 @@
 #include <FlexLexer.h>
 #include <fstream>
 #include <filesystem>
-#include "AST/AST.hpp"
-#include "AST/ProgramBuilder.hpp"
+#include "ast/AST.hpp"
+#include "ast/ProgramBuilder.hpp"
 #include "symtable/Symtable.hpp"
 #include "symtable/Symbol.hpp"
 #include "symtable/ContextManager.hpp"
@@ -33,8 +33,8 @@
 
 %code requires
 {
-        #include "AST/AST.hpp"
-        #include "AST/ProgramBuilder.hpp"
+        #include "ast/AST.hpp"
+        #include "ast/ProgramBuilder.hpp"
         namespace interpreter {
                 class Scanner;
         }

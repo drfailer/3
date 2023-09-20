@@ -2,7 +2,7 @@
 #define __ERROR_MANAGER__
 // this shouldn't be done this way -> add include directrories in the CMake
 // configuration
-#include "../AST/Types.hpp"
+#include "ast/Types.hpp"
 #include <iostream>
 #include <sstream>
 
