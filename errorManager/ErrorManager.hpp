@@ -22,6 +22,7 @@ class ErrorManager {
                                       int column);
         void addBadArrayUsageError(std::string name, int line, int column);
         void addNoEntryPointError();
+        void addOperatorError(std::string name, int line, int column);
 
         // Warnings:
         void addTypeAssignedWarning(std::string functionName, int line, int column,

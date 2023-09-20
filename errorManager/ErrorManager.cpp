@@ -132,6 +132,21 @@ void ErrorManager::addUndefinedSymbolError(std::string name, int line,
 }
 
 /**
+ * @brief  Record an operator error. This occurs when an operator is used and
+ *         lhs or rhs has the wrong type (for instance: `add(1, 'a')`).
+ *
+ * @param  name      Name of the oporator.
+ * @param  line      Location.line
+ * @param  column    Location.column
+ */
+void ErrorManager::addOperatorError(std::string name, int line, int column) {
+        std::ostringstream oss;
+        oss << "bas usage of operator " << BOLD << name << NORM;
+        oss << " at " << line << ":" << column;
+        addError(oss.str());
+}
+
+/**
  * @brief  Record a no entry point error. This occurs when no main function has
  *         been found.
  */

@@ -295,19 +295,35 @@ container:
 arithmeticOperations:
         ADD'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("addOP");
+                if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+                        errMgr.addOperatorError("add", @1.begin.line,
+                                                @1.begin.column);
+                }
                 $$ = std::make_shared<AddOP>($left, $right);
         }
         | MNS'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("mnsOP");
+                if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+                        errMgr.addOperatorError("mns", @1.begin.line,
+                                                @1.begin.column);
+                }
                 $$ = std::make_shared<MnsOP>($left, $right);
         }
         | TMS'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("tmsOP");
+                if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+                        errMgr.addOperatorError("tms", @1.begin.line,
+                                                @1.begin.column);
+                }
                 $$ = std::make_shared<TmsOP>($left, $right);
         }
         | DIV'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("divOP");
                 $$ = std::make_shared<DivOP>($left, $right);
+                if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+                        errMgr.addOperatorError("div", @1.begin.line,
+                                                @1.begin.column);
+                }
         }
         ;
 

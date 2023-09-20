@@ -16,6 +16,7 @@ enum Type { INT, FLT, CHR, ARR_INT, ARR_FLT, ARR_CHR, VOID };
 Type getArrayType(Type type);
 Type getValueType(Type type);
 bool isArray(Type type);
+bool isNumber(Type type);
 
 std::ostream& operator<<(std::ostream& os, const Type& type);
 std::ostream& operator<<(std::ostream& os, const std::list<Type> types);

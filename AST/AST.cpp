@@ -45,7 +45,7 @@ void Value::display() {
         }
 }
 
-void Value::compile(std::ofstream &fs, int lvl) {
+void Value::compile(std::ofstream &fs, int) {
         switch (type) {
         case INT:
                 fs << value.i;
@@ -78,7 +78,7 @@ std::string Variable::getId() const { return id; }
 
 void Variable::display() { std::cout << id; }
 
-void Variable::compile(std::ofstream &fs, int lvl) { fs << id; }
+void Variable::compile(std::ofstream &fs, int) { fs << id; }
 
 /* -------------------------------------------------------------------------- */
 
@@ -113,7 +113,7 @@ void ArrayAccess::display() {
         std::cout << "]";
 }
 
-void ArrayAccess::compile(std::ofstream &fs, int lvl) {
+void ArrayAccess::compile(std::ofstream &fs, int) {
         fs << Variable::getId() << "[";
         index->compile(fs, 0);
         fs << "]";
@@ -138,7 +138,7 @@ Function::Function(std::string id, std::list<Variable> params,
                    std::shared_ptr<Block> instructions, std::list<Type> type)
     : Statement(instructions), id(id), params(params), type(type) {}
 
-void Function::compile(std::ofstream &fs, int lvl) {
+void Function::compile(std::ofstream &fs, int) {
         fs << "def " << id << "(";
         if (params.size() > 0) {
                 std::list<Variable> tmp = params;
@@ -210,6 +210,7 @@ void Assignment::compile(std::ofstream &fs, int lvl) {
                 std::shared_ptr<Value> val = std::dynamic_pointer_cast<Value>(value);
                 // WARN: the value contains the '"'
                 std::string str = val->getValue().s;
+                // TODO: this should be done at runtime !
                 unsigned int size = std::min(array->getSize(), (int) str.size() - 2 + 1);
 
                 // reset the array before assignment of the string
@@ -338,7 +339,7 @@ void If::compile(std::ofstream &fs, int lvl) {
 For::For(Variable v, std::shared_ptr<ASTNode> begin,
          std::shared_ptr<ASTNode> end, std::shared_ptr<ASTNode> step,
          std::shared_ptr<Block> b)
-    : Statement(b), begin(begin), end(end), step(step), var(v) {}
+    : Statement(b), var(v), begin(begin), end(end), step(step) {}
 
 void For::display() {
         std::cout << "For(";
@@ -430,7 +431,7 @@ void AddOP::display() {
         BinaryOperation::display();
 }
 
-void AddOP::compile(std::ofstream &fs, int lvl) {
+void AddOP::compile(std::ofstream &fs, int) {
         fs << "(";
         left->compile(fs, 0);
         fs << "+";
@@ -449,7 +450,7 @@ void MnsOP::display() {
         BinaryOperation::display();
 }
 
-void MnsOP::compile(std::ofstream &fs, int lvl) {
+void MnsOP::compile(std::ofstream &fs, int) {
         fs << "(";
         left->compile(fs, 0);
         fs << "-";
@@ -468,7 +469,7 @@ void TmsOP::display() {
         BinaryOperation::display();
 }
 
-void TmsOP::compile(std::ofstream &fs, int lvl) {
+void TmsOP::compile(std::ofstream &fs, int) {
         fs << "(";
         left->compile(fs, 0);
         fs << "*";
@@ -487,7 +488,7 @@ void DivOP::display() {
         BinaryOperation::display();
 }
 
-void DivOP::compile(std::ofstream &fs, int lvl) {
+void DivOP::compile(std::ofstream &fs, int) {
         fs << "(";
         left->compile(fs, 0);
         fs << "/";
@@ -507,7 +508,7 @@ void EqlOP::display() {
         BinaryOperation::display();
 }
 
-void EqlOP::compile(std::ofstream &fs, int lvl) {
+void EqlOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << "==";
         right->compile(fs, 0);
@@ -521,7 +522,7 @@ void SupOP::display() {
         BinaryOperation::display();
 }
 
-void SupOP::compile(std::ofstream &fs, int lvl) {
+void SupOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << ">";
         right->compile(fs, 0);
@@ -535,7 +536,7 @@ void InfOP::display() {
         BinaryOperation::display();
 }
 
-void InfOP::compile(std::ofstream &fs, int lvl) {
+void InfOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << "<";
         right->compile(fs, 0);
@@ -549,7 +550,7 @@ void SeqOP::display() {
         BinaryOperation::display();
 }
 
-void SeqOP::compile(std::ofstream &fs, int lvl) {
+void SeqOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << ">=";
         right->compile(fs, 0);
@@ -563,7 +564,7 @@ void IeqOP::display() {
         BinaryOperation::display();
 }
 
-void IeqOP::compile(std::ofstream &fs, int lvl) {
+void IeqOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << "<=";
         right->compile(fs, 0);
@@ -577,7 +578,7 @@ void OrOP::display() {
         BinaryOperation::display();
 }
 
-void OrOP::compile(std::ofstream &fs, int lvl) {
+void OrOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << " or ";
         right->compile(fs, 0);
@@ -591,7 +592,7 @@ void AndOP::display() {
         BinaryOperation::display();
 }
 
-void AndOP::compile(std::ofstream &fs, int lvl) {
+void AndOP::compile(std::ofstream &fs, int) {
         left->compile(fs, 0);
         fs << " and ";
         right->compile(fs, 0);

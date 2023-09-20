@@ -74,3 +74,9 @@ Type getValueType(Type type) {
 bool isArray(Type type) {
         return type == ARR_INT || type == ARR_FLT || type == ARR_CHR;
 }
+
+bool isNumber(Type type) {
+        Type typeToCheck = getValueType(type);
+        return typeToCheck == INT || typeToCheck == FLT;
+}
+
