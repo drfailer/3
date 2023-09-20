@@ -21,6 +21,7 @@
 #define DEBUG(A)
 #endif
 #define PREPROCESSOR_OUTPUT_FILE "__main_pp.prog__"
+#define REMOVE_PREPROCESSOR_FILE true
 %}
 %language "c++"
 %defines "parser.hpp"
@@ -627,6 +628,11 @@ void compile(std::string fileName, std::string outputName) {
                 std::ofstream fs(outputName);
                 pb.getProgram()->compile(fs);
                 makeExecutable(outputName);
+        }
+
+        // remove the preprocessor output file
+        if (REMOVE_PREPROCESSOR_FILE) {
+                std::filesystem::remove(PREPROCESSOR_OUTPUT_FILE);
         }
 }
 
