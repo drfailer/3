@@ -2,7 +2,7 @@ include test-same;
 include intest/test-sub;
 
 fn main() {
-  print("main");
+  print("main\n");
   test_same();
   test_sub();
 }

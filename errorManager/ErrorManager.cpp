@@ -141,8 +141,8 @@ void ErrorManager::addUndefinedSymbolError(std::string name, int line,
  */
 void ErrorManager::addOperatorError(std::string name, int line, int column) {
         std::ostringstream oss;
-        oss << "bas usage of operator " << BOLD << name << NORM;
-        oss << " at " << line << ":" << column;
+        oss << "bad usage of operator " << BOLD << name << NORM;
+        oss << " at " << line << ":" << column << std::endl;
         addError(oss.str());
 }
 
