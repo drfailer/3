@@ -20,6 +20,7 @@
 #else
 #define DEBUG(A)
 #endif
+#define PREPROCESSOR_OUTPUT_FILE "__main_pp.prog__"
 %}
 %language "c++"
 %defines "parser.hpp"
@@ -597,8 +598,10 @@ void checkFuncalls() {
 }
 
 void compile(std::string fileName, std::string outputName) {
+        int parserOutput;
+
         ProgramBuilder pb;
-        Preprocessor pp("__main_pp.prog__");
+        Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
         contextManager.enterScope(); // update the scope
         pp.process(fileName); // launch the preprocessor
@@ -607,13 +610,13 @@ void compile(std::string fileName, std::string outputName) {
         std::ifstream is("__main_pp.prog__", std::ios::in); // parse the preprocessed file
         interpreter::Scanner scanner{ is , std::cerr };
         interpreter::Parser parser{ &scanner, pb };
-        parser.parse();
+        parserOutput = parser.parse();
         checkFuncalls();
         checkAssignments();
 
         // loock for main
         std::optional<Symbol> sym = contextManager.lookup("main");
-        if (!sym.has_value()) {
+        if (0 == parserOutput && !sym.has_value()) {
                 errMgr.addNoEntryPointError();
         }
         // report errors and warnings
