@@ -1,3 +1,12 @@
+fn fonc(int a) -> int {
+  flt b;
+  set(b, tms(1.3, a));
+  return b; # avertissement: type de retour
+}
+
 fn test_sub() {
+  chr c;
+
   print("test_sub\n");
+  set(c, fonc(4, 3)); # type error
 }

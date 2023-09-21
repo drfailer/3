@@ -73,7 +73,7 @@
 %token ERROR
 %token RETURN
 %token HASH EOL TEXT
-%token SRC_FILE_PATH_INDICATOR
+%token <std::string> PREPROCESSOR_LOCATION
 
 %nterm <Type> type
 %nterm <Value> value
@@ -99,11 +99,11 @@ programElt:
         function {
                 DEBUG("create new function" );
         }
-        | SRC_FILE_PATH_INDICATOR STRING[filePath] {
+        | PREPROCESSOR_LOCATION {
                 // this line is inserted by the preprcessor and allow to know
                 // the current file name. To avoid conflicts in lexer's rules we
                 // use the string token, however there must be a better way.
-                currentFile = $filePath;
+                currentFile = $1;
                 // suppression des '"':
                 currentFile.erase(0, 1);
                 currentFile.pop_back();

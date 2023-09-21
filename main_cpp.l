@@ -1,4 +1,5 @@
 %{
+#include <string>
 #include "parser.hpp"
 #include "lexer.hpp"
 #define YY_DECL int interpreter::Scanner::lex(Parser::semantic_type *yylval, Parser::location_type *yylloc)
@@ -24,7 +25,7 @@ equal =
 blanks [\S\s \t\n]
 str \"(\\.|[^"\\])*\"
 comment #.*$
-file -->({alpha}|{digit}|\.|/|_|-)*
+file -->.+-{digit}+\n
 
 %%
 int          { DEBUG("L_nbrt"); return Parser::token::INTT; }
@@ -57,7 +58,29 @@ range        { DEBUG("L_range"); return Parser::token::RANGE; }
 return       { DEBUG("L_return"); return Parser::token::RETURN; }
 "["          { DEBUG("L_osquareb"); return Parser::token::OSQUAREB; }
 "]"          { DEBUG("L_osquareb"); return Parser::token::CSQUAREB; }
--->          { yylloc->initialize(nullptr); DEBUG("L_arrow"); return Parser::token::SRC_FILE_PATH_INDICATOR; }
+
+{file} {
+        DEBUG("L_file");
+        std::string filename = yytext + 3;
+        int lineNumber = 0;
+        int multiplier = 1;
+
+        filename.pop_back();
+        // parse the line number at the end of the file name
+        while (filename.back() != '-') {
+                lineNumber += multiplier * (filename.back() - '0');
+                multiplier *= 10;
+                filename.pop_back();
+        }
+        filename.pop_back();
+        // reinitialize the location (note: the file is manage manually in the
+        // parser, we don't use flex locations).
+        yylloc->initialize(nullptr);
+        yylloc->lines(lineNumber);
+        yylloc->step();
+        yylval->build<std::string>(filename);
+        return Parser::token::PREPROCESSOR_LOCATION;
+}
 
 {identifier} {
         DEBUG("L_id");

@@ -1,6 +1,6 @@
 include intest/test-sub;
 
-fn test_errors_call(chr msg, int a) -> int {
+fn test_errors_call(chr msg[1000], int a) -> int {
   print(msg);
   print(a);
   print("\n");
@@ -14,12 +14,8 @@ fn test_same() {
   set(c, 34);
   set(f[0], 23);
   print("test_same\n");
-  print(add(2, 'a'))
+  print(add(2, 'a'));
   test_errors_call("this should work: ", 3);
-  test_errors_call("this should work: ", '1');
+# test_errors_call("this should work: ", '1');
   set(f, test_errors_call("this should raise a warning: ", 3));
-}
-
-fn test_errors() {
-
 }
