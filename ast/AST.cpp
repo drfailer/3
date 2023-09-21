@@ -606,8 +606,8 @@ void XorOP::display() {
         BinaryOperation::display();
 }
 
-void XorOP::compile(std::ofstream &fs, int lvl) {
-        left->compile(fs, 0); // TODO
+void XorOP::compile(std::ofstream &fs, int) {
+        left->compile(fs, 0);
         fs << " and ";
         right->compile(fs, 0);
 }
@@ -620,7 +620,7 @@ void NotOP::display() {
         std::cout << ")";
 }
 
-void NotOP::compile(std::ofstream &fs, int lvl) {
+void NotOP::compile(std::ofstream &fs, int) {
         fs << "not(";
         param->compile(fs, 0);
         fs << ") ";

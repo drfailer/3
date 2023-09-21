@@ -1,7 +1,16 @@
 include test-same;
 include intest/test-sub;
 
+fn bigger(int a, int b) -> int {
+  if (sup(a, b)) {
+    return a;
+  }
+  return b;
+}
+
 fn main() {
+  print(bigger(1, 3));
+  print("\n");
   print("main\n");
   test_same();
   test_sub();

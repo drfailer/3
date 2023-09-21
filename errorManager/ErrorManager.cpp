@@ -1,5 +1,6 @@
 #include "ErrorManager.hpp"
 #include <ostream>
+#define LOC(f, l) f << ":" << l
 #define ERR "\033[1;31m"
 #define WARN "\033[1;33m"
 #define BOLD "\033[1;34m"
@@ -15,8 +16,7 @@
  */
 void ErrorManager::addError(std::string msg) {
         errors = true;
-        errStream << ERR << "error" << NORM << ":" << std::endl;
-        errStream << msg;
+        errStream << "[" << ERR << "ERROR" << NORM << "]: " << msg;
 }
 
 /**
@@ -24,8 +24,7 @@ void ErrorManager::addError(std::string msg) {
  * @param  msg  Warning message.
  */
 void ErrorManager::addWarning(std::string msg) {
-        errStream << WARN << "warning" << NORM << ":" << std::endl;
-        errStream << msg;
+        errStream << "[" << WARN << "WARN" << NORM << "]: " << msg;
 }
 
 /**
@@ -51,15 +50,14 @@ void ErrorManager::report() {
  * @param  expected  Expected type (type of the function).
  * @param  found     Found type.
  */
-void ErrorManager::addFuncallTypeError(std::string name, int line, int column,
+void ErrorManager::addFuncallTypeError(std::string file, int line, std::string name,
                                        std::list<Type> expected,
                                        std::list<Type> found) {
         std::ostringstream oss;
-        oss << "Type error: at " << line << ":" << column << " in " << BOLD
-            << name << NORM << ": the expected type was:" << std::endl;
-        oss << BOLD << expected << NORM;
-        oss << "found:" << std::endl;
-        oss << BOLD << found << NORM;
+        oss << LOC(file, line) << ": Type error in " << BOLD
+            << name << NORM << ", the expected type was "
+            << BOLD << expected << NORM
+            << " but " << BOLD << found << NORM << " was found." << std::endl;
         addError(oss.str());
 }
 
@@ -71,11 +69,9 @@ void ErrorManager::addFuncallTypeError(std::string name, int line, int column,
  * @param  line      Location.line
  * @param  column    Location.column
  */
-void ErrorManager::addMultipleDefinitionError(std::string name, int line,
-                                              int column) {
+void ErrorManager::addMultipleDefinitionError(std::string file, int line, std::string name) {
         std::ostringstream oss;
-        oss << "redefinition of " << BOLD << name << NORM << " at " << line
-            << ":" << column << "." << std::endl;
+        oss << LOC(file, line) << ": redefinition of " << BOLD << name << NORM "." << std::endl;
         addError(oss.str());
 }
 
@@ -87,12 +83,10 @@ void ErrorManager::addMultipleDefinitionError(std::string name, int line,
  * @param  line      Location.line
  * @param  column    Location.column
  */
-void ErrorManager::addUnexpectedReturnError(std::string functionName, int line,
-                                            int column) {
+void ErrorManager::addUnexpectedReturnError(std::string file, int line, std::string functionName) {
         std::ostringstream oss;
-        oss << "found return statement in " << BOLD << functionName << NORM
-            << " at " << line << ":" << column << " which is of type void"
-            << std::endl;
+        oss << LOC(file, line) << ": found return statement in " << BOLD << functionName << NORM
+            << " which is of type void." << std::endl;
         addError(oss.str());
 }
 
@@ -108,11 +102,9 @@ void ErrorManager::addUnexpectedReturnError(std::string functionName, int line,
  * @param  line      Location.line
  * @param  column    Location.column
  */
-void ErrorManager::addBadArrayUsageError(std::string name, int line,
-                                         int column) {
+void ErrorManager::addBadArrayUsageError(std::string file, int line, std::string name) {
         std::ostringstream oss;
-        oss << BOLD << name << NORM << " can't be used as an array at " << line
-            << ":" << column << "." << std::endl;
+        oss << LOC(file, line) << ": " << BOLD << name << NORM << " can't be used as an array. " << std::endl;
         addError(oss.str());
 }
 
@@ -123,11 +115,9 @@ void ErrorManager::addBadArrayUsageError(std::string name, int line,
  * @param  line      Location.line
  * @param  column    Location.column
  */
-void ErrorManager::addUndefinedSymbolError(std::string name, int line,
-                                           int column) {
+void ErrorManager::addUndefinedSymbolError(std::string file, int line, std::string name) {
         std::ostringstream oss;
-        oss << "undefined Symbol " << BOLD << name << NORM;
-        oss << " at: " << line << ":" << column << std::endl;
+        oss << LOC(file, line) << ": undefined Symbol " << BOLD << name << NORM << "." << std::endl;
         addError(oss.str());
 }
 
@@ -139,10 +129,9 @@ void ErrorManager::addUndefinedSymbolError(std::string name, int line,
  * @param  line      Location.line
  * @param  column    Location.column
  */
-void ErrorManager::addOperatorError(std::string name, int line, int column) {
+void ErrorManager::addOperatorError(std::string file, int line, std::string name) {
         std::ostringstream oss;
-        oss << "bad usage of operator " << BOLD << name << NORM;
-        oss << " at " << line << ":" << column << std::endl;
+        oss << LOC(file, line) << ": bad usage of operator " << BOLD << name << NORM << "." << std::endl;
         addError(oss.str());
 }
 
@@ -166,11 +155,10 @@ void ErrorManager::addNoEntryPointError() { addError("no entry point."); }
  * @param  expected  Expected type (type of the variable).
  * @param  found     Found type (type of the value).
  */
-void ErrorManager::addTypeAssignedWarning(std::string name, int line,
-                                          int column, Type expected,
+void ErrorManager::addTypeAssignedWarning(std::string file, int line, std::string name, Type expected,
                                           Type found) {
         std::ostringstream oss;
-        oss << "assignment at " << line << ":" << column << " " << BOLD << name
+        oss << LOC(file, line) << ": in assignment, " << BOLD << name
             << NORM << " is of type " << BOLD << expected
             << NORM " but the value assigned is of type " << BOLD << found
             << NORM << "." << std::endl;
@@ -188,11 +176,10 @@ void ErrorManager::addTypeAssignedWarning(std::string name, int line,
  * @param  expected  Expected return type.
  * @param  found     Found return type.
  */
-void ErrorManager::addReturnTypeWarning(std::string functionName, int line,
-                                        int column, Type expected, Type found) {
+void ErrorManager::addReturnTypeWarning(std::string file, int line, std::string functionName, Type expected, Type found) {
         std::ostringstream oss;
-        oss << "in " << BOLD << functionName << NORM << " at " << line << ":"
-            << column << " return of type " << BOLD << expected << NORM
+        oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
+            << ", found return value of type " << BOLD << expected << NORM
             << " but this function is of type " << BOLD << found << NORM << "."
             << std::endl;
         addWarning(oss.str());

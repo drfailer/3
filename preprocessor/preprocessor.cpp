@@ -23,9 +23,12 @@ void Preprocessor::process(std::string pathToMain) {
  * @param  fileName  Name of the file to process.
  */
 void Preprocessor::process_rec(std::string fileName) {
+        int lineCount = 0;
         std::string line;
         std::string includedFileName;
         std::regex includeStmt("^include .+;$");
+        std::regex fileIndicator("-->.*");
+        bool locationPrinted = false;
 
         // close the previously opened file (recursive call)
         if (currentFile.is_open())
@@ -36,6 +39,10 @@ void Preprocessor::process_rec(std::string fileName) {
         while (std::getline(currentFile, line)) {
                 // search for include statement
                 if (std::regex_match(line, includeStmt)) {
+                        // the include statement is removed and replace with a
+                        // newline in order to have the right line count in the
+                        // parser.
+                        outputFile << std::endl;
                         includedFileName = pathToProject +
                                            line.substr(8, line.length() - 9) +
                                            ".prog";
@@ -51,9 +58,25 @@ void Preprocessor::process_rec(std::string fileName) {
                                 currentFile.open(filesStack.back());
                         }
                 } else {
+                        // special syntax to specify the file path to the parser
+                        // (for printing errors)
+                        if (!locationPrinted) {
+                                outputFile << "-->\"" << fileName << "\"" <<
+                                        std::endl;
+                                locationPrinted = true;
+                        }
+                        // if the user tries to add a file indicator, we make
+                        // sure that the program is not parsed
+                        if (std::regex_match(line, fileIndicator)) {
+                                std::ostringstream oss;
+                                oss << fileName << ":" << lineCount
+                                    << ": synctax error." << std::endl;
+                                throw std::logic_error(oss.str());
+                        }
                         // put the line in the output file
                         outputFile << line << std::endl;
                 }
+                lineCount++;
         }
         // when it's done, the file is considered as treated
         treatedFiles.push_back(filesStack.back());

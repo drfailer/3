@@ -5,14 +5,15 @@
 // TODO: rewrite all this stuff
 
 // symtable check
-bool isDefined(std::string name, int line, int column, std::list<Type> &type) {
+bool isDefined(std::string file, int line, std::string name,
+               std::list<Type> &type) {
         bool defined = true;
         std::optional<Symbol> sym = contextManager.lookup(name);
 
         if (!sym.has_value()) {
                 // TODO: this should be not in the errMgr, not here
                 defined = false;
-                errMgr.addUndefinedSymbolError(name, line, column);
+                errMgr.addUndefinedSymbolError(file, line, name);
                 type = std::list<Type>();
         } else {
                 type = sym.value().getType();
@@ -25,7 +26,7 @@ bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
         if (expectedType.size() != funcallType.size()) {
                 typeError = true;
         } else {
-                for (int i = 0; i < funcallType.size(); ++i) {
+                for (size_t i = 0; i < funcallType.size(); ++i) {
                         if (expectedType.size() == 0 ||
                             funcallType.front() != expectedType.front())
                                 typeError = true;
@@ -36,14 +37,15 @@ bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
         return typeError;
 }
 
-void checkType(std::string name, int line, int column, Type expected,
+void checkType(std::string file, int line, std::string name, Type expected,
                Type found) {
         if (found == VOID || expected == VOID) {
                 return;
         }
 
         if (expected != found) {
-                errMgr.addTypeAssignedWarning(name, line, column, expected, found);
+                errMgr.addTypeAssignedWarning(file, line, name, expected,
+                                              found);
         }
 }
 

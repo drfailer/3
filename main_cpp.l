@@ -24,6 +24,7 @@ equal =
 blanks [\S\s \t\n]
 str \"(\\.|[^"\\])*\"
 comment #.*$
+file -->({alpha}|{digit}|\.|/|_|-)*
 
 %%
 int          { DEBUG("L_nbrt"); return Parser::token::INTT; }
@@ -51,12 +52,12 @@ or           { DEBUG("L_or"); return Parser::token::OR; }
 xor          { DEBUG("L_xor"); return Parser::token::XOR; }
 not          { DEBUG("L_not"); return Parser::token::NOT; }
 set          { DEBUG("L_set"); return Parser::token::SET; }
-include      { DEBUG("L_include"); return Parser::token::INCLUDE; }
 range        { DEBUG("L_range"); return Parser::token::RANGE; }
 ->           { DEBUG("L_arrow"); return Parser::token::ARROW; }
 return       { DEBUG("L_return"); return Parser::token::RETURN; }
 "["          { DEBUG("L_osquareb"); return Parser::token::OSQUAREB; }
 "]"          { DEBUG("L_osquareb"); return Parser::token::CSQUAREB; }
+-->          { yylloc->initialize(nullptr); DEBUG("L_arrow"); return Parser::token::SRC_FILE_PATH_INDICATOR; }
 
 {identifier} {
         DEBUG("L_id");

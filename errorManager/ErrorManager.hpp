@@ -14,20 +14,25 @@ class ErrorManager {
         void addWarning(std::string message);
 
         // Errors:
-        void addFuncallTypeError(std::string name, int line, int column,
-                          std::list<Type> expected, std::list<Type> found);
-        void addUndefinedSymbolError(std::string name, int line, int column);
-        void addMultipleDefinitionError(std::string name, int line, int column);
-        void addUnexpectedReturnError(std::string functionName, int line,
-                                      int column);
-        void addBadArrayUsageError(std::string name, int line, int column);
+        void addFuncallTypeError(std::string file, int line, std::string name,
+                                 std::list<Type> expected,
+                                 std::list<Type> found);
+        void addUndefinedSymbolError(std::string file, int line,
+                                     std::string name);
+        void addMultipleDefinitionError(std::string file, int line,
+                                        std::string name);
+        void addUnexpectedReturnError(std::string file, int line,
+                                      std::string functionName);
+        void addBadArrayUsageError(std::string file, int line,
+                                   std::string name);
         void addNoEntryPointError();
-        void addOperatorError(std::string name, int line, int column);
+        void addOperatorError(std::string file, int line, std::string name);
 
         // Warnings:
-        void addTypeAssignedWarning(std::string functionName, int line, int column,
-                            Type expected, Type found);
-        void addReturnTypeWarning(std::string name, int line, int column,
+        void addTypeAssignedWarning(std::string file, int line,
+                                    std::string functionName, Type expected,
+                                    Type found);
+        void addReturnTypeWarning(std::string file, int line, std::string name,
                                   Type expected, Type found);
 
         ErrorManager() : errors(false) {}

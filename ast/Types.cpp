@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream& os, const std::list<Type> types) {
         for (Type type : types) {
                 os << type << " -> ";
         }
-        os << "." << std::endl;
+        os << ".";
         return os;
 }
 

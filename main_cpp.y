@@ -21,7 +21,7 @@
 #define DEBUG(A)
 #endif
 #define PREPROCESSOR_OUTPUT_FILE "__main_pp.prog__"
-#define REMOVE_PREPROCESSOR_FILE true
+#define REMOVE_PREPROCESSOR_FILE false
 %}
 %language "c++"
 %defines "parser.hpp"
@@ -53,9 +53,10 @@
         ContextManager contextManager;
         ErrorManager errMgr;
         std::string currentFunction = "";
+        std::string currentFile = "";
 
-        std::list<std::pair<std::shared_ptr<Funcall>, std::pair<int, int>>> funcallsToCheck;
-        std::list<std::pair<std::shared_ptr<Assignment>, std::pair<int, int>>> assignmentsToCheck;
+        std::list<std::pair<std::shared_ptr<Funcall>, std::pair<std::string, int>>> funcallsToCheck;
+        std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck;
 }
 
 %token <long long>  INT
@@ -63,7 +64,7 @@
 %token <char>       CHAR
 /* %nonassoc           ASSIGN */
 %token INTT FLTT CHRT
-%token IF ELSE FOR WHILE FN INCLUDE IN
+%token IF ELSE FOR WHILE FN IN
 %token SEMI COMMA ARROW OSQUAREB CSQUAREB
 %token PRINT READ ADD MNS TMS DIV RANGE SET
 %token EQL SUP INF SEQ IEQ AND OR XOR NOT
@@ -72,6 +73,7 @@
 %token ERROR
 %token RETURN
 %token HASH EOL TEXT
+%token SRC_FILE_PATH_INDICATOR
 
 %nterm <Type> type
 %nterm <Value> value
@@ -94,9 +96,17 @@ start: program;
 program: %empty | programElt program ;
 
 programElt:
-        function
-        {
+        function {
                 DEBUG("create new function" );
+        }
+        | SRC_FILE_PATH_INDICATOR STRING[filePath] {
+                // this line is inserted by the preprcessor and allow to know
+                // the current file name. To avoid conflicts in lexer's rules we
+                // use the string token, however there must be a better way.
+                currentFile = $filePath;
+                // suppression des '"':
+                currentFile.erase(0, 1);
+                currentFile.pop_back();
         }
         ;
 
@@ -106,9 +116,9 @@ function:
                 std::optional<Symbol> sym = contextManager.lookup($name);
                 // error on function redefinition
                 if (sym.has_value()) {
-                        errMgr.addMultipleDefinitionError($name,
+                        errMgr.addMultipleDefinitionError(currentFile,
                                                           @name.begin.line,
-                                                          @name.begin.column);
+                                                          $name);
                         return 1;
                 }
                 std::list<Type> funType = pb.getParamsTypes();
@@ -199,16 +209,15 @@ code:
                 std::ostringstream oss;
 
                 if (expectedType == VOID) { // no return allowed
-                        errMgr.addUnexpectedReturnError(currentFunction,
+                        errMgr.addUnexpectedReturnError(currentFile,
                                                         @1.begin.line,
-                                                        @1.begin.column);
+                                                        currentFunction);
                 } else if (expectedType != foundType && foundType != VOID) {
                         // must check if foundType is not void because of the
                         // buildin function (add, ...) which are not in the
                         // symtable
-                        errMgr.addReturnTypeWarning(currentFunction,
-                                                    @1.begin.line,
-                                                    @1.begin.column,
+                        errMgr.addReturnTypeWarning(currentFile, @1.begin.line,
+                                                    currentFunction,
                                                     foundType, expectedType);
                 }
                 // else verify the type and throw a warning
@@ -262,7 +271,7 @@ container:
 
                 // TODO: this is really bad, the function isDefined will be
                 // changed !
-                if (isDefined($1, @1.begin.line, @1.begin.column, type)) {
+                if (isDefined(currentFile, @1.begin.line, $1, type)) {
                         if (isArray(type.back())) {
                                 Symbol sym = contextManager.lookup($1).value();
                                 v = std::make_shared<Array>($1, sym.getSize(), type.back());
@@ -279,12 +288,12 @@ container:
                 std::list<Type> type;
                 std::shared_ptr<ArrayAccess> v;
                 // TODO: refactor isDefined
-                if (isDefined($1, @1.begin.line, @1.begin.column, type)) {
+                if (isDefined(currentFile, @1.begin.line, $1, type)) {
                         std::optional<Symbol> sym = contextManager.lookup($1);
                         // error if the symbol is not an array
                         if (sym.value().getKind() != LOCAL_ARRAY) {
-                                errMgr.addBadArrayUsageError($1, @1.begin.line,
-                                                             @1.begin.column);
+                                errMgr.addBadArrayUsageError(currentFile,
+                                                             @1.begin.line, $1);
                         }
                         v = std::make_shared<ArrayAccess>($1, getValueType(type.back()), $index);
                 } else {
@@ -298,24 +307,24 @@ arithmeticOperations:
         ADD'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("addOP");
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
-                        errMgr.addOperatorError("add", @1.begin.line,
-                                                @1.begin.column);
+                        errMgr.addOperatorError(currentFile, @1.begin.line,
+                                                "add");
                 }
                 $$ = std::make_shared<AddOP>($left, $right);
         }
         | MNS'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("mnsOP");
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
-                        errMgr.addOperatorError("mns", @1.begin.line,
-                                                @1.begin.column);
+                        errMgr.addOperatorError(currentFile, @1.begin.line,
+                                                "mns");
                 }
                 $$ = std::make_shared<MnsOP>($left, $right);
         }
         | TMS'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
                 DEBUG("tmsOP");
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
-                        errMgr.addOperatorError("tms", @1.begin.line,
-                                                @1.begin.column);
+                        errMgr.addOperatorError(currentFile, @1.begin.line,
+                                                "tms");
                 }
                 $$ = std::make_shared<TmsOP>($left, $right);
         }
@@ -323,8 +332,8 @@ arithmeticOperations:
                 DEBUG("divOP");
                 $$ = std::make_shared<DivOP>($left, $right);
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
-                        errMgr.addOperatorError("div", @1.begin.line,
-                                                @1.begin.column);
+                        errMgr.addOperatorError(currentFile, @1.begin.line,
+                                                "div");
                 }
         }
         ;
@@ -376,7 +385,7 @@ funcall:
                 std::shared_ptr<Funcall> funcall = pb.createFuncall();
                 // TODO: save the funcall and params in a vector (create a struct)
                 funcall->setType(VOID); // type to VOID by default, will change on the type check
-                std::pair<int, int> position = std::make_pair(@1.begin.line, @1.begin.column);
+                std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
                 funcallsToCheck.push_back(std::make_pair(funcall, position));
                 // the type check is done at the end !
                 DEBUG("new funcall: " << $1);
@@ -390,7 +399,7 @@ declaration:
                 DEBUG("new declaration: " << $name);
                 // redefinitions are not allowed:
                 if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-                        errMgr.addMultipleDefinitionError($name, @name.begin.line, @name.begin.column);
+                        errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
                 }
                 std::list<Type> t;
                 t.push_back($t);
@@ -401,7 +410,7 @@ declaration:
                 DEBUG("new array declaration: " << $2);
                 // redefinitions are not allowed:
                 if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-                        errMgr.addMultipleDefinitionError($name, @name.begin.line, @name.begin.column);
+                        errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
                 }
                 std::list<Type> t;
                 t.push_back(getArrayType($t));
@@ -419,10 +428,10 @@ assignment:
 
                 if (std::static_pointer_cast<Funcall>($ic)) { // if funcall
                         // this is a funcall so we have to wait the end of the parsing to check
-                        std::pair<int, int> position = std::make_pair(@c.begin.line, @c.begin.column);
+                        std::pair<std::string, int> position = std::make_pair(currentFile, @c.begin.line);
                         assignmentsToCheck.push_back(std::pair(newAssignment, position));
                 } else {
-                        checkType(v->getId(), @c.begin.line, @c.begin.column, $c->getType(), icType);
+                        checkType(currentFile, @c.begin.line, v->getId(), $c->getType(), icType);
                 }
                 pb.pushBlock(newAssignment);
                 // TODO: check the type for strings -> array of char
@@ -506,11 +515,11 @@ for:
                 DEBUG("in for");
                 Variable v($v, VOID);
                 std::list<Type> type;
-                if (isDefined($v, @v.begin.line, @v.begin.column, type)) {
+                if (isDefined(currentFile, @v.begin.line, $v, type)) {
                         v = Variable($v, type.back());
-                        checkType("RANGE_BEGIN", @b.begin.line, @b.begin.column, type.back(), $b->getType());
-                        checkType("RANGE_END", @e.begin.line, @e.begin.column, type.back(), $e->getType());
-                        checkType("RANGE_STEP", @s.begin.line, @s.begin.column, type.back(), $s->getType());
+                        checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type.back(), $b->getType());
+                        checkType(currentFile, @e.begin.line, "RANGE_END",  type.back(), $e->getType());
+                        checkType(currentFile, @s.begin.line, "RANGE_STEP", type.back(), $s->getType());
                 }
                 $$ = pb.createFor(v, $b, $e, $s, $ops);
                 contextManager.leaveScope();
@@ -530,7 +539,7 @@ while:
 
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
         std::ostringstream oss;
-        oss << msg << " at: " << loc << std::endl;
+        oss << currentFile << ":" << loc.begin.line << ": " << msg << "." << std::endl;
         errMgr.addError(oss.str());
 }
 
@@ -563,8 +572,8 @@ void makeExecutable(std::string file) {
  */
 void checkAssignments() {
         for (auto ap : assignmentsToCheck) {
-                checkType(ap.first->getVariable()->getId(),
-                          ap.second.first, ap.second.second,
+                checkType(ap.second.first, ap.second.second,
+                          ap.first->getVariable()->getId(),
                           ap.first->getVariable()->getType(),
                           ap.first->getValue()->getType());
         }
@@ -574,6 +583,7 @@ void checkAssignments() {
  * types of all the parameters. The return type is not important here.
  */
 void checkFuncalls() {
+        // TODO: add the file location in the list
         for (auto fp : funcallsToCheck) {
                 std::list<Type> funcallType = getTypes(fp.first->getParams());
                 std::optional<Symbol> sym = contextManager.lookup(fp.first->getFunctionName());
@@ -587,25 +597,33 @@ void checkFuncalls() {
                         expectedType.pop_back(); // remove the return type
 
                         if (checkTypeError(expectedType, funcallType)) {
-                                errMgr.addFuncallTypeError(fp.first->getFunctionName(),
-                                                           fp.second.first,
+                                errMgr.addFuncallTypeError(fp.second.first,
                                                            fp.second.second,
+                                                           fp.first->getFunctionName(),
                                                            expectedType, funcallType);
                         }
                 } else {
-                        errMgr.addUndefinedSymbolError(fp.first->getFunctionName(), fp.second.first, fp.second.second);
+                        // errMgr.addUndefinedSymbolError(fp.first->getFunctionName(), fp.second.first, fp.second.second);
                 }
         }
 }
 
 void compile(std::string fileName, std::string outputName) {
         int parserOutput;
+        int preprocessorOutput = 0;
 
         ProgramBuilder pb;
         Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
+        currentFile = fileName;
         contextManager.enterScope(); // update the scope
-        pp.process(fileName); // launch the preprocessor
+
+        try {
+                pp.process(fileName); // launch the preprocessor
+        } catch (std::logic_error& e) {
+                errMgr.addError(e.what());
+                preprocessorOutput = 1;
+        }
 
         // open and parse the file
         std::ifstream is("__main_pp.prog__", std::ios::in); // parse the preprocessed file
@@ -617,7 +635,7 @@ void compile(std::string fileName, std::string outputName) {
 
         // loock for main
         std::optional<Symbol> sym = contextManager.lookup("main");
-        if (0 == parserOutput && !sym.has_value()) {
+        if (0 == parserOutput && 0 == preprocessorOutput && !sym.has_value()) {
                 errMgr.addNoEntryPointError();
         }
         // report errors and warnings
