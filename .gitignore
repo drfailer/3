@@ -1,6 +1,5 @@
 build
 lexer.cpp
-lexer.hpp
 location.hh
 parser.cpp
 parser.hpp
