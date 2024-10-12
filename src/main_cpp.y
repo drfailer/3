@@ -238,13 +238,16 @@ read:
     ;
 
 print:
-    PRINT'('STRING[s]')' {
-        DEBUG("print str");
-        pb.pushBlock(std::make_shared<Print>($s));
-    }
-    | PRINT'('expression[ic]')' {
+    PRINT'('expression[ic]')' {
         DEBUG("print var");
-        pb.pushBlock(std::make_shared<Print>($ic));
+        // spcial case for strings
+        if ($ic->getType() == ARR_CHR) {
+            auto stringValue = std::dynamic_pointer_cast<Value>($ic);
+            std::string str = stringValue->getValue().s;
+            pb.pushBlock(std::make_shared<Print>(str));
+        } else {
+            pb.pushBlock(std::make_shared<Print>($ic));
+        }
     }
     ;
 
