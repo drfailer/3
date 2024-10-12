@@ -417,12 +417,12 @@ assignment:
     SET'('variable[c] COMMA expression[ic]')' {
         DEBUG("new assignment");
         Type icType = $ic->type();
-        std::shared_ptr<Variable> v = std::static_pointer_cast<Variable>($c);
-        std::shared_ptr<Assignment> newAssignment = std::make_shared<Assignment>(v, $ic);
+        auto v = std::static_pointer_cast<Variable>($c);
+        auto newAssignment = std::make_shared<Assignment>(v, $ic);
 
         if (std::static_pointer_cast<Funcall>($ic)) { // if funcall
             // this is a funcall so we have to wait the end of the parsing to check
-            std::pair<std::string, int> position = std::make_pair(currentFile, @c.begin.line);
+            auto position = std::make_pair(currentFile, @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
             checkType(currentFile, @c.begin.line, v->id(), $c->type(), icType);
@@ -566,9 +566,9 @@ void makeExecutable(std::string file) {
 void checkAssignments() {
     for (auto ap : assignmentsToCheck) {
         checkType(ap.second.first, ap.second.second,
-                  ap.first->getVariable()->id(),
-                  ap.first->getVariable()->type(),
-                  ap.first->getValue()->type());
+                  ap.first->variable()->id(),
+                  ap.first->variable()->type(),
+                  ap.first->value()->type());
     }
 }
 
@@ -578,13 +578,13 @@ void checkAssignments() {
 void checkFuncalls() {
     // TODO: add the file location in the list
     for (auto fp : funcallsToCheck) {
-        std::list<Type> funcallType = getTypes(fp.first->getParams());
-        std::optional<Symbol> sym = contextManager.lookup(fp.first->getFunctionName());
+        std::list<Type> funcallType = getTypes(fp.first->params());
+        std::optional<Symbol> sym = contextManager.lookup(fp.first->functionName());
         std::list<Type> expectedType;
 
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
-            std::list<Type> funcallType = getTypes(fp.first->getParams());
+            std::list<Type> funcallType = getTypes(fp.first->params());
             fp.first->type(expectedType.back());
             expectedType = sym.value().getType();
             expectedType.pop_back(); // remove the return type
@@ -592,11 +592,11 @@ void checkFuncalls() {
             if (checkTypeError(expectedType, funcallType)) {
                 errMgr.addFuncallTypeError(fp.second.first,
                                            fp.second.second,
-                                           fp.first->getFunctionName(),
+                                           fp.first->functionName(),
                                            expectedType, funcallType);
             }
         } else {
-            // errMgr.addUndefinedSymbolError(fp.first->getFunctionName(), fp.second.first, fp.second.second);
+            // errMgr.addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
         }
     }
 }

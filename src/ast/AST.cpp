@@ -6,7 +6,6 @@
 #include <memory>
 #include <ostream>
 #include <string>
-#include <type_traits>
 #include <cstring>
 
 void indent(std::ofstream &fs, int lvl) {
@@ -70,66 +69,45 @@ void Variable::compile(std::ofstream &fs, int) { fs << id_; }
 
 /* -------------------------------------------------------------------------- */
 
-Array::Array(std::string name, int size, Type type)
-    : Variable(name, type), size(size) {}
-
-std::string Array::getId() const { return Variable::id(); }
-
-int Array::getSize() const { return size; }
-
-ArrayDeclaration::ArrayDeclaration(std::string name, int size, Type type)
-    : Array(name, size, type) {}
-
 void ArrayDeclaration::display() {
-        std::cout << Array::getId() << "[" << size << "]";
+        std::cout << this->id() << "[" << size_ << "]";
 }
 
 void ArrayDeclaration::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
-        fs << getId() << "=[0 for _ in range(" << size << ")]";
+        fs << this->id() << "=[0 for _ in range(" << size_ << ")]";
 }
-
-ArrayAccess::ArrayAccess(std::string name, Type type,
-                         std::shared_ptr<Node> index)
-    : Array(name, -1, type), index(index) {}
-
-std::shared_ptr<Node> ArrayAccess::getIndex() const { return index; }
 
 void ArrayAccess::display() {
         std::cout << Variable::id() << "[";
-        index->display();
+        index_->display();
         std::cout << "]";
 }
 
 void ArrayAccess::compile(std::ofstream &fs, int) {
         fs << Variable::id() << "[";
-        index->compile(fs, 0);
+        index_->compile(fs, 0);
         fs << "]";
 }
 
 /* -------------------------------------------------------------------------- */
 
-Type Function::type() const { return type_.back(); }
 
 void Function::display() {
-        std::cout << "Function(" << id << ", [";
-        for (Variable p : params) {
+        std::cout << "Function(" << id_ << ", [";
+        for (Variable p : parameters_) {
                 p.display();
                 std::cout << ", ";
         }
         std::cout << "], ";
-        Statement::display();
+        block_->display();
         std::cout << ")" << std::endl;
 }
 
-Function::Function(std::string id, std::list<Variable> params,
-                   std::shared_ptr<Block> instructions, std::list<Type> type)
-    : Statement(instructions), id(id), params(params), type_(type) {}
-
 void Function::compile(std::ofstream &fs, int) {
-        fs << "def " << id << "(";
-        if (params.size() > 0) {
-                std::list<Variable> tmp = params;
+        fs << "def " << id_ << "(";
+        if (parameters_.size() > 0) {
+                std::list<Variable> tmp = parameters_;
                 tmp.front().compile(fs, 0);
                 tmp.pop_front();
                 for (Variable v : tmp) {
@@ -138,7 +116,7 @@ void Function::compile(std::ofstream &fs, int) {
                 }
         }
         fs << "):" << std::endl;
-        block->compile(fs, 0);
+        block_->compile(fs, 0);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -161,40 +139,36 @@ void Block::compile(std::ofstream &fs, int lvl) {
 
 /* -------------------------------------------------------------------------- */
 
-Assignment::Assignment(std::shared_ptr<Variable> variable,
-                         std::shared_ptr<TypedNode> value)
-    : variable(variable), value(value) {}
-
 void Assignment::display() {
         std::cout << "Assignment(";
-        variable->display();
+        variable_->display();
         std::cout << ",";
-        value->display();
+        value_->display();
         std::cout << ")" << std::endl;
 }
 
 void Assignment::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         // TODO: find a better way to handle this case
-        if (variable->type() == ARR_CHR && value->type() == ARR_CHR) {
-                std::shared_ptr<Array> array = std::dynamic_pointer_cast<Array>(variable);
-                std::shared_ptr<Value> val = std::dynamic_pointer_cast<Value>(value);
+        if (variable_->type() == ARR_CHR && value_->type() == ARR_CHR) {
+                std::shared_ptr<Array> array = std::dynamic_pointer_cast<Array>(variable_);
+                std::shared_ptr<Value> val = std::dynamic_pointer_cast<Value>(value_);
                 // WARN: the value contains the '"'
                 std::string str = val->value()._str;
                 // TODO: this should be done at runtime !
-                unsigned int size = std::min(array->getSize(), (int) str.size() - 2 + 1);
+                unsigned int size = std::min(array->size(), (int) str.size() - 2 + 1);
 
                 // reset the array before assignment of the string
-                fs << array->getId() << "=[0 for _ in range(" << array->getSize() << ")]" << std::endl;
+                fs << array->id() << "=[0 for _ in range(" << array->size() << ")]" << std::endl;
                 indent(fs, lvl);
                 fs << "for _ZZ_TRANSPILER_STRINGSET_INDEX in range(" << size - 1 << "):" << std::endl;
                 indent(fs, lvl + 1);
-                fs << variable->id() << "[_ZZ_TRANSPILER_STRINGSET_INDEX]=";
+                fs << variable_->id() << "[_ZZ_TRANSPILER_STRINGSET_INDEX]=";
                 fs << str << "[_ZZ_TRANSPILER_STRINGSET_INDEX]";
         } else {
-                variable->compile(fs, lvl);
+                variable_->compile(fs, lvl);
                 fs << "=";
-                switch (variable->type()) {
+                switch (variable_->type()) {
                 case INT:
                         fs << "int(";
                         break;
@@ -208,57 +182,44 @@ void Assignment::compile(std::ofstream &fs, int lvl) {
                         fs << "(";
                         break;
                 }
-                value->compile(fs, lvl);
+                value_->compile(fs, lvl);
                 fs << ")";
         }
 }
 
 /* -------------------------------------------------------------------------- */
 
-Declaration::Declaration(Variable variable) : variable(variable) {}
 
 void Declaration::display() {
         std::cout << "Declaration(";
-        variable.display();
+        variable_.display();
         std::cout << ")" << std::endl;
 }
 
 void Declaration::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
-        fs << "# " << variable.type() << " "
-           << variable.id();
+        fs << "# " << variable_.type() << " "
+           << variable_.id();
 }
 
 /* -------------------------------------------------------------------------- */
 
-Funcall::Funcall(std::string functionName,
-                 std::list<std::shared_ptr<TypedNode>> params, Type type)
-    : functionName(functionName), params(params) {
-        TypedNode::type_ = type;
-}
-
 void Funcall::display() {
-        std::cout << "Funcall(" << functionName << ", [";
-        for (std::shared_ptr<Node> p : params) {
+        std::cout << "Funcall(" << functionName_ << ", [";
+        for (std::shared_ptr<Node> p : params_) {
                 p->display();
                 std::cout << ", ";
         }
         std::cout << "])" << std::endl;
 }
 
-std::list<std::shared_ptr<TypedNode>> Funcall::getParams() const {
-        return params;
-}
-
-std::string Funcall::getFunctionName() const { return functionName; }
-
 void Funcall::compile(std::ofstream &fs, int lvl) {
         // TODO: there is more work to do when we pas a string to the function
         indent(fs, lvl);
-        fs << functionName << "(";
-        for (std::shared_ptr<Node> p : params) {
+        fs << functionName_ << "(";
+        for (std::shared_ptr<Node> p : params_) {
                 p->compile(fs, 0);
-                if (p != params.back())
+                if (p != params_.back())
                         fs << ',';
         }
         fs << ")";
@@ -268,25 +229,16 @@ void Funcall::compile(std::ofstream &fs, int lvl) {
 /*                                 statements                                 */
 /******************************************************************************/
 
-Statement::Statement(std::shared_ptr<Block> b) : block(b) {}
-
-void Statement::display() { block->display(); }
-
 /* -------------------------------------------------------------------------- */
-
-If::If(std::shared_ptr<Node> c, std::shared_ptr<Block> b)
-    : Statement(b), condition(c), elseBlock(nullptr) {}
-
-void If::createElse(std::shared_ptr<Block> block) { elseBlock = block; }
 
 void If::display() {
         std::cout << "If(";
-        condition->display();
+        condition_->display();
         std::cout << ", ";
-        Statement::display();
-        if (elseBlock != nullptr) { // print else block if needed
+        block_->display();
+        if (elseBlock_ != nullptr) { // print else block if needed
                 std::cout << ", Else(";
-                elseBlock->display();
+                elseBlock_->display();
                 std::cout << ")" << std::endl;
         }
         std::cout << ")" << std::endl;
@@ -295,34 +247,29 @@ void If::display() {
 void If::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         fs << "if ";
-        condition->compile(fs, 0);
+        condition_->compile(fs, 0);
         fs << ":" << std::endl;
-        block->compile(fs, lvl);
-        if (elseBlock != nullptr) {
+        block_->compile(fs, lvl);
+        if (elseBlock_ != nullptr) {
                 indent(fs, lvl);
                 fs << "else:" << std::endl;
-                elseBlock->compile(fs, lvl);
+                elseBlock_->compile(fs, lvl);
         }
 }
 
 /* -------------------------------------------------------------------------- */
 
-For::For(Variable v, std::shared_ptr<Node> begin,
-         std::shared_ptr<Node> end, std::shared_ptr<Node> step,
-         std::shared_ptr<Block> b)
-    : Statement(b), var(v), begin(begin), end(end), step(step) {}
-
 void For::display() {
         std::cout << "For(";
-        var.display();
+        variable_.display();
         std::cout << ", range(";
-        begin->display();
+        begin_->display();
         std::cout << ",";
-        end->display();
+        end_->display();
         std::cout << ",";
-        step->display();
+        step_->display();
         std::cout << "), ";
-        Statement::display();
+        block_->display();
         std::cout << ")" << std::endl;
 }
 
@@ -330,36 +277,33 @@ void For::compile(std::ofstream &fs, int lvl) {
         // TODO: vérifier les type et cast si besoin
         indent(fs, lvl);
         fs << "for ";
-        var.compile(fs, 0);
+        variable_.compile(fs, 0);
         fs << " in range(";
-        begin->compile(fs, 0);
+        begin_->compile(fs, 0);
         fs << ",";
-        end->compile(fs, 0);
+        end_->compile(fs, 0);
         fs << ",";
-        step->compile(fs, 0);
+        step_->compile(fs, 0);
         fs << "):" << std::endl;
-        block->compile(fs, lvl);
+        block_->compile(fs, lvl);
 }
 
 /* -------------------------------------------------------------------------- */
 
-While::While(std::shared_ptr<Node> c, std::shared_ptr<Block> b)
-    : Statement(b), condition(c) {}
-
 void While::display() {
         std::cout << "While(";
-        condition->display();
+        condition_->display();
         std::cout << ", ";
-        Statement::display();
+        block_->display();
         std::cout << ")" << std::endl;
 }
 
 void While::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         fs << "while ";
-        condition->compile(fs, 0);
+        condition_->compile(fs, 0);
         fs << ":" << std::endl;
-        block->compile(fs, lvl);
+        block_->compile(fs, lvl);
 }
 
 /******************************************************************************/

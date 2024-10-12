@@ -83,7 +83,7 @@ class Value : public TypedNode {
  */
 class Variable : public TypedNode {
   public:
-    Variable(std::string id, Type type) : TypedNode(type), id_(id) { }
+    Variable(std::string id, Type type) : TypedNode(type), id_(id) {}
     std::string const &id() const { return id_; }
 
     void display() override;
@@ -93,36 +93,48 @@ class Variable : public TypedNode {
     std::string id_;
 };
 
+/**
+ * @brief  Arrays.
+ *         Note: the language supports only 1 dimentional arrays.
+ */
 class Array : public Variable {
   public:
-    std::string getId() const;
-    int getSize() const;
-    Array(std::string, int, Type);
-    ~Array() = default;
+    Array(std::string name, int size, Type type)
+        : Variable(name, type), size_(size) {}
+    int size() const { return size_; }
 
   protected:
-    // TODO: this should be unsigned
-    int size;
+    int size_;
 };
 
+/**
+ * @brief  Represents array declaration. This class is just used to print the
+ *         AST but not for the compilation.
+ */
 class ArrayDeclaration : public Array {
   public:
+    ArrayDeclaration(std::string name, int size, Type type)
+        : Array(name, size, type) {}
+
     void display() override;
     void compile(std::ofstream &, int) override;
-    ArrayDeclaration(std::string, int, Type);
-    ~ArrayDeclaration() = default;
 };
 
+/**
+ * @brief  Represents the access to a particular element in an array (save the
+ *         index which is a node)
+ */
 class ArrayAccess : public Array {
   public:
+    ArrayAccess(std::string name, Type type, std::shared_ptr<Node> index)
+        : Array(name, -1, type), index_(index) {}
+    std::shared_ptr<Node> index() const { return index_; }
+
     void display() override;
     void compile(std::ofstream &, int) override;
-    std::shared_ptr<Node> getIndex() const;
-    ArrayAccess(std::string, Type, std::shared_ptr<Node>);
-    ~ArrayAccess() = default;
 
   private:
-    std::shared_ptr<Node> index;
+    std::shared_ptr<Node> index_ = nullptr;
 };
 
 /******************************************************************************/
@@ -130,35 +142,39 @@ class ArrayAccess : public Array {
 /******************************************************************************/
 
 /**
- * @brief  Represent an assignment operation. The "ifdef" check of the
- *         variable is done in the parser using the table of symbols.
+ * @brief  Represent an assignment operation using he 'set' operator.
  */
 class Assignment : public Node {
   public:
-    std::shared_ptr<Variable> getVariable() const { return variable; }
-    std::shared_ptr<TypedNode> getValue() const { return value; }
+    Assignment(std::shared_ptr<Variable> variable,
+               std::shared_ptr<TypedNode> value)
+        : variable_(variable), value_(value) {}
+
+    std::shared_ptr<Variable> variable() const { return variable_; }
+    std::shared_ptr<TypedNode> value() const { return value_; }
+
     void display() override;
     void compile(std::ofstream &, int) override;
-    Assignment(std::shared_ptr<Variable>, std::shared_ptr<TypedNode>);
 
   private:
-    std::shared_ptr<Variable> variable;
-    std::shared_ptr<TypedNode> value;
+    std::shared_ptr<Variable> variable_ = nullptr;
+    std::shared_ptr<TypedNode> value_ = nullptr;
 };
 
 /**
- * @brief  Declare a variable.
+ * @brief  Variable declaration.
  *
- * NOTE: could be nice to have a type here.
+ * TODO: unused
  */
 class Declaration : public Node {
   public:
+    Declaration(Variable variable) : variable_(variable) {}
+
     void display() override;
     void compile(std::ofstream &, int) override;
-    Declaration(Variable);
 
   private:
-    Variable variable;
+    Variable variable_;
 };
 
 /******************************************************************************/
@@ -172,15 +188,21 @@ class Declaration : public Node {
  */
 class Funcall : public TypedNode {
   public:
-    std::string getFunctionName() const;
-    void compile(std::ofstream &, int) override;
-    std::list<std::shared_ptr<TypedNode>> getParams() const;
-    Funcall(std::string, std::list<std::shared_ptr<TypedNode>>, Type);
+    Funcall(std::string const &functionName,
+            std::list<std::shared_ptr<TypedNode>> const &params, Type type)
+        : TypedNode(type), functionName_(functionName), params_(params) {}
+
+    std::list<std::shared_ptr<TypedNode>> const &params() const {
+        return params_;
+    }
+    std::string const &functionName() const { return functionName_; }
+
     void display() override;
+    void compile(std::ofstream &, int) override;
 
   private:
-    std::string functionName;
-    std::list<std::shared_ptr<TypedNode>> params;
+    std::string functionName_;
+    std::list<std::shared_ptr<TypedNode>> params_ = {};
 };
 
 // TODO: change this name
@@ -189,83 +211,84 @@ class Funcall : public TypedNode {
 /******************************************************************************/
 
 /**
- * @brief  A `Statement` is somthing that contains a `Block` (function
- *         definitions, if, for, while).
- */
-class Statement : public Node {
-  public:
-    Statement(std::shared_ptr<Block>);
-    void display() override;
-
-  protected:
-    std::shared_ptr<Block> block;
-};
-
-/**
  * @brief  Fonction declaration. It has an id (function name), some parameters
  *         (which are just variable declarations) and a return type.
  *
  * TODO: create a return statment and manage return type.
  */
-class Function : public Statement, public TypedNode {
+class Function : public TypedNode {
   public:
+    Function(std::string id, std::list<Variable> parameters,
+             std::shared_ptr<Block> instructions, std::list<Type> type)
+        : id_(id), parameters_(parameters), type_(type), block_(instructions) {}
+    Type type() const override { return type_.back(); }
     void display() override;
     void compile(std::ofstream &, int) override;
-    Type type() const override;
-    Function(std::string, std::list<Variable>, std::shared_ptr<Block>,
-             std::list<Type>);
 
   private:
-    std::string id;
-    std::list<Variable> params;
+    std::string id_;
+    std::list<Variable> parameters_;
     std::list<Type> type_;
+    std::shared_ptr<Block> block_ = nullptr;
 };
 
 /**
- * @brief  If declaration. It has a condition which is a boolean operation (ref:
- *         parser).
+ * @brief  Cnd statement.
  */
-class If : public Statement {
+class If : public Node {
   public:
-    If(std::shared_ptr<Node>, std::shared_ptr<Block>);
-    void createElse(std::shared_ptr<Block>);
+    If(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
+        : condition_(condition), block_(block), elseBlock_(nullptr) {}
+
+    void createElse(std::shared_ptr<Block> block) { elseBlock_ = block; }
+
     void display() override;
     void compile(std::ofstream &, int) override;
 
   private:
-    std::shared_ptr<Node> condition; // TODO: put real conditions
-    std::shared_ptr<Block> elseBlock;
+    std::shared_ptr<Node> condition_ = nullptr;
+    std::shared_ptr<Block> block_ = nullptr;
+    std::shared_ptr<Block> elseBlock_ = nullptr;
 };
 
 /**
- * @brief  For declaration. The for loop has a "range" which has a begin, an end
- *         and a step value. It also has a loop variable.
+ * @brief  For statement. The for loop contains the loop variable, and the
+ *         expressions that determine the begining, the end and the step of the
+ *         loop.
  */
-class For : public Statement {
+class For : public Node {
   public:
-    For(Variable, std::shared_ptr<Node>, std::shared_ptr<Node>,
-        std::shared_ptr<Node>, std::shared_ptr<Block>);
+    For(Variable variable, std::shared_ptr<Node> begin,
+        std::shared_ptr<Node> end, std::shared_ptr<Node> step,
+        std::shared_ptr<Block> block)
+        : variable_(variable), begin_(begin), end_(end), step_(step),
+          block_(block) {}
+
     void display() override;
     void compile(std::ofstream &, int) override;
 
   private:
-    Variable var;
-    std::shared_ptr<Node> begin;
-    std::shared_ptr<Node> end;
-    std::shared_ptr<Node> step;
+    Variable variable_;
+    std::shared_ptr<Node> begin_;
+    std::shared_ptr<Node> end_;
+    std::shared_ptr<Node> step_;
+    std::shared_ptr<Block> block_ = nullptr;
 };
 
 /**
  * @brief  While declaration. The while loop just has a condition.
  */
-class While : public Statement {
+class While : public Node {
   public:
-    While(std::shared_ptr<Node>, std::shared_ptr<Block>);
+    While(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
+        : condition_(condition), block_(block) {}
+
     void display() override;
     void compile(std::ofstream &, int) override;
 
   private:
-    std::shared_ptr<Node> condition; // TODO: create condition class
+    std::shared_ptr<Node> condition_ = nullptr;
+    std::shared_ptr<Block> block_ = nullptr;
 };
 
 /******************************************************************************/
