@@ -1,15 +1,8 @@
 #include "ProgramBuilder.hpp"
 
-ProgramBuilder::ProgramBuilder() {
-        program = std::make_shared<Program>();
-        blocks = std::list<std::shared_ptr<Block>>();
-        funParams = std::list<Variable>();
-        funcallParams = std::list<std::list<std::shared_ptr<TypedElement>>>();
-}
+ProgramBuilder::ProgramBuilder() : program(std::make_shared<Program>()) { }
 
 void ProgramBuilder::display() { program->display(); }
-
-void ProgramBuilder::addInclude(std::string i) { program->addInclude(i); }
 
 /******************************************************************************/
 /*                                   blocks                                   */
@@ -18,8 +11,8 @@ void ProgramBuilder::addInclude(std::string i) { program->addInclude(i); }
 /**
  * @brief  Add `command` to the last block of the block stack.
  */
-void ProgramBuilder::pushBlock(std::shared_ptr<ASTNode> command) {
-        blocks.back()->addOp(command);
+void ProgramBuilder::pushBlock(std::shared_ptr<Node> command) {
+        blocks.back()->add(command);
 }
 
 /**
@@ -46,7 +39,7 @@ std::shared_ptr<Block> ProgramBuilder::endBlock() {
  * @brief take the last block, add it to a new If and add the new If to the
  * parent block.
  */
-std::shared_ptr<If> ProgramBuilder::createIf(std::shared_ptr<ASTNode> condition,
+std::shared_ptr<If> ProgramBuilder::createCnd(std::shared_ptr<Node> condition,
                                              std::shared_ptr<Block> block) {
         return std::make_shared<If>(condition, block);
 }
@@ -56,9 +49,9 @@ std::shared_ptr<If> ProgramBuilder::createIf(std::shared_ptr<ASTNode> condition,
  * parent block.
  */
 std::shared_ptr<For> ProgramBuilder::createFor(Variable v,
-                                               std::shared_ptr<ASTNode> begin,
-                                               std::shared_ptr<ASTNode> end,
-                                               std::shared_ptr<ASTNode> step,
+                                               std::shared_ptr<Node> begin,
+                                               std::shared_ptr<Node> end,
+                                               std::shared_ptr<Node> step,
                                                std::shared_ptr<Block> block) {
         return std::make_shared<For>(v, begin, end, step, block);
 }
@@ -68,7 +61,7 @@ std::shared_ptr<For> ProgramBuilder::createFor(Variable v,
  * parent block.
  */
 std::shared_ptr<While>
-ProgramBuilder::createWhile(std::shared_ptr<ASTNode> condition,
+ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
                             std::shared_ptr<Block> block) {
         return std::make_shared<While>(condition, block);
 }
@@ -87,7 +80,7 @@ std::shared_ptr<Funcall> ProgramBuilder::createFuncall() {
 
 void ProgramBuilder::newFuncall(std::string name) {
         funcallIds.push_back(name);
-        funcallParams.push_back(std::list<std::shared_ptr<TypedElement>>());
+        funcallParams.push_back(std::list<std::shared_ptr<TypedNode>>());
 }
 
 void ProgramBuilder::createFunction(std::string name,
@@ -95,7 +88,7 @@ void ProgramBuilder::createFunction(std::string name,
                                     Type returnType) {
         std::list<Type> type;
         for (Variable v : funParams) {
-                type.push_back(v.getType());
+                type.push_back(v.type());
         }
         type.push_back(returnType);
         std::shared_ptr<Function> newfun =
@@ -104,7 +97,7 @@ void ProgramBuilder::createFunction(std::string name,
         funParams.clear();
 }
 
-void ProgramBuilder::pushFuncallParam(std::shared_ptr<TypedElement> newParam) {
+void ProgramBuilder::pushFuncallParam(std::shared_ptr<TypedNode> newParam) {
         funcallParams.back().push_back(newParam);
 }
 
@@ -127,7 +120,7 @@ std::list<Variable> ProgramBuilder::getFunParams() const { return funParams; }
 std::list<Type> ProgramBuilder::getParamsTypes() const {
         std::list<Type> paramsTypes;
         for (Variable v : funParams) {
-                paramsTypes.push_back(v.getType());
+                paramsTypes.push_back(v.type());
                 /* std::cout << "id => " << v.getId() << std::endl; */
         }
         return paramsTypes;

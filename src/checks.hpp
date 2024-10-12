@@ -16,6 +16,6 @@ void printType(std::ostringstream &oss, std::list<Type> types);
 bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType);
 void checkType(std::string file, int line, std::string name, Type expected,
                Type found);
-std::list<Type> getTypes(std::list<std::shared_ptr<TypedElement>> nodes);
+std::list<Type> getTypes(std::list<std::shared_ptr<TypedNode>> nodes);
 
 #endif

@@ -79,11 +79,11 @@
 
 %nterm <Type> type
 %nterm <Value> value
-%nterm <std::shared_ptr<TypedElement>> expression
-%nterm <std::shared_ptr<TypedElement>> variable
-%nterm <std::shared_ptr<TypedElement>> arithmeticOperation
-%nterm <std::shared_ptr<ASTNode>> booleanOperation
-%nterm <std::shared_ptr<TypedElement>> functionCall
+%nterm <std::shared_ptr<TypedNode>> expression
+%nterm <std::shared_ptr<TypedNode>> variable
+%nterm <std::shared_ptr<TypedNode>> arithmeticOperation
+%nterm <std::shared_ptr<TypedNode>> functionCall
+%nterm <std::shared_ptr<Node>> booleanOperation
 %nterm <std::shared_ptr<Block>> block
 %nterm <std::shared_ptr<If>> cnd
 %nterm <std::shared_ptr<If>> cndBase
@@ -206,7 +206,7 @@ code:
     | instruction code
     | RET expression[rs] {
         std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
-        Type foundType = $rs->getType();
+        Type foundType = $rs->type();
         Type expectedType = sym.value().getType().back();
         std::ostringstream oss;
 
@@ -244,9 +244,9 @@ shw:
     SHW'('expression[ic]')' {
         DEBUG("shw var");
         // spcial case for strings
-        if ($ic->getType() == ARR_CHR) {
+        if ($ic->type() == ARR_CHR) {
             auto stringValue = std::dynamic_pointer_cast<Value>($ic);
-            std::string str = stringValue->getValue()._str;
+            std::string str = stringValue->value()._str;
             pb.pushBlock(std::make_shared<Print>(str));
         } else {
             pb.pushBlock(std::make_shared<Print>($ic));
@@ -304,21 +304,21 @@ variable:
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
-        if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+        if (!isNumber($left->type()) || !isNumber($right->type())) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "add");
         }
         $$ = std::make_shared<AddOP>($left, $right);
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
-        if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+        if (!isNumber($left->type()) || !isNumber($right->type())) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "mns");
         }
         $$ = std::make_shared<MnsOP>($left, $right);
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
-        if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+        if (!isNumber($left->type()) || !isNumber($right->type())) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "tms");
         }
         $$ = std::make_shared<TmsOP>($left, $right);
@@ -326,7 +326,7 @@ arithmeticOperation:
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
         $$ = std::make_shared<DivOP>($left, $right);
-        if (!isNumber($left->getType()) || !isNumber($right->getType())) {
+        if (!isNumber($left->type()) || !isNumber($right->type())) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "div");
         }
     }
@@ -378,7 +378,7 @@ functionCall:
     parameterList')' {
         std::shared_ptr<Funcall> funcall = pb.createFuncall();
         // TODO: save the funcall and params in a vector (create a struct)
-        funcall->setType(VOID); // type to VOID by default, will change on the type check
+        funcall->type(VOID); // type to VOID by default, will change on the type check
         std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
         funcallsToCheck.push_back(std::make_pair(funcall, position));
         // the type check is done at the end !
@@ -416,7 +416,7 @@ variableDeclaration:
 assignment:
     SET'('variable[c] COMMA expression[ic]')' {
         DEBUG("new assignment");
-        Type icType = $ic->getType();
+        Type icType = $ic->type();
         std::shared_ptr<Variable> v = std::static_pointer_cast<Variable>($c);
         std::shared_ptr<Assignment> newAssignment = std::make_shared<Assignment>(v, $ic);
 
@@ -425,7 +425,7 @@ assignment:
             std::pair<std::string, int> position = std::make_pair(currentFile, @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
-            checkType(currentFile, @c.begin.line, v->getId(), $c->getType(), icType);
+            checkType(currentFile, @c.begin.line, v->id(), $c->type(), icType);
         }
         pb.pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
@@ -496,7 +496,7 @@ cndBase:
         contextManager.enterScope();
     } block[ops] {
         DEBUG("if");
-        $$ = pb.createIf($cond, $ops);
+        $$ = pb.createCnd($cond, $ops);
         contextManager.leaveScope();
     }
     ;
@@ -510,9 +510,9 @@ for:
         std::list<Type> type;
         if (isDefined(currentFile, @v.begin.line, $v, type)) {
             v = Variable($v, type.back());
-            checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type.back(), $b->getType());
-            checkType(currentFile, @e.begin.line, "RANGE_END",  type.back(), $e->getType());
-            checkType(currentFile, @s.begin.line, "RANGE_STEP", type.back(), $s->getType());
+            checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type.back(), $b->type());
+            checkType(currentFile, @e.begin.line, "RANGE_END",  type.back(), $e->type());
+            checkType(currentFile, @s.begin.line, "RANGE_STEP", type.back(), $s->type());
         }
         $$ = pb.createFor(v, $b, $e, $s, $ops);
         contextManager.leaveScope();
@@ -524,7 +524,7 @@ whl:
         contextManager.enterScope();
     } block[ops] {
         DEBUG("in whl");
-        $$ = pb.createWhile($cond, $ops);
+        $$ = pb.createWhl($cond, $ops);
         contextManager.leaveScope();
     }
     ;
@@ -566,9 +566,9 @@ void makeExecutable(std::string file) {
 void checkAssignments() {
     for (auto ap : assignmentsToCheck) {
         checkType(ap.second.first, ap.second.second,
-                  ap.first->getVariable()->getId(),
-                  ap.first->getVariable()->getType(),
-                  ap.first->getValue()->getType());
+                  ap.first->getVariable()->id(),
+                  ap.first->getVariable()->type(),
+                  ap.first->getValue()->type());
     }
 }
 
@@ -585,7 +585,7 @@ void checkFuncalls() {
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
             std::list<Type> funcallType = getTypes(fp.first->getParams());
-            fp.first->setType(expectedType.back());
+            fp.first->type(expectedType.back());
             expectedType = sym.value().getType();
             expectedType.pop_back(); // remove the return type
 

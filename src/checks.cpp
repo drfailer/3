@@ -50,10 +50,10 @@ void checkType(std::string file, int line, std::string name, Type expected,
 }
 
 // permet de récupérer les types des paramètres lors des appels de fonctions
-std::list<Type> getTypes(std::list<std::shared_ptr<TypedElement>> nodes) {
+std::list<Type> getTypes(std::list<std::shared_ptr<TypedNode>> nodes) {
         std::list<Type> types;
-        for (std::shared_ptr<TypedElement> node : nodes) {
-                types.push_back(node->getType());
+        for (std::shared_ptr<TypedNode> node : nodes) {
+                types.push_back(node->type());
         }
         return types;
 }
