@@ -1,0 +1,21 @@
+include intest/test-sub;
+
+fn bigger(int a, int b) -> int {
+  chr c;
+
+  if (sup(a, b)) {
+    return a;
+  }
+  return b;
+}
+
+include test-same;
+
+fn main() {
+  print(bigger(1, 3));
+  print("\n");
+  print("main\n");
+  test_same();
+  test_sub();
+  set(c, add('a', 'b'));
+}
