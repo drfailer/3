@@ -125,14 +125,29 @@ void ErrorManager::addUndefinedSymbolError(std::string file, int line, std::stri
  * @brief  Record an operator error. This occurs when an operator is used and
  *         lhs or rhs has the wrong type (for instance: `add(1, 'a')`).
  *
- * @param  name      Name of the oporator.
+ * @param  file      File where the error has been recorded.
  * @param  line      Location.line
- * @param  column    Location.column
+ * @param  name      Name of the oporator.
  */
 void ErrorManager::addOperatorError(std::string file, int line, std::string name) {
         std::ostringstream oss;
         oss << LOC(file, line) << ": bad usage of operator " << BOLD << name << NORM << "." << std::endl;
         addError(oss.str());
+}
+
+/**
+ * @brief  Record a literal string overflow error. This occurs when the user try
+ *         to define a "literal string" too large (see:
+ *         MAX_LITERAL_STRING_LENGTH in type)
+ *
+ * @param  file      File where the error has been recorded.
+ * @param  line      Location.line
+ * @param  column    Location.column
+ */
+void ErrorManager::addLiteralStringOverflowError(std::string file, int line) {
+    std::ostringstream oss;
+    oss << LOC(file, line) << ": literal string overflow." << std::endl;
+    addError(oss.str());
 }
 
 /**

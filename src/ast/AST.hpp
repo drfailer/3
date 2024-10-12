@@ -95,12 +95,12 @@ class Value : public TypedElement {
       public:
         void compile(std::ofstream &, int) override;
         void display() override;
-        type_t getValue() const;
-        Value(type_t, Type);
+        LiteralValue getValue() const;
+        Value(LiteralValue, Type);
         Value() = default;
 
       private:
-        type_t value;
+        LiteralValue value;
 };
 
 /**

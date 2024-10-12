@@ -246,7 +246,7 @@ shw:
         // spcial case for strings
         if ($ic->getType() == ARR_CHR) {
             auto stringValue = std::dynamic_pointer_cast<Value>($ic);
-            std::string str = stringValue->getValue().s;
+            std::string str = stringValue->getValue()._str;
             pb.pushBlock(std::make_shared<Print>(str));
         } else {
             pb.pushBlock(std::make_shared<Print>($ic));
@@ -435,23 +435,27 @@ assignment:
 value:
     INT {
         DEBUG("new int: " << $1);
-        type_t v = { .i = $1 };
+        LiteralValue v = { ._int = $1 };
         $$ = Value(v, INT);
     }
     | FLT {
         DEBUG("new double: " << $1);
-        type_t v = { .f = $1 };
+        LiteralValue v = { ._flt = $1 };
         $$ = Value(v, FLT);
     }
     | CHR {
         DEBUG("new char: " << $1);
-        type_t v = { .c = $1 };
+        LiteralValue v = { ._chr = $1 };
         $$ = Value(v, CHR);
     }
     | STRING {
         DEBUG("new char: " << $1);
-        type_t v = {0};
-        memcpy(v.s, $1.c_str(), $1.size());
+        LiteralValue v = {0};
+        if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
+            errMgr.addLiteralStringOverflowError(currentFile, @1.begin.line);
+            return 1;
+        }
+        memcpy(v._str, $1.c_str(), $1.size());
         $$ = Value(v, ARR_CHR);
     }
     ;

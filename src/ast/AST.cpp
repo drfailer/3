@@ -23,22 +23,22 @@ TypedElement::~TypedElement() {}
 
 /* -------------------------------------------------------------------------- */
 
-Value::Value(type_t value, Type type) : value(value) {
+Value::Value(LiteralValue value, Type type) : value(value) {
         TypedElement::type = type;
 }
 
-type_t Value::getValue() const { return value; }
+LiteralValue Value::getValue() const { return value; }
 
 void Value::display() {
         switch (type) {
         case INT:
-                std::cout << value.i;
+                std::cout << value._int;
                 break;
         case FLT:
-                std::cout << value.f;
+                std::cout << value._flt;
                 break;
         case CHR:
-                std::cout << "'" << value.c << "'";
+                std::cout << "'" << value._chr << "'";
                 break;
         default:
                 break;
@@ -48,19 +48,19 @@ void Value::display() {
 void Value::compile(std::ofstream &fs, int) {
         switch (type) {
         case INT:
-                fs << value.i;
+                fs << value._int;
                 break;
         case FLT:
-                fs << value.f;
+                fs << value._flt;
                 break;
         case CHR:
-                fs << "'" << value.c << "'";
+                fs << "'" << value._chr << "'";
                 break;
         case ARR_CHR: {
                 // WARN: the '"' are in the string (this may change).
                 // TODO: this doesn't work, the value is technically correct but
                 // it doesn't take in count the size of the targeted array.
-                std::string str = value.s;
+                std::string str = value._str;
                 fs << "[c for c in " << str << "]+[0]";
         } break;
         default:
@@ -209,7 +209,7 @@ void Assignment::compile(std::ofstream &fs, int lvl) {
                 std::shared_ptr<Array> array = std::dynamic_pointer_cast<Array>(variable);
                 std::shared_ptr<Value> val = std::dynamic_pointer_cast<Value>(value);
                 // WARN: the value contains the '"'
-                std::string str = val->getValue().s;
+                std::string str = val->getValue()._str;
                 // TODO: this should be done at runtime !
                 unsigned int size = std::min(array->getSize(), (int) str.size() - 2 + 1);
 

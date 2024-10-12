@@ -27,6 +27,7 @@ class ErrorManager {
                                    std::string name);
         void addNoEntryPointError();
         void addOperatorError(std::string file, int line, std::string name);
+        void addLiteralStringOverflowError(std::string file, int line);
 
         // Warnings:
         void addTypeAssignedWarning(std::string file, int line,

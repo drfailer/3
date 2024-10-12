@@ -4,25 +4,30 @@
 #include <iostream>
 #include <list>
 
-enum Kind { FUN_PARAM, LOCAL_VAR, LOCAL_ARRAY, FUNCTION };
+enum Kind {
+    FUNCTION,
+    FUN_PARAM,
+    LOCAL_VAR,
+    LOCAL_ARRAY
+};
 
 class Symbol {
-      public:
-        std::string getName() const;
-        std::list<Type> getType() const;
-        int getSize() const { return size; }
-        Kind getKind() const;
-        Symbol(std::string name, std::list<Type> type, Kind kind);
-        Symbol(std::string name, std::list<Type> type, unsigned int size,
-               Kind kind);
-        Symbol() = default;
-        ~Symbol() = default;
+  public:
+    Symbol(std::string name, std::list<Type> type, Kind kind);
+    Symbol(std::string name, std::list<Type> type, unsigned int size,
+           Kind kind);
+    Symbol() = default;
 
-      private:
-        std::string name;
-        std::list<Type> type;
-        unsigned int size; // size for arrays
-        Kind kind;
+    std::string getName() const;
+    std::list<Type> getType() const;
+    int getSize() const { return size; }
+    Kind getKind() const;
+
+  private:
+    std::string name;
+    std::list<Type> type;
+    unsigned int size; // size for arrays
+    Kind kind;
 };
 
 #endif
