@@ -31,4 +31,4 @@ set(files
   src/checks.cpp
 )
 
-add_executable(prog src/parser.cpp src/lexer.cpp ${files})
+add_executable(s3c src/parser.cpp src/lexer.cpp ${files})
