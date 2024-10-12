@@ -60,56 +60,56 @@ return       { DEBUG("L_return"); return Parser::token::RETURN; }
 "]"          { DEBUG("L_osquareb"); return Parser::token::CSQUAREB; }
 
 {file} {
-        DEBUG("L_file");
-        std::string filename = yytext + 3;
-        int lineNumber = 0;
-        int multiplier = 1;
+    DEBUG("L_file");
+    std::string filename = yytext + 3;
+    int lineNumber = 0;
+    int multiplier = 1;
 
+    filename.pop_back();
+    // parse the line number at the end of the file name
+    while (filename.back() != '-') {
+        lineNumber += multiplier * (filename.back() - '0');
+        multiplier *= 10;
         filename.pop_back();
-        // parse the line number at the end of the file name
-        while (filename.back() != '-') {
-                lineNumber += multiplier * (filename.back() - '0');
-                multiplier *= 10;
-                filename.pop_back();
-        }
-        filename.pop_back();
-        // reinitialize the location (note: the file is manage manually in the
-        // parser, we don't use flex locations).
-        yylloc->initialize(nullptr);
-        yylloc->lines(lineNumber);
-        yylloc->step();
-        yylval->build<std::string>(filename);
-        return Parser::token::PREPROCESSOR_LOCATION;
+    }
+    filename.pop_back();
+    // reinitialize the location (note: the file is manage manually in the
+    // parser, we don't use flex locations).
+    yylloc->initialize(nullptr);
+    yylloc->lines(lineNumber);
+    yylloc->step();
+    yylval->build<std::string>(filename);
+    return Parser::token::PREPROCESSOR_LOCATION;
 }
 
 {identifier} {
-        DEBUG("L_id");
-        yylval->build<std::string>(yytext);
-        return Parser::token::IDENTIFIER;
+    DEBUG("L_id");
+    yylval->build<std::string>(yytext);
+    return Parser::token::IDENTIFIER;
 }
 
 {int} {
-        DEBUG("L_int: ");
-        yylval->build<long long>((long long) std::atol(yytext));
-        return Parser::token::INT;
+    DEBUG("L_int: ");
+    yylval->build<long long>((long long) std::atol(yytext));
+    return Parser::token::INT;
 }
 
 {float} {
-        DEBUG("L_float");
-        yylval->build<double>((double) std::atof(yytext));
-        return Parser::token::FLOAT;
+    DEBUG("L_float");
+    yylval->build<double>((double) std::atof(yytext));
+    return Parser::token::FLOAT;
 }
 
 {char} {
-        DEBUG("L_char");
-        yylval->build<char>(yytext[1]);
-        return Parser::token::CHAR;
+    DEBUG("L_char");
+    yylval->build<char>(yytext[1]);
+    return Parser::token::CHAR;
 }
 
 {str} {
-        DEBUG("L_string");
-        yylval->build<std::string>(yytext);
-        return Parser::token::STRING;
+    DEBUG("L_string");
+    yylval->build<std::string>(yytext);
+    return Parser::token::STRING;
 }
 
 {semi}       { DEBUG("L_semi"); return Parser::token::SEMI; }
@@ -121,5 +121,5 @@ return       { DEBUG("L_return"); return Parser::token::RETURN; }
 %%
 
 int yyFlexLexer::yylex() {
-        throw std::runtime_error("Bad call to yyFlexLexer::yylex()");
+    throw std::runtime_error("Bad call to yyFlexLexer::yylex()");
 }
