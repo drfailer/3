@@ -9,7 +9,7 @@ project(transpiler)
 include_directories(src)
 
 # generate lexer and parser using flex and bison
-add_custom_target(parser ALL bison main_cpp.y
+add_custom_target(parser ALL bison -Wconflicts-sr -Wcounterexamples main_cpp.y
                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/main_cpp.y
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
                   COMMENT "building parser")
