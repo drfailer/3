@@ -603,7 +603,7 @@ void checkFuncalls() {
 
 void compile(std::string fileName, std::string outputName) {
     int parserOutput;
-    int preprocessorOutput = 0;
+    int preprocessorErrorStatus = 0;
 
     ProgramBuilder pb;
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
@@ -615,7 +615,7 @@ void compile(std::string fileName, std::string outputName) {
         pp.process(fileName); // launch the preprocessor
     } catch (std::logic_error& e) {
         errMgr.addError(e.what());
-        preprocessorOutput = 1;
+        preprocessorErrorStatus = 1;
     }
 
     // open and parse the file
@@ -628,7 +628,7 @@ void compile(std::string fileName, std::string outputName) {
 
     // loock for main
     std::optional<Symbol> sym = contextManager.lookup("main");
-    if (0 == parserOutput && 0 == preprocessorOutput && !sym.has_value()) {
+    if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym.has_value()) {
         errMgr.addNoEntryPointError();
     }
     // report errors and warnings
