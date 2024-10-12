@@ -78,11 +78,11 @@
 
 %nterm <Type> type
 %nterm <Value> value
-%nterm <std::shared_ptr<TypedElement>> inlineSymbol
-%nterm <std::shared_ptr<TypedElement>> container
-%nterm <std::shared_ptr<TypedElement>> arithmeticOperations
+%nterm <std::shared_ptr<TypedElement>> expression
+%nterm <std::shared_ptr<TypedElement>> variable
+%nterm <std::shared_ptr<TypedElement>> arithmeticOperation
 %nterm <std::shared_ptr<ASTNode>> booleanOperation
-%nterm <std::shared_ptr<TypedElement>> funcall
+%nterm <std::shared_ptr<TypedElement>> functionCall
 %nterm <std::shared_ptr<Block>> block
 %nterm <std::shared_ptr<If>> if
 %nterm <std::shared_ptr<If>> simpleIf
@@ -94,10 +94,10 @@
 %%
 start: program;
 
-program: %empty | programElt program ;
+program: %empty | programUnit program ;
 
-programElt:
-        function {
+programUnit:
+        functionDefinition {
                 DEBUG("create new function" );
         }
         | PREPROCESSOR_LOCATION {
@@ -111,12 +111,12 @@ programElt:
         }
         ;
 
-returnType:
+returnTypeSpecifier:
         ARROW type[rt] { currentFunctionReturnType = $rt; }
         | %empty { currentFunctionReturnType = VOID; }
         ;
 
-function:
+functionDefinition:
         FN IDENTIFIER[name] {
                 currentFunctionName = $name;
                 std::optional<Symbol> sym = contextManager.lookup($name);
@@ -129,7 +129,7 @@ function:
                         return 1;
                 }
                 contextManager.enterScope();
-        } '('paramDeclarations')' returnType {
+        } '('parameterDeclarationList')' returnTypeSpecifier {
                 std::list<Type> funType = pb.getParamsTypes();
                 funType.push_back(currentFunctionReturnType);
                 contextManager.newGlobalSymbol(currentFunctionName, funType, FUNCTION);
@@ -140,14 +140,14 @@ function:
         }
         ;
 
-paramDeclarations:
-        paramDeclaration
-        | paramDeclaration COMMA paramDeclarations
+parameterDeclarationList:
+        %empty
+        | parameterDeclaration
+        | parameterDeclaration COMMA parameterDeclarationList
         ;
 
-paramDeclaration:
-        %empty
-        | type[t] IDENTIFIER {
+parameterDeclaration:
+        type[t] IDENTIFIER {
                 DEBUG("new param: " << $2);
                 contextManager.newSymbol($2, std::list<Type>($t), FUN_PARAM);
                 pb.pushFunctionParam(Variable($2, $t));
@@ -163,14 +163,14 @@ paramDeclaration:
         }
         ;
 
-params:
-        param
-        | param COMMA params
+parameterList:
+        %empty
+        | parameter
+        | parameter COMMA parameterList
         ;
 
-param:
-        %empty
-        | inlineSymbol {
+parameter:
+        expression {
                 pb.pushFuncallParam($1);
         }
         ;
@@ -198,9 +198,9 @@ block:
 
 code:
         %empty
-        | statements code
-        | commands code
-        | RETURN inlineSymbol[rs] SEMI {
+        | statement code
+        | instruction SEMI code
+        | RETURN expression[rs] SEMI {
                 std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
                 Type foundType = $rs->getType();
                 Type expectedType = sym.value().getType().back();
@@ -223,21 +223,16 @@ code:
         }
         ;
 
-commands:
-        %empty
-        | command SEMI commands
-        ;
-
-command:
+instruction:
         print
         | read
-        | declaration
+        | variableDeclaration
         | assignment
-        | funcall { pb.pushBlock($1); }
+        | functionCall { pb.pushBlock($1); }
         ;
 
 read:
-        READ'('container[c]')' {
+        READ'('variable[c]')' {
                 DEBUG("read");
                 pb.pushBlock(std::make_shared<Read>($c));
         }
@@ -248,20 +243,20 @@ print:
                 DEBUG("print str");
                 pb.pushBlock(std::make_shared<Print>($s));
         }
-        | PRINT'('inlineSymbol[ic]')' {
+        | PRINT'('expression[ic]')' {
                 DEBUG("print var");
                 pb.pushBlock(std::make_shared<Print>($ic));
         }
         ;
 
-inlineSymbol:
-        arithmeticOperations { $$ = $1; }
-        | funcall { $$ = $1; }
+expression:
+        arithmeticOperation { $$ = $1; }
+        | functionCall { $$ = $1; }
         | value { $$ = std::make_shared<Value>($1); }
-        | container { $$ = $1; }
+        | variable { $$ = $1; }
         ;
 
-container:
+variable:
         IDENTIFIER {
                 DEBUG("new param variable");
                 std::list<Type> type;
@@ -281,7 +276,7 @@ container:
                 }
                 $$ = v;
         }
-        | IDENTIFIER OSQUAREB inlineSymbol[index] CSQUAREB {
+        | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
                 DEBUG("using an array");
                 std::list<Type> type;
                 std::shared_ptr<ArrayAccess> v;
@@ -295,14 +290,15 @@ container:
                         }
                         v = std::make_shared<ArrayAccess>($1, getValueType(type.back()), $index);
                 } else {
+                        // TODO: verify the type of the index
                         v = std::make_shared<ArrayAccess>($1, VOID, $index);
                 }
                 $$ = v;
         }
         ;
 
-arithmeticOperations:
-        ADD'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+arithmeticOperation:
+        ADD'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("addOP");
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
                         errMgr.addOperatorError(currentFile, @1.begin.line,
@@ -310,7 +306,7 @@ arithmeticOperations:
                 }
                 $$ = std::make_shared<AddOP>($left, $right);
         }
-        | MNS'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | MNS'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("mnsOP");
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
                         errMgr.addOperatorError(currentFile, @1.begin.line,
@@ -318,7 +314,7 @@ arithmeticOperations:
                 }
                 $$ = std::make_shared<MnsOP>($left, $right);
         }
-        | TMS'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | TMS'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("tmsOP");
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
                         errMgr.addOperatorError(currentFile, @1.begin.line,
@@ -326,7 +322,7 @@ arithmeticOperations:
                 }
                 $$ = std::make_shared<TmsOP>($left, $right);
         }
-        | DIV'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | DIV'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("divOP");
                 $$ = std::make_shared<DivOP>($left, $right);
                 if (!isNumber($left->getType()) || !isNumber($right->getType())) {
@@ -337,23 +333,23 @@ arithmeticOperations:
         ;
 
 booleanOperation:
-        EQL'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        EQL'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("EqlOP");
                 $$ = std::make_shared<EqlOP>($left, $right);
         }
-        | SUP'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | SUP'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("SupOP");
                 $$ = std::make_shared<SupOP>($left, $right);
         }
-        | INF'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | INF'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("InfOP");
                 $$ = std::make_shared<InfOP>($left, $right);
         }
-        | SEQ'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | SEQ'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("SeqOP");
                 $$ = std::make_shared<SeqOP>($left, $right);
         }
-        | IEQ'(' inlineSymbol[left] COMMA inlineSymbol[right] ')' {
+        | IEQ'(' expression[left] COMMA expression[right] ')' {
                 DEBUG("IeqOP");
                 $$ = std::make_shared<IeqOP>($left, $right);
         }
@@ -375,11 +371,11 @@ booleanOperation:
         }
         ;
 
-funcall:
+functionCall:
         IDENTIFIER'(' {
                 pb.newFuncall($1);
         }
-        params')' {
+        parameterList')' {
                 std::shared_ptr<Funcall> funcall = pb.createFuncall();
                 // TODO: save the funcall and params in a vector (create a struct)
                 funcall->setType(VOID); // type to VOID by default, will change on the type check
@@ -392,7 +388,7 @@ funcall:
         }
         ;
 
-declaration:
+variableDeclaration:
         type[t] IDENTIFIER[name] {
                 DEBUG("new declaration: " << $name);
                 // redefinitions are not allowed:
@@ -418,7 +414,7 @@ declaration:
         ;
 
 assignment:
-        SET'('container[c] COMMA inlineSymbol[ic]')' {
+        SET'('variable[c] COMMA expression[ic]')' {
                 DEBUG("new assignment");
                 Type icType = $ic->getType();
                 std::shared_ptr<Variable> v = std::static_pointer_cast<Variable>($c);
@@ -458,11 +454,6 @@ value:
                 memcpy(v.s, $1.c_str(), $1.size());
                 $$ = Value(v, ARR_CHR);
         }
-        ;
-
-statements:
-        %empty
-        | statement statements
         ;
 
 statement:
@@ -507,7 +498,7 @@ simpleIf:
         ;
 
 for:
-        FOR IDENTIFIER[v] IN RANGE'('inlineSymbol[b] COMMA inlineSymbol[e] COMMA inlineSymbol[s]')' {
+        FOR IDENTIFIER[v] IN RANGE'('expression[b] COMMA expression[e] COMMA expression[s]')' {
                 contextManager.enterScope();
         } block[ops] {
                 DEBUG("in for");
