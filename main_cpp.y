@@ -52,7 +52,8 @@
         Symtable symtable;
         ContextManager contextManager;
         ErrorManager errMgr;
-        std::string currentFunction = "";
+        std::string currentFunctionName = "";
+        Type currentFunctionReturnType = VOID;
         std::string currentFile = "";
 
         std::list<std::pair<std::shared_ptr<Funcall>, std::pair<std::string, int>>> funcallsToCheck;
@@ -110,34 +111,31 @@ programElt:
         }
         ;
 
+returnType:
+        ARROW type[rt] { currentFunctionReturnType = $rt; }
+        | %empty { currentFunctionReturnType = VOID; }
+        ;
+
 function:
-        FN IDENTIFIER[name]'('paramDeclarations')' {
-                currentFunction = $name;
+        FN IDENTIFIER[name] {
+                currentFunctionName = $name;
                 std::optional<Symbol> sym = contextManager.lookup($name);
                 // error on function redefinition
                 if (sym.has_value()) {
                         errMgr.addMultipleDefinitionError(currentFile,
                                                           @name.begin.line,
                                                           $name);
+                        // TODO: print the previous definition location
                         return 1;
                 }
-                std::list<Type> funType = pb.getParamsTypes();
-                funType.push_back(VOID);
-                contextManager.newSymbol($name, funType, FUNCTION);
                 contextManager.enterScope();
+        } '('paramDeclarations')' returnType {
+                std::list<Type> funType = pb.getParamsTypes();
+                funType.push_back(currentFunctionReturnType);
+                contextManager.newGlobalSymbol(currentFunctionName, funType, FUNCTION);
         } block[ops] {
                 // error if there is a return statement
-                pb.createFunction($name, $ops, VOID);
-                contextManager.leaveScope();
-        }
-        | FN IDENTIFIER[name]'('paramDeclarations')' ARROW type[rt] {
-                currentFunction = $name;
-                std::list<Type> funType = pb.getParamsTypes();
-                funType.push_back($rt);
-                contextManager.newSymbol($name, funType, FUNCTION);
-                contextManager.enterScope();
-        } block[ops] {
-                pb.createFunction($name, $ops, $rt);
+                pb.createFunction(currentFunctionName, $ops, currentFunctionReturnType);
                 contextManager.leaveScope();
         }
         ;
@@ -203,7 +201,7 @@ code:
         | statements code
         | commands code
         | RETURN inlineSymbol[rs] SEMI {
-                std::optional<Symbol> sym = contextManager.lookup(currentFunction);
+                std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
                 Type foundType = $rs->getType();
                 Type expectedType = sym.value().getType().back();
                 std::ostringstream oss;
@@ -211,13 +209,13 @@ code:
                 if (expectedType == VOID) { // no return allowed
                         errMgr.addUnexpectedReturnError(currentFile,
                                                         @1.begin.line,
-                                                        currentFunction);
+                                                        currentFunctionName);
                 } else if (expectedType != foundType && foundType != VOID) {
                         // must check if foundType is not void because of the
                         // buildin function (add, ...) which are not in the
                         // symtable
                         errMgr.addReturnTypeWarning(currentFile, @1.begin.line,
-                                                    currentFunction,
+                                                    currentFunctionName,
                                                     foundType, expectedType);
                 }
                 // else verify the type and throw a warning

@@ -1,11 +1,11 @@
 #include "ContextManager.hpp"
-#include <sstream>
 
-Symtable ContextManager::getScope() const { return *currentScope; }
+std::shared_ptr<Symtable> const ContextManager::getScope() const {
+        return currentScope;
+}
 
 void ContextManager::enterScope() {
-        std::shared_ptr<Symtable> newScope =
-            std::make_shared<Symtable>(currentScope);
+        auto newScope = std::make_shared<Symtable>(currentScope);
         currentScope->addScope(newScope);
         currentScope = newScope;
 }
@@ -17,9 +17,17 @@ void ContextManager::newSymbol(std::string name, std::list<Type> type,
         currentScope->add(name, type, kind);
 }
 
-void ContextManager::newSymbol(std::string name, std::list<Type> type, unsigned int size,
-                               Kind kind) {
+void ContextManager::newSymbol(std::string name, std::list<Type> type,
+                               unsigned int size, Kind kind) {
         currentScope->add(name, type, size, kind);
+}
+
+/**
+ * trick for functions
+ */
+void ContextManager::newGlobalSymbol(std::string name, std::list<Type> type,
+                                     Kind kind) {
+        globalScope->add(name, type, kind);
 }
 
 std::optional<Symbol> ContextManager::lookup(std::string name) const {

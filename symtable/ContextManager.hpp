@@ -1,22 +1,25 @@
 #ifndef __CONTEXT_MANAGER__
 #define __CONTEXT_MANAGER__
 #include "Symtable.hpp"
-#include <iostream>
 #include <list>
 
 class ContextManager {
       public:
+        ContextManager() :
+          currentScope(std::make_shared<Symtable>()),
+          globalScope(currentScope) {}
+
         void enterScope();
         void leaveScope();
-        Symtable getScope() const; // NOTE: may be wrong
+        std::shared_ptr<Symtable> const getScope() const; // NOTE: may be wrong
         void newSymbol(std::string name, std::list<Type> type, Kind kind);
         void newSymbol(std::string name, std::list<Type> type, unsigned int size, Kind kind);
+        void newGlobalSymbol(std::string name, std::list<Type> type, Kind kind);
         std::optional<Symbol> lookup(std::string name) const;
-        ContextManager() : currentScope(std::make_shared<Symtable>()) {}
-        ~ContextManager() = default;
 
       private:
-        std::shared_ptr<Symtable> currentScope;
+        std::shared_ptr<Symtable> currentScope = nullptr;
+        std::shared_ptr<Symtable> globalScope = nullptr;
 };
 
 #endif
