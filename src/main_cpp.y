@@ -61,19 +61,20 @@
 }
 
 %token <long long>  INT
-%token <double>     FLOAT
-%token <char>       CHAR
-/* %nonassoc           ASSIGN */
+%token <double>     FLT
+%token <char>       CHR
+%token NIL
 %token INTT FLTT CHRT
-%token IF ELSE FOR WHILE FN IN
-%token SEMI COMMA ARROW OSQUAREB CSQUAREB
-%token PRINT READ ADD MNS TMS DIV RANGE SET
-%token EQL SUP INF SEQ IEQ AND OR XOR NOT
+%token CND ELS FOR WHL
+%token COMMA OSQUAREB CSQUAREB
+%token SHW IPT ADD MNS TMS DIV RNG SET
+%token EQL SUP INF SEQ IEQ AND LOR XOR NOT
 %token <std::string> IDENTIFIER
 %token <std::string> STRING
 %token ERROR
-%token RETURN
-%token HASH EOL TEXT
+%token RET
+%token BGN END
+%token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
 
 %nterm <Type> type
@@ -84,10 +85,10 @@
 %nterm <std::shared_ptr<ASTNode>> booleanOperation
 %nterm <std::shared_ptr<TypedElement>> functionCall
 %nterm <std::shared_ptr<Block>> block
-%nterm <std::shared_ptr<If>> if
-%nterm <std::shared_ptr<If>> simpleIf
+%nterm <std::shared_ptr<If>> cnd
+%nterm <std::shared_ptr<If>> cndBase
 %nterm <std::shared_ptr<For>> for
-%nterm <std::shared_ptr<While>> while
+%nterm <std::shared_ptr<While>> whl
 
 %start start
 
@@ -112,14 +113,16 @@ programUnit:
     ;
 
 returnTypeSpecifier:
-    ARROW type[rt] {
+    type[rt] {
         currentFunctionReturnType = $rt;
     }
-    | %empty { currentFunctionReturnType = VOID; }
+    | NIL {
+        currentFunctionReturnType = VOID;
+    }
     ;
 
 functionDefinition:
-    FN IDENTIFIER[name] {
+    returnTypeSpecifier IDENTIFIER[name] {
         currentFunctionName = $name;
         std::optional<Symbol> sym = contextManager.lookup($name);
         // error on function redefinition
@@ -130,7 +133,7 @@ functionDefinition:
             return 1;
         }
         contextManager.enterScope();
-    } '('parameterDeclarationList')' returnTypeSpecifier {
+    } '('parameterDeclarationList')' {
         std::list<Type> funType = pb.getParamsTypes();
         funType.push_back(currentFunctionReturnType);
         contextManager.newGlobalSymbol(currentFunctionName, funType, FUNCTION);
@@ -189,9 +192,9 @@ type:
     ;
 
 block:
-    '{' {
+    BGN {
         pb.beginBlock();
-    } code '}' {
+    } code END {
         DEBUG("new block");
         $$ = pb.endBlock();
     }
@@ -200,8 +203,8 @@ block:
 code:
     %empty
     | statement code
-    | instruction SEMI code
-    | RETURN expression[rs] SEMI {
+    | instruction code
+    | RET expression[rs] {
         std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
         Type foundType = $rs->getType();
         Type expectedType = sym.value().getType().back();
@@ -223,23 +226,23 @@ code:
     ;
 
 instruction:
-    print
-    | read
+    shw
+    | ipt
     | variableDeclaration
     | assignment
     | functionCall { pb.pushBlock($1); }
     ;
 
-read:
-    READ'('variable[c]')' {
-        DEBUG("read");
+ipt:
+    IPT'('variable[c]')' {
+        DEBUG("ipt var");
         pb.pushBlock(std::make_shared<Read>($c));
     }
     ;
 
-print:
-    PRINT'('expression[ic]')' {
-        DEBUG("print var");
+shw:
+    SHW'('expression[ic]')' {
+        DEBUG("shw var");
         // spcial case for strings
         if ($ic->getType() == ARR_CHR) {
             auto stringValue = std::dynamic_pointer_cast<Value>($ic);
@@ -354,8 +357,8 @@ booleanOperation:
         DEBUG("AndOP");
         $$ = std::make_shared<AndOP>($left, $right);
     }
-    | OR'('booleanOperation[left] COMMA booleanOperation[right]')' {
-        DEBUG("OrOP");
+    | LOR'('booleanOperation[left] COMMA booleanOperation[right]')' {
+        DEBUG("LorOP");
         $$ = std::make_shared<OrOP>($left, $right);
     }
     | XOR'('booleanOperation[left] COMMA booleanOperation[right]')' {
@@ -435,12 +438,12 @@ value:
         type_t v = { .i = $1 };
         $$ = Value(v, INT);
     }
-    | FLOAT {
+    | FLT {
         DEBUG("new double: " << $1);
         type_t v = { .f = $1 };
         $$ = Value(v, FLT);
     }
-    | CHAR {
+    | CHR {
         DEBUG("new char: " << $1);
         type_t v = { .c = $1 };
         $$ = Value(v, CHR);
@@ -454,7 +457,7 @@ value:
     ;
 
 statement:
-    if {
+    cnd {
         DEBUG("new if");
         pb.pushBlock($1);
     }
@@ -462,20 +465,20 @@ statement:
         DEBUG("new for");
         pb.pushBlock($1);
     }
-    | while {
-        DEBUG("new for");
+    | whl {
+        DEBUG("new whl");
         pb.pushBlock($1);
     }
     ;
 
-if:
-    simpleIf {
+cnd:
+    cndBase {
         $$ = $1;
     }
-    | simpleIf[sif] ELSE {
+    | cndBase[sif] ELS {
+        DEBUG("els");
         contextManager.enterScope();
     } block[ops] {
-        DEBUG("else");
         std::shared_ptr<If> ifstmt = $sif;
         // adding else block
         ifstmt->createElse($ops);
@@ -484,8 +487,8 @@ if:
     }
     ;
 
-simpleIf:
-    IF '('booleanOperation[cond]')' {
+cndBase:
+    CND booleanOperation[cond] {
         contextManager.enterScope();
     } block[ops] {
         DEBUG("if");
@@ -495,7 +498,7 @@ simpleIf:
     ;
 
 for:
-    FOR IDENTIFIER[v] IN RANGE'('expression[b] COMMA expression[e] COMMA expression[s]')' {
+    FOR IDENTIFIER[v] RNG'('expression[b] COMMA expression[e] COMMA expression[s]')' {
         contextManager.enterScope();
     } block[ops] {
         DEBUG("in for");
@@ -512,11 +515,11 @@ for:
     }
     ;
 
-while:
-    WHILE '('booleanOperation[cond]')' {
+whl:
+    WHL '('booleanOperation[cond]')' {
         contextManager.enterScope();
     } block[ops] {
-        DEBUG("in while");
+        DEBUG("in whl");
         $$ = pb.createWhile($cond, $ops);
         contextManager.leaveScope();
     }

@@ -26,7 +26,7 @@ void Preprocessor::process_rec(std::string fileName) {
         int lineCount = 1;
         std::string line;
         std::string includedFileName;
-        std::regex includeStmt("^include .+;$");
+        std::regex includeStmt("^use .+$");
         std::regex fileIndicator("-->.*");
         std::ifstream currentFile;
 

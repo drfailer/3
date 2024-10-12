@@ -1,33 +1,29 @@
-fn fib(int n) -> int {
-  int fnn;
-  int fnn1;
-  int fnn2;
-  set(fnn2, 1);
-  set(fnn1, 1);
+int fib(int n) bgn
+    int fnn
+    int fnn1
+    int fnn2
+    set(fnn2, 1)
+    set(fnn1, 1)
 
-  if (ieq(n, 2)) {
-    return n;
-  }
-  else {
-    int i;
+    cnd ieq(n, 2) bgn
+        ret n
+    end els bgn
+        int i
 
-    for i in range(2, n, 1) {
-      set(fnn, add(fnn1, fnn2));
-      set(fnn2, fnn1);
-      set(fnn1, fnn);
-    }
-    return fnn;
-  }
-}
+        for i rng(2, n, 1) bgn
+            set(fnn, add(fnn1, fnn2))
+            set(fnn2, fnn1)
+            set(fnn1, fnn)
+        end
+        ret fnn
+    end
+end
 
-fn main() {
-  int n;
-  print("Enter a number:\n");
-  read(n);
-  print("fib of n is: ");
-  set(n, fib(n));
-  print(n);
-  print("\n");
-}
-
-
+nil main() bgn
+    int n shw("Enter a number:\n")
+    ipt(n)
+    shw("fib of n is: ")
+    set(n, fib(n))
+    shw(n)
+    shw("\n")
+end
