@@ -1,9 +1,9 @@
 build
-lexer.cpp
-location.hh
-parser.cpp
-parser.hpp
-position.hh
-stack.hh
+src/lexer.cpp
+src/location.hh
+src/parser.cpp
+src/parser.hpp
+src/position.hh
+src/stack.hh
 .cache/clangd/index
 compile_commands.json
