@@ -24,7 +24,7 @@ class ProgramBuilder {
     std::shared_ptr<Block> endBlock(); // pop the last block of the blocks stack
     void pushBlock(std::shared_ptr<Node>); // add command to the last block
 
-    std::shared_ptr<Funcall> createFuncall();
+    std::shared_ptr<FunctionCall> createFuncall();
 
     std::shared_ptr<If> createCnd(std::shared_ptr<Node>,
                                   std::shared_ptr<Block>);

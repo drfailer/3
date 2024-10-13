@@ -70,8 +70,8 @@ ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
 /*                                  funcalls                                  */
 /******************************************************************************/
 
-std::shared_ptr<Funcall> ProgramBuilder::createFuncall() {
-    std::shared_ptr<Funcall> newFuncall = std::make_shared<Funcall>(
+std::shared_ptr<FunctionCall> ProgramBuilder::createFuncall() {
+    std::shared_ptr<FunctionCall> newFuncall = std::make_shared<FunctionCall>(
         funcallIds.back(), funcallParams.back(), VOID);
     funcallIds.pop_back();
     funcallParams.pop_back();

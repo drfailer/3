@@ -197,7 +197,7 @@ void Declaration::compile(std::ofstream &fs, int lvl) {
 
 /* -------------------------------------------------------------------------- */
 
-void Funcall::display() {
+void FunctionCall::display() {
         std::cout << "Funcall(" << functionName_ << ", [";
         for (std::shared_ptr<Node> p : params_) {
                 p->display();
@@ -206,7 +206,7 @@ void Funcall::display() {
         std::cout << "])" << std::endl;
 }
 
-void Funcall::compile(std::ofstream &fs, int lvl) {
+void FunctionCall::compile(std::ofstream &fs, int lvl) {
         // TODO: there is more work to do when we pas a string to the function
         indent(fs, lvl);
         fs << functionName_ << "(";

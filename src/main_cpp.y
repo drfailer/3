@@ -56,7 +56,7 @@
     Type currentFunctionReturnType = VOID;
     std::string currentFile = "";
 
-    std::list<std::pair<std::shared_ptr<Funcall>, std::pair<std::string, int>>> funcallsToCheck;
+    std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck;
     std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck;
 }
 
@@ -376,7 +376,7 @@ functionCall:
         pb.newFuncall($1);
     }
     parameterList')' {
-        std::shared_ptr<Funcall> funcall = pb.createFuncall();
+        std::shared_ptr<FunctionCall> funcall = pb.createFuncall();
         // TODO: save the funcall and params in a vector (create a struct)
         funcall->type(VOID); // type to VOID by default, will change on the type check
         std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
@@ -420,7 +420,7 @@ assignment:
         auto v = std::static_pointer_cast<Variable>($c);
         auto newAssignment = std::make_shared<Assignment>(v, $ic);
 
-        if (std::static_pointer_cast<Funcall>($ic)) { // if funcall
+        if (std::static_pointer_cast<FunctionCall>($ic)) { // if funcall
             // this is a funcall so we have to wait the end of the parsing to check
             auto position = std::make_pair(currentFile, @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));

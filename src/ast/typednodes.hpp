@@ -86,9 +86,9 @@ class ArrayAccess : public Array {
  *         parameters are node as the can have multiple types (binary operation,
  *         variable, values, other funcall, ...)
  */
-class Funcall : public TypedNode {
+class FunctionCall : public TypedNode {
   public:
-    Funcall(std::string const &functionName,
+    FunctionCall(std::string const &functionName,
             std::list<std::shared_ptr<TypedNode>> const &params, Type type)
         : TypedNode(type), functionName_(functionName), params_(params) {}
 

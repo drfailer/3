@@ -1,6 +1,7 @@
 #ifndef STATEMENTS_H
 #define STATEMENTS_H
 #include "node.hpp"
+#include "typednodes.hpp"
 #include <memory>
 #include <list>
 

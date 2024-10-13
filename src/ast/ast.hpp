@@ -2,7 +2,7 @@
 #define AST_H
 
 #include "node.hpp"
-#include "builtin.hpp"
+#include "builtins.hpp"
 #include "declarations.hpp"
 #include "node.hpp"
 #include "operators.hpp"
