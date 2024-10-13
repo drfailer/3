@@ -80,3 +80,15 @@ bool isNumber(Type type) {
         return typeToCheck == INT || typeToCheck == FLT;
 }
 
+/**
+ * @brief  Automatic convertion to flt in operators (flt op int).
+ */
+Type selectType(Type left, Type right) {
+        Type type;
+        if (left == INT && right == INT) {
+                type = INT;
+        } else {
+                type = FLT;
+        }
+        return type;
+}

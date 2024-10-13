@@ -21,4 +21,6 @@ bool isNumber(Type type);
 std::ostream& operator<<(std::ostream& os, const Type& type);
 std::ostream& operator<<(std::ostream& os, const std::list<Type> types);
 
+Type selectType(Type left, Type right);
+
 #endif

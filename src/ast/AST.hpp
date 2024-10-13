@@ -163,8 +163,6 @@ class Assignment : public Node {
 
 /**
  * @brief  Variable declaration.
- *
- * TODO: unused
  */
 class Declaration : public Node {
   public:
@@ -297,38 +295,52 @@ class While : public Node {
 
 class BinaryOperation : public Node {
   public:
-    BinaryOperation(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    BinaryOperation(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : left_(left), right_(right) {}
+
     void display() override;
 
   protected:
-    std::shared_ptr<Node> left;
-    std::shared_ptr<Node> right;
+    std::shared_ptr<Node> left_ = nullptr;
+    std::shared_ptr<Node> right_ = nullptr;
 };
 
 class AddOP : public BinaryOperation, public TypedNode {
   public:
-    AddOP(std::shared_ptr<TypedNode>, std::shared_ptr<TypedNode>);
+    AddOP(std::shared_ptr<TypedNode> left, std::shared_ptr<TypedNode> right)
+        : BinaryOperation(left, right),
+          TypedNode(selectType(left->type(), right->type())) {}
+
     void display() override; // +
     void compile(std::ofstream &, int) override;
 };
 
 class MnsOP : public BinaryOperation, public TypedNode {
   public:
-    MnsOP(std::shared_ptr<TypedNode>, std::shared_ptr<TypedNode>);
+    MnsOP(std::shared_ptr<TypedNode> left, std::shared_ptr<TypedNode> right)
+        : BinaryOperation(left, right),
+          TypedNode(selectType(left->type(), right->type())) {}
+
     void display() override; // -
     void compile(std::ofstream &, int) override;
 };
 
 class TmsOP : public BinaryOperation, public TypedNode {
   public:
-    TmsOP(std::shared_ptr<TypedNode>, std::shared_ptr<TypedNode>);
+    TmsOP(std::shared_ptr<TypedNode> left, std::shared_ptr<TypedNode> right)
+        : BinaryOperation(left, right),
+          TypedNode(selectType(left->type(), right->type())) {}
+
     void display() override; // *
     void compile(std::ofstream &, int) override;
 };
 
 class DivOP : public BinaryOperation, public TypedNode {
   public:
-    DivOP(std::shared_ptr<TypedNode>, std::shared_ptr<TypedNode>);
+    DivOP(std::shared_ptr<TypedNode> left, std::shared_ptr<TypedNode> right)
+        : BinaryOperation(left, right),
+          TypedNode(selectType(left->type(), right->type())) {}
+
     void display() override; // /
     void compile(std::ofstream &, int) override;
 };
@@ -339,63 +351,80 @@ class DivOP : public BinaryOperation, public TypedNode {
 
 class EqlOP : public BinaryOperation {
   public:
-    EqlOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    EqlOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left == right
     void compile(std::ofstream &, int) override;
 };
 
 class SupOP : public BinaryOperation {
   public:
-    SupOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    SupOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left == right
     void compile(std::ofstream &, int) override;
 };
 
 class InfOP : public BinaryOperation {
   public:
-    InfOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    InfOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left == right
     void compile(std::ofstream &, int) override;
 };
 
 class SeqOP : public BinaryOperation {
   public:
-    SeqOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    SeqOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left == right
     void compile(std::ofstream &, int) override;
 };
 
 class IeqOP : public BinaryOperation {
   public:
-    IeqOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    IeqOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left == right
     void compile(std::ofstream &, int) override;
 };
 
 class OrOP : public BinaryOperation {
   public:
-    OrOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    OrOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left || right
     void compile(std::ofstream &, int) override;
 };
 
 class AndOP : public BinaryOperation {
   public:
-    AndOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    AndOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left && right
     void compile(std::ofstream &, int) override;
 };
 
 class XorOP : public BinaryOperation {
   public:
-    XorOP(std::shared_ptr<Node>, std::shared_ptr<Node>);
+    XorOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
+        : BinaryOperation(left, right) {}
+
     void display() override; // left ^ right
     void compile(std::ofstream &, int) override;
 };
 
 class NotOP : public Node {
   public:
-    NotOP(std::shared_ptr<Node>);
+    NotOP(std::shared_ptr<Node> param) : param(param) {}
+
     void display() override; // !param
     void compile(std::ofstream &, int) override;
 
@@ -413,10 +442,11 @@ class NotOP : public Node {
  */
 class Print : public Node {
   public:
-    void display() override;
     Print(std::string);
     Print(std::shared_ptr<Node>);
+
     void compile(std::ofstream &, int) override;
+    void display() override;
 
   private:
     std::string str;

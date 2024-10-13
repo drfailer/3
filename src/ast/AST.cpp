@@ -1,5 +1,4 @@
 #include "AST.hpp"
-#include "Types.hpp"
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -307,38 +306,14 @@ void While::compile(std::ofstream &fs, int lvl) {
 }
 
 /******************************************************************************/
-/*                                 operators                                  */
-/******************************************************************************/
-
-BinaryOperation::BinaryOperation(std::shared_ptr<Node> left,
-                                 std::shared_ptr<Node> right)
-    : left(left), right(right) {}
-
-/******************************************************************************/
 /*                           arithemtic operations                            */
 /******************************************************************************/
 
-Type selectType(Type left, Type right) {
-        Type type;
-        if (left == INT && right == INT) {
-                type = INT;
-        } else {
-                type = FLT;
-        }
-        return type;
-}
-
 void BinaryOperation::display() {
-        left->display();
+        left_->display();
         std::cout << ", ";
-        right->display();
+        right_->display();
         std::cout << ")";
-}
-
-AddOP::AddOP(std::shared_ptr<TypedNode> left,
-             std::shared_ptr<TypedNode> right)
-    : BinaryOperation(left, right) {
-        type_ = selectType(left->type(), right->type());
 }
 
 void AddOP::display() {
@@ -348,16 +323,10 @@ void AddOP::display() {
 
 void AddOP::compile(std::ofstream &fs, int) {
         fs << "(";
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "+";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
         fs << ")";
-}
-
-MnsOP::MnsOP(std::shared_ptr<TypedNode> left,
-             std::shared_ptr<TypedNode> right)
-    : BinaryOperation(left, right) {
-        type_ = selectType(left->type(), right->type());
 }
 
 void MnsOP::display() {
@@ -367,16 +336,10 @@ void MnsOP::display() {
 
 void MnsOP::compile(std::ofstream &fs, int) {
         fs << "(";
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "-";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
         fs << ")";
-}
-
-TmsOP::TmsOP(std::shared_ptr<TypedNode> left,
-             std::shared_ptr<TypedNode> right)
-    : BinaryOperation(left, right) {
-        type_ = selectType(left->type(), right->type());
 }
 
 void TmsOP::display() {
@@ -386,16 +349,10 @@ void TmsOP::display() {
 
 void TmsOP::compile(std::ofstream &fs, int) {
         fs << "(";
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "*";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
         fs << ")";
-}
-
-DivOP::DivOP(std::shared_ptr<TypedNode> left,
-             std::shared_ptr<TypedNode> right)
-    : BinaryOperation(left, right) {
-        type_ = selectType(left->type(), right->type());
 }
 
 void DivOP::display() {
@@ -405,9 +362,9 @@ void DivOP::display() {
 
 void DivOP::compile(std::ofstream &fs, int) {
         fs << "(";
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "/";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
         fs << ")";
 }
 
@@ -415,22 +372,16 @@ void DivOP::compile(std::ofstream &fs, int) {
 /*                             boolean operations                             */
 /******************************************************************************/
 
-EqlOP::EqlOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
-
 void EqlOP::display() {
         std::cout << "EqlOP(";
         BinaryOperation::display();
 }
 
 void EqlOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "==";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-SupOP::SupOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void SupOP::display() {
         std::cout << "SupOP(";
@@ -438,13 +389,10 @@ void SupOP::display() {
 }
 
 void SupOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << ">";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-InfOP::InfOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void InfOP::display() {
         std::cout << "InfOP(";
@@ -452,13 +400,10 @@ void InfOP::display() {
 }
 
 void InfOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "<";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-SeqOP::SeqOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void SeqOP::display() {
         std::cout << "SeqOP(";
@@ -466,13 +411,10 @@ void SeqOP::display() {
 }
 
 void SeqOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << ">=";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-IeqOP::IeqOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void IeqOP::display() {
         std::cout << "IeqOP(";
@@ -480,13 +422,10 @@ void IeqOP::display() {
 }
 
 void IeqOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << "<=";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-OrOP::OrOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void OrOP::display() {
         std::cout << "OrOP(";
@@ -494,13 +433,10 @@ void OrOP::display() {
 }
 
 void OrOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << " or ";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-AndOP::AndOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void AndOP::display() {
         std::cout << "AndOP(";
@@ -508,13 +444,10 @@ void AndOP::display() {
 }
 
 void AndOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << " and ";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-XorOP::XorOP(std::shared_ptr<Node> left, std::shared_ptr<Node> right)
-    : BinaryOperation(left, right) {}
 
 void XorOP::display() {
         std::cout << "XorOP(";
@@ -522,12 +455,10 @@ void XorOP::display() {
 }
 
 void XorOP::compile(std::ofstream &fs, int) {
-        left->compile(fs, 0);
+        left_->compile(fs, 0);
         fs << " and ";
-        right->compile(fs, 0);
+        right_->compile(fs, 0);
 }
-
-NotOP::NotOP(std::shared_ptr<Node> param) : param(param) {}
 
 void NotOP::display() {
         std::cout << "NotOP(";
