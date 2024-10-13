@@ -1,6 +1,6 @@
-#ifndef __PROGRAM__
-#define __PROGRAM__
-#include "AST.hpp"
+#ifndef PROGRAM_H
+#define PROGRAM_H
+#include "ast.hpp"
 #include <fstream>
 
 /******************************************************************************/

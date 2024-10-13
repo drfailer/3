@@ -1,8 +1,6 @@
-#ifndef PREPROCESSOR_HPP
-#define PREPROCESSOR_HPP
+#ifndef PREPROCESSOR_H
+#define PREPROCESSOR_H
 #include <fstream>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 

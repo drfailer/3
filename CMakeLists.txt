@@ -19,16 +19,16 @@ add_custom_target(lexer ALL flex main_cpp.l
                   COMMENT "building lexer")
 
 set(files
-  src/ast/AST.cpp
-  src/ast/Program.cpp
-  src/ast/ProgramBuilder.cpp
-  src/ast/Types.cpp
-  src/symtable/Symtable.cpp
-  src/symtable/Symbol.cpp
-  src/symtable/ContextManager.cpp
-  src/errorManager/ErrorManager.cpp
+  src/ast/ast.cpp
+  src/ast/program.cpp
+  src/symtable/symtable.cpp
+  src/symtable/symbol.cpp
+  src/symtable/contextmanager.cpp
+  src/typesystem/types.cpp
+  src/tools/errormanager.cpp
+  src/tools/programbuilder.cpp
+  src/tools/checks.cpp
   src/preprocessor/preprocessor.cpp
-  src/checks.cpp
 )
 
 add_executable(s3c src/parser.cpp src/lexer.cpp ${files})

@@ -1,11 +1,8 @@
-#ifndef CHECKS_HPP
-#define CHECKS_HPP
-#include "ast/ProgramBuilder.hpp"
-#include "errorManager/ErrorManager.hpp"
-#include "preprocessor/preprocessor.hpp"
-#include "symtable/ContextManager.hpp"
-#include "symtable/Symbol.hpp"
-#include "symtable/Symtable.hpp"
+#ifndef CHECKS_H
+#define CHECKS_H
+#include "ast/ast.hpp"
+#include "symtable/contextmanager.hpp"
+#include "tools/errormanager.hpp"
 
 extern ContextManager contextManager;
 extern ErrorManager errMgr;

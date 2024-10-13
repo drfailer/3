@@ -1,13 +1,15 @@
-#include "Symtable.hpp"
+#include "symtable.hpp"
 #include <memory>
 
 Symtable::Symtable(std::shared_ptr<Symtable> father) : father(father) {}
 
 bool contains(std::unordered_map<std::string, Symbol> table, std::string name) {
-        for (const auto &[key, value] : table)
-                if (key == name)
-                        return true;
-        return false;
+    for (const auto &[key, value] : table) {
+        if (key == name) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -29,13 +31,13 @@ bool contains(std::unordered_map<std::string, Symbol> table, std::string name) {
  *          current scope.
  */
 std::optional<Symbol> Symtable::lookup(std::string name) {
-        if (contains(table, name)) {
-                return table[name];
-        } else {
-                if (father != nullptr) // recherche dans la table supérieure
-                        return father->lookup(name);
-        }
-        return {};
+    if (contains(table, name)) {
+        return table[name];
+    } else {
+        if (father != nullptr) // recherche dans la table supérieure
+            return father->lookup(name);
+    }
+    return {};
 }
 
 /**
@@ -47,7 +49,7 @@ std::optional<Symbol> Symtable::lookup(std::string name) {
  * @param  kind   Kind of the new symbol (param, local variable, ...)
  */
 void Symtable::add(std::string name, std::list<Type> type, Kind kind) {
-        table[name] = Symbol(name, type, kind);
+    table[name] = Symbol(name, type, kind);
 }
 
 /**
@@ -61,15 +63,15 @@ void Symtable::add(std::string name, std::list<Type> type, Kind kind) {
  */
 void Symtable::add(std::string name, std::list<Type> type, unsigned int size,
                    Kind kind) {
-        table[name] = Symbol(name, type, size, kind);
+    table[name] = Symbol(name, type, size, kind);
 }
 
 std::shared_ptr<Symtable> Symtable::getFather() const { return father; }
 
 std::list<std::shared_ptr<Symtable>> Symtable::getChildScopes() const {
-        return childScopes;
+    return childScopes;
 }
 
 void Symtable::addScope(std::shared_ptr<Symtable> newScope) {
-        childScopes.push_back(newScope);
+    childScopes.push_back(newScope);
 }

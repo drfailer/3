@@ -1,6 +1,6 @@
-#ifndef __AST__
-#define __AST__
-#include "Types.hpp"
+#ifndef AST_H
+#define AST_H
+#include "typesystem/types.hpp"
 #include <cstdio>
 #include <fstream>
 #include <list>
@@ -16,7 +16,7 @@
  */
 class Node {
   public:
-    virtual ~Node() = 0;
+    virtual ~Node() = default;
     virtual void compile(std::ofstream &, int) = 0;
     virtual void display() = 0;
 };
@@ -54,7 +54,8 @@ class Block : public Node {
 class TypedNode : public Node {
   public:
     TypedNode(Type type = VOID) : type_(type) {}
-    virtual ~TypedNode() = 0;
+    virtual ~TypedNode() = default;
+
     virtual Type type() const { return type_; }
     void type(Type type) { this->type_ = type; }
 
@@ -442,15 +443,17 @@ class NotOP : public Node {
  */
 class Print : public Node {
   public:
-    Print(std::string);
-    Print(std::shared_ptr<Node>);
+    Print(std::shared_ptr<Node> content) : str_(""), content_(content) {}
+
+    Print(std::string str)
+        : str_(str), content_(std::shared_ptr<Node>(nullptr)) {}
 
     void compile(std::ofstream &, int) override;
     void display() override;
 
   private:
-    std::string str;
-    std::shared_ptr<Node> content;
+    std::string str_;
+    std::shared_ptr<Node> content_ = nullptr;
 };
 
 /**
@@ -458,12 +461,13 @@ class Print : public Node {
  */
 class Read : public Node {
   public:
+    Read(std::shared_ptr<TypedNode> variable) : variable_(variable) {}
+
     void display() override;
-    Read(std::shared_ptr<TypedNode>);
     void compile(std::ofstream &, int) override;
 
   private:
-    std::shared_ptr<TypedNode> variable;
+    std::shared_ptr<TypedNode> variable_ = nullptr;
 };
 
 /******************************************************************************/
@@ -472,12 +476,13 @@ class Read : public Node {
 
 class Return : public Node {
   public:
+    Return(std::shared_ptr<Node> returnExpr) : returnExpr_(returnExpr) {}
+
     void display() override;
     void compile(std::ofstream &, int) override;
-    Return(std::shared_ptr<Node>);
 
   private:
-    std::shared_ptr<Node> returnExpr;
+    std::shared_ptr<Node> returnExpr_ = nullptr;
 };
 
 #endif

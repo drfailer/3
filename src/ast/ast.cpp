@@ -1,4 +1,4 @@
-#include "AST.hpp"
+#include "ast.hpp"
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -12,12 +12,6 @@ void indent(std::ofstream &fs, int lvl) {
                 fs << '\t';
         }
 }
-
-/* -------------------------------------------------------------------------- */
-
-Node::~Node() {}
-
-TypedNode::~TypedNode() {}
 
 /* -------------------------------------------------------------------------- */
 
@@ -476,17 +470,12 @@ void NotOP::compile(std::ofstream &fs, int) {
 /*                                     IO                                     */
 /******************************************************************************/
 
-Print::Print(std::shared_ptr<Node> content) : str(""), content(content) {}
-
-Print::Print(std::string str)
-    : str(str), content(std::shared_ptr<Node>(nullptr)) {}
-
 void Print::display() {
         std::cout << "Print(";
-        if (content != nullptr) {
-                content->display();
+        if (content_ != nullptr) {
+                content_->display();
         } else {
-                std::cout << str;
+                std::cout << str_;
         }
         std::cout << ");" << std::endl;
 }
@@ -494,26 +483,24 @@ void Print::display() {
 void Print::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         fs << "print(";
-        if (content == nullptr) {
-                fs << str;
+        if (content_ == nullptr) {
+                fs << str_;
         } else {
-                content->compile(fs, 0);
+                content_->compile(fs, 0);
         }
         fs << ",end=\"\")";
 }
 
-Read::Read(std::shared_ptr<TypedNode> variable) : variable(variable) {}
-
 void Read::display() {
         std::cout << "Read(";
-        variable->display();
+        variable_->display();
         std::cout << ")" << std::endl;
 }
 
 void Read::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
-        variable->compile(fs, 0);
-        switch (variable->type()) {
+        variable_->compile(fs, 0);
+        switch (variable_->type()) {
         case INT:
                 fs << " = int(input())";
                 break;
@@ -530,16 +517,14 @@ void Read::compile(std::ofstream &fs, int lvl) {
 /*                                   return                                   */
 /******************************************************************************/
 
-Return::Return(std::shared_ptr<Node> returnExpr) : returnExpr(returnExpr) {}
-
 void Return::display() {
         std::cout << "Return(";
-        returnExpr->display();
+        returnExpr_->display();
         std::cout << ")";
 }
 
 void Return::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         fs << "return ";
-        returnExpr->compile(fs, 0);
+        returnExpr_->compile(fs, 0);
 }

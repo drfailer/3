@@ -1,5 +1,4 @@
 #include "checks.hpp"
-#include <iostream>
 #include <optional>
 
 // TODO: rewrite all this stuff

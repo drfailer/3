@@ -1,4 +1,4 @@
-#include "Symbol.hpp"
+#include "symtable/symbol.hpp"
 
 Symbol::Symbol(std::string name, std::list<Type> type, unsigned int size, Kind kind)
     : name(name), type(type), size(size), kind(kind) {}

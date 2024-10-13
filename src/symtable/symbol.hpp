@@ -1,7 +1,6 @@
-#ifndef __SYMBOL__
-#define __SYMBOL__
-#include "ast/Types.hpp"
-#include <iostream>
+#ifndef SYMBOL_H
+#define SYMBOL_H
+#include "typesystem/types.hpp"
 #include <list>
 
 enum Kind {

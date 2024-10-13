@@ -1,6 +1,6 @@
-#ifndef __CONTEXT_MANAGER__
-#define __CONTEXT_MANAGER__
-#include "Symtable.hpp"
+#ifndef CONTEXT_MANAGER_H
+#define CONTEXT_MANAGER_H
+#include "symtable/symtable.hpp"
 #include <list>
 
 class ContextManager {

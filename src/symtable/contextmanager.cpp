@@ -1,4 +1,4 @@
-#include "ContextManager.hpp"
+#include "contextmanager.hpp"
 
 std::shared_ptr<Symtable> const ContextManager::getScope() const {
         return currentScope;

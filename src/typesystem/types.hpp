@@ -1,5 +1,5 @@
-#ifndef __TYPES__
-#define __TYPES__
+#ifndef TYPES_H
+#define TYPES_H
 #include <iostream>
 #include <list>
 #define MAX_LITERAL_STRING_LENGTH 1000

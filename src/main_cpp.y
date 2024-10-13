@@ -5,12 +5,12 @@
 #include <FlexLexer.h>
 #include <fstream>
 #include <filesystem>
-#include "ast/AST.hpp"
-#include "ast/ProgramBuilder.hpp"
-#include "symtable/Symtable.hpp"
-#include "symtable/Symbol.hpp"
-#include "symtable/ContextManager.hpp"
-#include "errorManager/ErrorManager.hpp"
+#include "ast/ast.hpp"
+#include "symtable/symtable.hpp"
+#include "symtable/symbol.hpp"
+#include "symtable/contextmanager.hpp"
+#include "tools/programbuilder.hpp"
+#include "tools/errormanager.hpp"
 #include "preprocessor/preprocessor.hpp"
 #define YYLOCATION_PRINT   location_print
 #define YYDEBUG 1
@@ -35,8 +35,8 @@
 
 %code requires
 {
-    #include "ast/AST.hpp"
-    #include "ast/ProgramBuilder.hpp"
+    #include "ast/ast.hpp"
+    #include "tools/programbuilder.hpp"
     namespace interpreter {
         class Scanner;
     }
@@ -44,7 +44,7 @@
 
 %code
 {
-    #include "checks.hpp"
+    #include "tools/checks.hpp"
     #include "lexer.hpp"
     #include <memory>
     // #define yylex(x) scanner->lex(x)

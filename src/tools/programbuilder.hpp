@@ -1,6 +1,6 @@
-#ifndef __PROGRAMBUILDER__
-#define __PROGRAMBUILDER__
-#include "Program.hpp"
+#ifndef PROGRAMBUILDER_H
+#define PROGRAMBUILDER_H
+#include "ast/program.hpp"
 #include <memory>
 
 // TODO: cette classe doit être utilisée pour construire l'abre avec le parser.

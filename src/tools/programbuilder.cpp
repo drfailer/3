@@ -1,4 +1,4 @@
-#include "ProgramBuilder.hpp"
+#include "programbuilder.hpp"
 
 ProgramBuilder::ProgramBuilder() : program(std::make_shared<Program>()) {}
 
