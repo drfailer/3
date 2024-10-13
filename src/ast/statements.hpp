@@ -57,12 +57,12 @@ class Function : public TypedNode {
 /**
  * @brief  Cnd statement.
  */
-class If : public Node {
+class Cnd : public Node {
   public:
-    If(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
+    Cnd(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
         : condition_(condition), block_(block), elseBlock_(nullptr) {}
 
-    void createElse(std::shared_ptr<Block> block) { elseBlock_ = block; }
+    void elseBlock(std::shared_ptr<Block> block) { elseBlock_ = block; }
 
     void display() override;
     void compile(std::ofstream &, int) override;
@@ -100,9 +100,9 @@ class For : public Node {
 /**
  * @brief  While declaration. The while loop just has a condition.
  */
-class While : public Node {
+class Whl : public Node {
   public:
-    While(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
+    Whl(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
         : condition_(condition), block_(block) {}
 
     void display() override;

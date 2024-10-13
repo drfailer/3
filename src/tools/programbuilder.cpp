@@ -39,9 +39,9 @@ std::shared_ptr<Block> ProgramBuilder::endBlock() {
  * @brief take the last block, add it to a new If and add the new If to the
  * parent block.
  */
-std::shared_ptr<If> ProgramBuilder::createCnd(std::shared_ptr<Node> condition,
+std::shared_ptr<Cnd> ProgramBuilder::createCnd(std::shared_ptr<Node> condition,
                                               std::shared_ptr<Block> block) {
-    return std::make_shared<If>(condition, block);
+    return std::make_shared<Cnd>(condition, block);
 }
 
 /**
@@ -60,10 +60,10 @@ std::shared_ptr<For> ProgramBuilder::createFor(Variable v,
  * @brief take the last block, add it to a new While and add the new If to the
  * parent block.
  */
-std::shared_ptr<While>
+std::shared_ptr<Whl>
 ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
                           std::shared_ptr<Block> block) {
-    return std::make_shared<While>(condition, block);
+    return std::make_shared<Whl>(condition, block);
 }
 
 /******************************************************************************/

@@ -85,10 +85,10 @@
 %nterm <std::shared_ptr<TypedNode>> functionCall
 %nterm <std::shared_ptr<Node>> booleanOperation
 %nterm <std::shared_ptr<Block>> block
-%nterm <std::shared_ptr<If>> cnd
-%nterm <std::shared_ptr<If>> cndBase
+%nterm <std::shared_ptr<Cnd>> cnd
+%nterm <std::shared_ptr<Cnd>> cndBase
 %nterm <std::shared_ptr<For>> for
-%nterm <std::shared_ptr<While>> whl
+%nterm <std::shared_ptr<Whl>> whl
 
 %start start
 
@@ -483,9 +483,9 @@ cnd:
         DEBUG("els");
         contextManager.enterScope();
     } block[ops] {
-        std::shared_ptr<If> ifstmt = $sif;
+        std::shared_ptr<Cnd> ifstmt = $sif;
         // adding else block
-        ifstmt->createElse($ops);
+        ifstmt->elseBlock($ops);
         $$ = ifstmt;
         contextManager.leaveScope();
     }

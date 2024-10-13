@@ -26,13 +26,12 @@ class ProgramBuilder {
 
     std::shared_ptr<FunctionCall> createFuncall();
 
-    std::shared_ptr<If> createCnd(std::shared_ptr<Node>,
+    std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>,
                                   std::shared_ptr<Block>);
     std::shared_ptr<For> createFor(Variable, std::shared_ptr<Node>,
-                                   std::shared_ptr<Node>,
-                                   std::shared_ptr<Node>,
+                                   std::shared_ptr<Node>, std::shared_ptr<Node>,
                                    std::shared_ptr<Block>);
-    std::shared_ptr<While> createWhl(std::shared_ptr<Node>,
+    std::shared_ptr<Whl> createWhl(std::shared_ptr<Node>,
                                      std::shared_ptr<Block>);
 
     void pushFuncallParam(std::shared_ptr<TypedNode>);

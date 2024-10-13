@@ -224,7 +224,7 @@ void FunctionCall::compile(std::ofstream &fs, int lvl) {
 
 /* -------------------------------------------------------------------------- */
 
-void If::display() {
+void Cnd::display() {
         std::cout << "If(";
         condition_->display();
         std::cout << ", ";
@@ -237,7 +237,7 @@ void If::display() {
         std::cout << ")" << std::endl;
 }
 
-void If::compile(std::ofstream &fs, int lvl) {
+void Cnd::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         fs << "if ";
         condition_->compile(fs, 0);
@@ -283,7 +283,7 @@ void For::compile(std::ofstream &fs, int lvl) {
 
 /* -------------------------------------------------------------------------- */
 
-void While::display() {
+void Whl::display() {
         std::cout << "While(";
         condition_->display();
         std::cout << ", ";
@@ -291,7 +291,7 @@ void While::display() {
         std::cout << ")" << std::endl;
 }
 
-void While::compile(std::ofstream &fs, int lvl) {
+void Whl::compile(std::ofstream &fs, int lvl) {
         indent(fs, lvl);
         fs << "while ";
         condition_->compile(fs, 0);
