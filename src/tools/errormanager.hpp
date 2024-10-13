@@ -17,7 +17,7 @@ class ErrorManager {
 
     // Errors:
     void addFuncallTypeError(std::string file, int line, std::string name,
-                             std::list<Type> expected, std::list<Type> found);
+                             std::list<PrimitiveType> expected, std::list<PrimitiveType> found);
     void addUndefinedSymbolError(std::string file, int line, std::string name);
     void addMultipleDefinitionError(std::string file, int line,
                                     std::string name);
@@ -30,10 +30,10 @@ class ErrorManager {
 
     // Warnings:
     void addTypeAssignedWarning(std::string file, int line,
-                                std::string functionName, Type expected,
-                                Type found);
+                                std::string functionName, PrimitiveType expected,
+                                PrimitiveType found);
     void addReturnTypeWarning(std::string file, int line, std::string name,
-                              Type expected, Type found);
+                              PrimitiveType expected, PrimitiveType found);
 
   private:
     std::ostringstream errStream;

@@ -5,7 +5,7 @@
 
 // symtable check
 bool isDefined(std::string file, int line, std::string name,
-               std::list<Type> &type) {
+               std::list<PrimitiveType> &type) {
         bool defined = true;
         std::optional<Symbol> sym = contextManager.lookup(name);
 
@@ -13,14 +13,14 @@ bool isDefined(std::string file, int line, std::string name,
                 // TODO: this should be not in the errMgr, not here
                 defined = false;
                 errMgr.addUndefinedSymbolError(file, line, name);
-                type = std::list<Type>();
+                type = std::list<PrimitiveType>();
         } else {
                 type = sym.value().getType();
         }
         return defined;
 }
 
-bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
+bool checkTypeError(std::list<PrimitiveType> expectedType, std::list<PrimitiveType> funcallType) {
         bool typeError = false;
         if (expectedType.size() != funcallType.size()) {
                 typeError = true;
@@ -36,9 +36,9 @@ bool checkTypeError(std::list<Type> expectedType, std::list<Type> funcallType) {
         return typeError;
 }
 
-void checkType(std::string file, int line, std::string name, Type expected,
-               Type found) {
-        if (found == VOID || expected == VOID) {
+void checkType(std::string file, int line, std::string name, PrimitiveType expected,
+               PrimitiveType found) {
+        if (found == NIL || expected == NIL) {
                 return;
         }
 
@@ -49,8 +49,8 @@ void checkType(std::string file, int line, std::string name, Type expected,
 }
 
 // permet de récupérer les types des paramètres lors des appels de fonctions
-std::list<Type> getTypes(std::list<std::shared_ptr<TypedNode>> nodes) {
-        std::list<Type> types;
+std::list<PrimitiveType> getTypes(std::list<std::shared_ptr<TypedNode>> nodes) {
+        std::list<PrimitiveType> types;
         for (std::shared_ptr<TypedNode> node : nodes) {
                 types.push_back(node->type());
         }

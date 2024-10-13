@@ -9,14 +9,14 @@
  */
 class TypedNode : public Node {
   public:
-    TypedNode(Type type = VOID) : type_(type) {}
+    TypedNode(PrimitiveType type = NIL) : type_(type) {}
     virtual ~TypedNode() = default;
 
-    virtual Type type() const { return type_; }
-    void type(Type type) { this->type_ = type; }
+    virtual PrimitiveType type() const { return type_; }
+    void type(PrimitiveType type) { this->type_ = type; }
 
   protected:
-    Type type_ = VOID;
+    PrimitiveType type_ = NIL;
 };
 
 /**
@@ -24,7 +24,7 @@ class TypedNode : public Node {
  */
 class Value : public TypedNode {
   public:
-    Value(LiteralValue value, Type type) : TypedNode(type), value_(value) {}
+    Value(LiteralValue value, PrimitiveType type) : TypedNode(type), value_(value) {}
     Value() : TypedNode() {}
     LiteralValue const &value() const { return value_; }
 
@@ -40,7 +40,7 @@ class Value : public TypedNode {
  */
 class Variable : public TypedNode {
   public:
-    Variable(std::string id, Type type) : TypedNode(type), id_(id) {}
+    Variable(std::string id, PrimitiveType type) : TypedNode(type), id_(id) {}
     std::string const &id() const { return id_; }
 
     void display() override;
@@ -56,7 +56,7 @@ class Variable : public TypedNode {
  */
 class Array : public Variable {
   public:
-    Array(std::string name, int size, Type type)
+    Array(std::string name, int size, PrimitiveType type)
         : Variable(name, type), size_(size) {}
     int size() const { return size_; }
 
@@ -70,7 +70,7 @@ class Array : public Variable {
  */
 class ArrayAccess : public Array {
   public:
-    ArrayAccess(std::string name, Type type, std::shared_ptr<Node> index)
+    ArrayAccess(std::string name, PrimitiveType type, std::shared_ptr<Node> index)
         : Array(name, -1, type), index_(index) {}
     std::shared_ptr<Node> index() const { return index_; }
 
@@ -89,7 +89,7 @@ class ArrayAccess : public Array {
 class FunctionCall : public TypedNode {
   public:
     FunctionCall(std::string const &functionName,
-            std::list<std::shared_ptr<TypedNode>> const &params, Type type)
+            std::list<std::shared_ptr<TypedNode>> const &params, PrimitiveType type)
         : TypedNode(type), functionName_(functionName), params_(params) {}
 
     std::list<std::shared_ptr<TypedNode>> const &params() const {

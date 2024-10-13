@@ -72,7 +72,7 @@ ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
 
 std::shared_ptr<FunctionCall> ProgramBuilder::createFuncall() {
     std::shared_ptr<FunctionCall> newFuncall = std::make_shared<FunctionCall>(
-        funcallIds.back(), funcallParams.back(), VOID);
+        funcallIds.back(), funcallParams.back(), NIL);
     funcallIds.pop_back();
     funcallParams.pop_back();
     return newFuncall;
@@ -85,8 +85,8 @@ void ProgramBuilder::newFuncall(std::string name) {
 
 void ProgramBuilder::createFunction(std::string name,
                                     std::shared_ptr<Block> operations,
-                                    Type returnType) {
-    std::list<Type> type;
+                                    PrimitiveType returnType) {
+    std::list<PrimitiveType> type;
     for (Variable v : funParams) {
         type.push_back(v.type());
     }
@@ -117,8 +117,8 @@ std::shared_ptr<Program> ProgramBuilder::getProgram() const { return program; }
 
 std::list<Variable> ProgramBuilder::getFunParams() const { return funParams; }
 
-std::list<Type> ProgramBuilder::getParamsTypes() const {
-    std::list<Type> paramsTypes;
+std::list<PrimitiveType> ProgramBuilder::getParamsTypes() const {
+    std::list<PrimitiveType> paramsTypes;
     for (Variable v : funParams) {
         paramsTypes.push_back(v.type());
         /* std::cout << "id => " << v.getId() << std::endl; */

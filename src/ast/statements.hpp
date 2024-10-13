@@ -41,16 +41,16 @@ class Block : public Node {
 class Function : public TypedNode {
   public:
     Function(std::string id, std::list<Variable> parameters,
-             std::shared_ptr<Block> instructions, std::list<Type> type)
+             std::shared_ptr<Block> instructions, std::list<PrimitiveType> type)
         : id_(id), parameters_(parameters), type_(type), block_(instructions) {}
-    Type type() const override { return type_.back(); }
+    PrimitiveType type() const override { return type_.back(); }
     void display() override;
     void compile(std::ofstream &, int) override;
 
   private:
     std::string id_;
     std::list<Variable> parameters_;
-    std::list<Type> type_;
+    std::list<PrimitiveType> type_;
     std::shared_ptr<Block> block_ = nullptr;
 };
 

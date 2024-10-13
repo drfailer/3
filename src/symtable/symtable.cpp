@@ -48,7 +48,7 @@ std::optional<Symbol> Symtable::lookup(std::string name) {
  * @param  type   Type of the new symbol.
  * @param  kind   Kind of the new symbol (param, local variable, ...)
  */
-void Symtable::add(std::string name, std::list<Type> type, Kind kind) {
+void Symtable::add(std::string name, std::list<PrimitiveType> type, Kind kind) {
     table[name] = Symbol(name, type, kind);
 }
 
@@ -61,7 +61,7 @@ void Symtable::add(std::string name, std::list<Type> type, Kind kind) {
  * @param  size   Size of the data (for arrays).
  * @param  kind   Kind of the new symbol (param, local variable, ...)
  */
-void Symtable::add(std::string name, std::list<Type> type, unsigned int size,
+void Symtable::add(std::string name, std::list<PrimitiveType> type, unsigned int size,
                    Kind kind) {
     table[name] = Symbol(name, type, size, kind);
 }

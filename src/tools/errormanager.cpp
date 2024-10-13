@@ -52,8 +52,8 @@ void ErrorManager::report() {
  */
 void ErrorManager::addFuncallTypeError(std::string file, int line,
                                        std::string name,
-                                       std::list<Type> expected,
-                                       std::list<Type> found) {
+                                       std::list<PrimitiveType> expected,
+                                       std::list<PrimitiveType> found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": Type error in " << BOLD << name << NORM
         << ", the expected type was " << BOLD << expected << NORM << " but "
@@ -180,8 +180,8 @@ void ErrorManager::addNoEntryPointError() { addError("no entry point."); }
  * @param  found     Found type (type of the value).
  */
 void ErrorManager::addTypeAssignedWarning(std::string file, int line,
-                                          std::string name, Type expected,
-                                          Type found) {
+                                          std::string name, PrimitiveType expected,
+                                          PrimitiveType found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in assignment, " << BOLD << name << NORM
         << " is of type " << BOLD << expected
@@ -202,8 +202,8 @@ void ErrorManager::addTypeAssignedWarning(std::string file, int line,
  * @param  found     Found return type.
  */
 void ErrorManager::addReturnTypeWarning(std::string file, int line,
-                                        std::string functionName, Type expected,
-                                        Type found) {
+                                        std::string functionName, PrimitiveType expected,
+                                        PrimitiveType found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
         << ", found return value of type " << BOLD << expected << NORM

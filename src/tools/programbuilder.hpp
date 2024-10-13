@@ -16,7 +16,7 @@ class ProgramBuilder {
 
     std::list<Variable> getFunParams() const;
     std::shared_ptr<Program> getProgram() const;
-    std::list<Type> getParamsTypes() const;
+    std::list<PrimitiveType> getParamsTypes() const;
 
     void display();
 
@@ -27,18 +27,18 @@ class ProgramBuilder {
     std::shared_ptr<FunctionCall> createFuncall();
 
     std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>,
-                                  std::shared_ptr<Block>);
+                                   std::shared_ptr<Block>);
     std::shared_ptr<For> createFor(Variable, std::shared_ptr<Node>,
                                    std::shared_ptr<Node>, std::shared_ptr<Node>,
                                    std::shared_ptr<Block>);
     std::shared_ptr<Whl> createWhl(std::shared_ptr<Node>,
-                                     std::shared_ptr<Block>);
+                                   std::shared_ptr<Block>);
 
     void pushFuncallParam(std::shared_ptr<TypedNode>);
     void pushFunctionParam(Variable);
     void newFuncall(std::string);
 
-    void createFunction(std::string, std::shared_ptr<Block>, Type);
+    void createFunction(std::string, std::shared_ptr<Block>, PrimitiveType);
 
   private:
     std::shared_ptr<Program> program = nullptr; // current program

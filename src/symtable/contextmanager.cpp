@@ -12,12 +12,12 @@ void ContextManager::enterScope() {
 
 void ContextManager::leaveScope() { currentScope = currentScope->getFather(); }
 
-void ContextManager::newSymbol(std::string name, std::list<Type> type,
+void ContextManager::newSymbol(std::string name, std::list<PrimitiveType> type,
                                Kind kind) {
         currentScope->add(name, type, kind);
 }
 
-void ContextManager::newSymbol(std::string name, std::list<Type> type,
+void ContextManager::newSymbol(std::string name, std::list<PrimitiveType> type,
                                unsigned int size, Kind kind) {
         currentScope->add(name, type, size, kind);
 }
@@ -25,7 +25,7 @@ void ContextManager::newSymbol(std::string name, std::list<Type> type,
 /**
  * trick for functions
  */
-void ContextManager::newGlobalSymbol(std::string name, std::list<Type> type,
+void ContextManager::newGlobalSymbol(std::string name, std::list<PrimitiveType> type,
                                      Kind kind) {
         globalScope->add(name, type, kind);
 }

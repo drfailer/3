@@ -2,7 +2,7 @@
 #include <iostream>
 #include <list>
 
-std::ostream &operator<<(std::ostream &os, const Type &type) {
+std::ostream &operator<<(std::ostream &os, const PrimitiveType &type) {
     switch (type) {
     case INT:
         os << "int";
@@ -29,15 +29,15 @@ std::ostream &operator<<(std::ostream &os, const Type &type) {
     return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const std::list<Type> types) {
-    for (Type type : types) {
+std::ostream &operator<<(std::ostream &os, const std::list<PrimitiveType> types) {
+    for (PrimitiveType type : types) {
         os << type << " -> ";
     }
     os << ".";
     return os;
 }
 
-Type getArrayType(Type type) {
+PrimitiveType getArrayType(PrimitiveType type) {
     switch (type) {
     case INT:
         return ARR_INT;
@@ -54,7 +54,7 @@ Type getArrayType(Type type) {
     }
 }
 
-Type getValueType(Type type) {
+PrimitiveType getValueType(PrimitiveType type) {
     switch (type) {
     case ARR_INT:
         return INT;
@@ -71,20 +71,20 @@ Type getValueType(Type type) {
     }
 }
 
-bool isArray(Type type) {
+bool isArray(PrimitiveType type) {
     return type == ARR_INT || type == ARR_FLT || type == ARR_CHR;
 }
 
-bool isNumber(Type type) {
-    Type typeToCheck = getValueType(type);
+bool isNumber(PrimitiveType type) {
+    PrimitiveType typeToCheck = getValueType(type);
     return typeToCheck == INT || typeToCheck == FLT;
 }
 
 /**
  * @brief  Automatic convertion to flt in operators (flt op int).
  */
-Type selectType(Type left, Type right) {
-    Type type;
+PrimitiveType selectType(PrimitiveType left, PrimitiveType right) {
+    PrimitiveType type;
     if (left == INT && right == INT) {
         type = INT;
     } else {

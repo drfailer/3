@@ -11,16 +11,23 @@ union LiteralValue {
     char _str[MAX_LITERAL_STRING_LENGTH];
 };
 
-enum Type { INT, FLT, CHR, ARR_INT, ARR_FLT, ARR_CHR, VOID };
+enum PrimitiveType { NIL, INT, FLT, CHR, ARR_INT, ARR_FLT, ARR_CHR, OBJ };
+enum ArrayType { STATIC, DYNAMIC, NONE };
 
-Type getArrayType(Type type);
-Type getValueType(Type type);
-bool isArray(Type type);
-bool isNumber(Type type);
+struct Type {
+    PrimitiveType primitiveType = NIL; //< primitive type or composed type
+    ArrayType arrayType = NONE;        //< static, dynamic array or none
+    std::list<Type> types = {};        //< list of types for composed types
+};
 
-std::ostream &operator<<(std::ostream &os, const Type &type);
-std::ostream &operator<<(std::ostream &os, const std::list<Type> types);
+PrimitiveType getArrayType(PrimitiveType type);
+PrimitiveType getValueType(PrimitiveType type);
+bool isArray(PrimitiveType type);
+bool isNumber(PrimitiveType type);
 
-Type selectType(Type left, Type right);
+std::ostream &operator<<(std::ostream &os, const PrimitiveType &type);
+std::ostream &operator<<(std::ostream &os, const std::list<PrimitiveType> types);
+
+PrimitiveType selectType(PrimitiveType left, PrimitiveType right);
 
 #endif

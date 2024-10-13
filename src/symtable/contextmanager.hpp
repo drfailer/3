@@ -12,9 +12,9 @@ class ContextManager {
         void enterScope();
         void leaveScope();
         std::shared_ptr<Symtable> const getScope() const; // NOTE: may be wrong
-        void newSymbol(std::string name, std::list<Type> type, Kind kind);
-        void newSymbol(std::string name, std::list<Type> type, unsigned int size, Kind kind);
-        void newGlobalSymbol(std::string name, std::list<Type> type, Kind kind);
+        void newSymbol(std::string name, std::list<PrimitiveType> type, Kind kind);
+        void newSymbol(std::string name, std::list<PrimitiveType> type, unsigned int size, Kind kind);
+        void newGlobalSymbol(std::string name, std::list<PrimitiveType> type, Kind kind);
         std::optional<Symbol> lookup(std::string name) const;
 
       private:

@@ -16,8 +16,8 @@ class Symtable {
     std::shared_ptr<Symtable> getFather() const;
     std::optional<Symbol> lookup(std::string name);
     void addScope(std::shared_ptr<Symtable>);
-    void add(std::string name, std::list<Type> type, Kind kind);
-    void add(std::string name, std::list<Type> type, unsigned int size,
+    void add(std::string name, std::list<PrimitiveType> type, Kind kind);
+    void add(std::string name, std::list<PrimitiveType> type, unsigned int size,
              Kind kind);
 
   private:

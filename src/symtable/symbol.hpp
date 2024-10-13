@@ -12,19 +12,19 @@ enum Kind {
 
 class Symbol {
   public:
-    Symbol(std::string name, std::list<Type> type, Kind kind);
-    Symbol(std::string name, std::list<Type> type, unsigned int size,
+    Symbol(std::string name, std::list<PrimitiveType> type, Kind kind);
+    Symbol(std::string name, std::list<PrimitiveType> type, unsigned int size,
            Kind kind);
     Symbol() = default;
 
     std::string getName() const;
-    std::list<Type> getType() const;
+    std::list<PrimitiveType> getType() const;
     int getSize() const { return size; }
     Kind getKind() const;
 
   private:
     std::string name;
-    std::list<Type> type;
+    std::list<PrimitiveType> type;
     unsigned int size; // size for arrays
     Kind kind;
 };

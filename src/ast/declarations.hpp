@@ -23,7 +23,7 @@ class Declaration : public Node {
  */
 class ArrayDeclaration : public Array {
   public:
-    ArrayDeclaration(std::string name, int size, Type type)
+    ArrayDeclaration(std::string name, int size, PrimitiveType type)
         : Array(name, size, type) {}
 
     void display() override;
