@@ -14,9 +14,9 @@ class ProgramBuilder {
   public:
     ProgramBuilder();
 
-    std::list<Variable> getFunParams() const;
+    std::list<Variable> const &getFunParams() const;
     std::shared_ptr<Program> getProgram() const;
-    std::list<PrimitiveType> getParamsTypes() const;
+    type_system::types getParamsTypes() const;
 
     void display();
 
@@ -24,7 +24,8 @@ class ProgramBuilder {
     std::shared_ptr<Block> endBlock(); // pop the last block of the blocks stack
     void pushBlock(std::shared_ptr<Node>); // add command to the last block
 
-    std::shared_ptr<FunctionCall> createFuncall();
+    std::shared_ptr<FunctionCall> createFuncall(type_system::type =
+            type_system::make_type<type_system::Primitive>(type_system::NIL));
 
     std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>,
                                    std::shared_ptr<Block>);
@@ -38,7 +39,8 @@ class ProgramBuilder {
     void pushFunctionParam(Variable);
     void newFuncall(std::string);
 
-    void createFunction(std::string, std::shared_ptr<Block>, PrimitiveType);
+    void createFunction(std::string, std::shared_ptr<Block>,
+                        type_system::type );
 
   private:
     std::shared_ptr<Program> program = nullptr; // current program

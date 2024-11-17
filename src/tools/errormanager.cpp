@@ -52,8 +52,8 @@ void ErrorManager::report() {
  */
 void ErrorManager::addFuncallTypeError(std::string file, int line,
                                        std::string name,
-                                       std::list<PrimitiveType> expected,
-                                       std::list<PrimitiveType> found) {
+                                       type_system::types expected,
+                                       type_system::types found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": Type error in " << BOLD << name << NORM
         << ", the expected type was " << BOLD << expected << NORM << " but "
@@ -180,13 +180,14 @@ void ErrorManager::addNoEntryPointError() { addError("no entry point."); }
  * @param  found     Found type (type of the value).
  */
 void ErrorManager::addTypeAssignedWarning(std::string file, int line,
-                                          std::string name, PrimitiveType expected,
-                                          PrimitiveType found) {
+                                          std::string name,
+                                          type_system::type expected,
+                                          type_system::type found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in assignment, " << BOLD << name << NORM
-        << " is of type " << BOLD << expected
-        << NORM " but the value assigned is of type " << BOLD << found << NORM
-        << "." << std::endl;
+        << " is of type " << BOLD << expected->toString()
+        << NORM " but the value assigned is of type " << BOLD
+        << found->toString() << NORM << "." << std::endl;
     addWarning(oss.str());
 }
 
@@ -202,12 +203,13 @@ void ErrorManager::addTypeAssignedWarning(std::string file, int line,
  * @param  found     Found return type.
  */
 void ErrorManager::addReturnTypeWarning(std::string file, int line,
-                                        std::string functionName, PrimitiveType expected,
-                                        PrimitiveType found) {
+                                        std::string functionName,
+                                        type_system::type expected,
+                                        type_system::type found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
-        << ", found return value of type " << BOLD << expected << NORM
-        << " but this function is of type " << BOLD << found << NORM << "."
-        << std::endl;
+        << ", found return value of type " << BOLD << expected->toString()
+        << NORM << " but this function is of type " << BOLD << found->toString()
+        << NORM << "." << std::endl;
     addWarning(oss.str());
 }

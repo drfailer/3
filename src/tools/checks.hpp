@@ -8,11 +8,13 @@ extern ContextManager contextManager;
 extern ErrorManager errMgr;
 
 bool isDefined(std::string file, int line, std::string name,
-               std::list<PrimitiveType> &type);
-void printType(std::ostringstream &oss, std::list<PrimitiveType> types);
-bool checkTypeError(std::list<PrimitiveType> expectedType, std::list<PrimitiveType> funcallType);
-void checkType(std::string file, int line, std::string name, PrimitiveType expected,
-               PrimitiveType found);
-std::list<PrimitiveType> getTypes(std::list<std::shared_ptr<TypedNode>> nodes);
+               type_system::type &type);
+void printType(std::ostringstream &oss, type_system::types types);
+bool checkParametersTypes(type_system::types expectedTypes,
+                          type_system::types funcallTypes);
+void checkType(std::string file, int line, std::string name,
+               type_system::type expected, type_system::type found);
+void checkType(std::string file, int line, std::string name,
+               type_system::type expected, type_system::PrimitiveTypes found);
 
 #endif

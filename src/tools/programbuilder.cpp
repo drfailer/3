@@ -40,7 +40,7 @@ std::shared_ptr<Block> ProgramBuilder::endBlock() {
  * parent block.
  */
 std::shared_ptr<Cnd> ProgramBuilder::createCnd(std::shared_ptr<Node> condition,
-                                              std::shared_ptr<Block> block) {
+                                               std::shared_ptr<Block> block) {
     return std::make_shared<Cnd>(condition, block);
 }
 
@@ -60,9 +60,8 @@ std::shared_ptr<For> ProgramBuilder::createFor(Variable v,
  * @brief take the last block, add it to a new While and add the new If to the
  * parent block.
  */
-std::shared_ptr<Whl>
-ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
-                          std::shared_ptr<Block> block) {
+std::shared_ptr<Whl> ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
+                                               std::shared_ptr<Block> block) {
     return std::make_shared<Whl>(condition, block);
 }
 
@@ -70,9 +69,10 @@ ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
 /*                                  funcalls                                  */
 /******************************************************************************/
 
-std::shared_ptr<FunctionCall> ProgramBuilder::createFuncall() {
-    std::shared_ptr<FunctionCall> newFuncall = std::make_shared<FunctionCall>(
-        funcallIds.back(), funcallParams.back(), NIL);
+std::shared_ptr<FunctionCall>
+ProgramBuilder::createFuncall(type_system::type type) {
+    auto newFuncall = std::make_shared<FunctionCall>(
+        funcallIds.back(), funcallParams.back(), type);
     funcallIds.pop_back();
     funcallParams.pop_back();
     return newFuncall;
@@ -85,15 +85,15 @@ void ProgramBuilder::newFuncall(std::string name) {
 
 void ProgramBuilder::createFunction(std::string name,
                                     std::shared_ptr<Block> operations,
-                                    PrimitiveType returnType) {
-    std::list<PrimitiveType> type;
+                                    type_system::type returnType) {
+    type_system::types argumentsTypes;
     for (Variable v : funParams) {
-        type.push_back(v.type());
+        argumentsTypes.push_back(v.type);
     }
-    type.push_back(returnType);
-    std::shared_ptr<Function> newfun =
-        std::make_shared<Function>(name, funParams, operations, type);
-    program->addFunction(newfun);
+    std::shared_ptr<Function> function = std::make_shared<Function>(
+        name, funParams, operations,
+        type_system::make_type<type_system::Function>(returnType, argumentsTypes));
+    program->addFunction(function);
     funParams.clear();
 }
 
@@ -115,12 +115,14 @@ void ProgramBuilder::pushFunctionParam(Variable newParam) {
 
 std::shared_ptr<Program> ProgramBuilder::getProgram() const { return program; }
 
-std::list<Variable> ProgramBuilder::getFunParams() const { return funParams; }
+std::list<Variable> const &ProgramBuilder::getFunParams() const {
+    return funParams;
+}
 
-std::list<PrimitiveType> ProgramBuilder::getParamsTypes() const {
-    std::list<PrimitiveType> paramsTypes;
+type_system::types ProgramBuilder::getParamsTypes() const {
+    type_system::types paramsTypes;
     for (Variable v : funParams) {
-        paramsTypes.push_back(v.type());
+        paramsTypes.push_back(v.type);
         /* std::cout << "id => " << v.getId() << std::endl; */
     }
     return paramsTypes;
