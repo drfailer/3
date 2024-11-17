@@ -5,6 +5,7 @@
 #include <FlexLexer.h>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 #include "ast/ast.hpp"
 #include "symtable/symtable.hpp"
 #include "symtable/symbol.hpp"
@@ -53,7 +54,7 @@
     ContextManager contextManager;
     ErrorManager errMgr;
     std::string currentFunctionName = "";
-    PrimitiveType currentFunctionReturnType = NIL;
+    type_system::type currentFunctionReturnType = nullptr;
     std::string currentFile = "";
 
     std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck;
@@ -77,8 +78,8 @@
 %token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
 
-%nterm <PrimitiveType> type
-%nterm <Value> value
+%nterm <type_system::type> type
+%nterm <std::shared_ptr<Value>> value
 %nterm <std::shared_ptr<TypedNode>> expression
 %nterm <std::shared_ptr<TypedNode>> variable
 %nterm <std::shared_ptr<TypedNode>> arithmeticOperation
@@ -117,7 +118,7 @@ returnTypeSpecifier:
         currentFunctionReturnType = $rt;
     }
     | NIL {
-        currentFunctionReturnType = NIL;
+        currentFunctionReturnType = type_system::make_type<type_system::Primitive>(type_system::NIL);
     }
     ;
 
@@ -134,8 +135,10 @@ functionDefinition:
         }
         contextManager.enterScope();
     } '('parameterDeclarationList')' {
-        std::list<PrimitiveType> funType = pb.getParamsTypes();
-        funType.push_back(currentFunctionReturnType);
+        type_system::type funType = type_system::make_type<type_system::Function>(
+            currentFunctionReturnType,
+            pb.getParamsTypes()
+        );
         contextManager.newGlobalSymbol(currentFunctionName, funType, FUNCTION);
     } block[ops] {
         // error if there is a return statement
@@ -153,7 +156,7 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        contextManager.newSymbol($2, std::list<PrimitiveType>($t), FUN_PARAM);
+        contextManager.newSymbol($2, $t, FUN_PARAM);
         pb.pushFunctionParam(Variable($2, $t));
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
@@ -162,8 +165,9 @@ parameterDeclaration:
         // -1 (or any default value) in order to specify that we don't
         // want to check the size at compile time when we treat the
         // function
-        contextManager.newSymbol($2, std::list<PrimitiveType>($t), LOCAL_ARRAY);
-        pb.pushFunctionParam(Array($2, $size, getArrayType($t)));
+        contextManager.newSymbol($2, $t, LOCAL_ARRAY);
+        pb.pushFunctionParam(Array($2, $size,
+            std::static_pointer_cast<type_system::StaticArray>($t)));
     }
     ;
 
@@ -181,13 +185,13 @@ parameter:
 
 type:
     INTT {
-        $$ = INT;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::INT);
     }
     | FLTT {
-        $$ = FLT;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::FLT);
     }
     | CHRT {
-        $$ = CHR;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::CHR);
     }
     ;
 
@@ -206,14 +210,18 @@ code:
     | instruction code
     | RET expression[rs] {
         std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
-        PrimitiveType foundType = $rs->type();
-        PrimitiveType expectedType = sym.value().getType().back();
+        type_system::type foundType = $rs->type;
+        type_system::type expectedType = sym.value().getType();
+        type_system::PrimitiveTypes e_expectedType = expectedType->getEvaluatedType();
+        type_system::PrimitiveTypes e_foundType = foundType->getEvaluatedType();
         std::ostringstream oss;
 
-        if (expectedType == NIL) { // no return allowed
+        if (e_expectedType == type_system::NIL) { // no return allowed
             errMgr.addUnexpectedReturnError(currentFile, @1.begin.line,
                                             currentFunctionName);
-        } else if (expectedType != foundType && foundType != NIL) {
+        } else if (e_expectedType != e_foundType && e_foundType != type_system::NIL) {
+            // TODO: create a function to compare types
+            std::cout << "ERROR: type comparison done wrong." << std::endl;
             // must check if foundType is not void because of the
             // buildin function (add, ...) which are not in the
             // symtable
@@ -236,7 +244,7 @@ instruction:
 ipt:
     IPT'('variable[c]')' {
         DEBUG("ipt var");
-        pb.pushBlock(std::make_shared<Read>($c));
+        pb.pushBlock(std::make_shared<Ipt>($c));
     }
     ;
 
@@ -244,12 +252,12 @@ shw:
     SHW'('expression[ic]')' {
         DEBUG("shw var");
         // spcial case for strings
-        if ($ic->type() == ARR_CHR) {
+        if (type_system::isArrayOfChr($ic->type)) {
             auto stringValue = std::dynamic_pointer_cast<Value>($ic);
-            std::string str = stringValue->value()._str;
-            pb.pushBlock(std::make_shared<Print>(str));
+            std::string str = stringValue->value._str;
+            pb.pushBlock(std::make_shared<Shw>(str));
         } else {
-            pb.pushBlock(std::make_shared<Print>($ic));
+            pb.pushBlock(std::make_shared<Shw>($ic));
         }
     }
     ;
@@ -257,33 +265,33 @@ shw:
 expression:
     arithmeticOperation { $$ = $1; }
     | functionCall { $$ = $1; }
-    | value { $$ = std::make_shared<Value>($1); }
+    | value { $$ = $1; }
     | variable { $$ = $1; }
     ;
 
 variable:
     IDENTIFIER {
         DEBUG("new param variable");
-        std::list<PrimitiveType> type;
+        type_system::type type;
         std::shared_ptr<Variable> v;
 
         // TODO: this is really bad, the function isDefined will be
         // changed !
         if (isDefined(currentFile, @1.begin.line, $1, type)) {
-            if (isArray(type.back())) {
+            if (isArray(type)) {
                 Symbol sym = contextManager.lookup($1).value();
-                v = std::make_shared<Array>($1, sym.getSize(), type.back());
+                v = std::make_shared<Array>($1, getArraySize(sym.getType()), type);
             } else {
-                v = std::make_shared<Variable>($1, type.back());
+                v = std::make_shared<Variable>($1, type);
             }
         } else {
-                v = std::make_shared<Variable>($1, NIL);
+            v = std::make_shared<Variable>($1, type_system::make_type<type_system::Primitive>(type_system::NIL));
         }
         $$ = v;
     }
     | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
         DEBUG("using an array");
-        std::list<PrimitiveType> type;
+        type_system::type type;
         std::shared_ptr<ArrayAccess> v;
         // TODO: refactor isDefined
         if (isDefined(currentFile, @1.begin.line, $1, type)) {
@@ -292,10 +300,11 @@ variable:
             if (sym.value().getKind() != LOCAL_ARRAY) {
                 errMgr.addBadArrayUsageError(currentFile, @1.begin.line, $1);
             }
-            v = std::make_shared<ArrayAccess>($1, getValueType(type.back()), $index);
+            v = std::make_shared<ArrayAccess>($1, type, $index);
         } else {
             // TODO: verify the type of the index
-            v = std::make_shared<ArrayAccess>($1, NIL, $index);
+            v = std::make_shared<ArrayAccess>($1,
+                type_system::make_type<type_system::Primitive>(type_system::NIL), $index);
         }
         $$ = v;
     }
@@ -304,21 +313,21 @@ variable:
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
+        if (!isNumber($left->type) || !isNumber($right->type)) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "add");
         }
         $$ = std::make_shared<AddOP>($left, $right);
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
+        if (!isNumber($left->type) || !isNumber($right->type)) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "mns");
         }
         $$ = std::make_shared<MnsOP>($left, $right);
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
+        if (!isNumber($left->type) || !isNumber($right->type)) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "tms");
         }
         $$ = std::make_shared<TmsOP>($left, $right);
@@ -326,7 +335,7 @@ arithmeticOperation:
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
         $$ = std::make_shared<DivOP>($left, $right);
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
+        if (!isNumber($left->type) || !isNumber($right->type)) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "div");
         }
     }
@@ -376,9 +385,16 @@ functionCall:
         pb.newFuncall($1);
     }
     parameterList')' {
-        std::shared_ptr<FunctionCall> funcall = pb.createFuncall();
+        // TODO: we need a none type as if the function is not defined, we
+        // cannot get the return type (should be verified afterward)
+        std::shared_ptr<FunctionCall> funcall;
+        if (std::optional<Symbol> symbol = contextManager.lookup($1)) {
+            funcall = pb.createFuncall(symbol.value().getType());
+        } else {
+            funcall = pb.createFuncall();
+        }
         // TODO: save the funcall and params in a vector (create a struct)
-        funcall->type(NIL); // type to NIL by default, will change on the type check
+        funcall->type = type_system::make_type<type_system::Primitive>(type_system::NIL); // type to NIL by default, will change on the type check
         std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
         funcallsToCheck.push_back(std::make_pair(funcall, position));
         // the type check is done at the end !
@@ -395,9 +411,7 @@ variableDeclaration:
         if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
             errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
         }
-        std::list<PrimitiveType> t;
-        t.push_back($t);
-        contextManager.newSymbol($2, t, LOCAL_VAR);
+        contextManager.newSymbol($2, $t, LOCAL_VAR);
         pb.pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
@@ -406,17 +420,15 @@ variableDeclaration:
         if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
             errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
         }
-        std::list<PrimitiveType> t;
-        t.push_back(getArrayType($t));
-        contextManager.newSymbol($name, t, $size, LOCAL_ARRAY);
-        pb.pushBlock(std::make_shared<ArrayDeclaration>($name, $size, getArrayType($t)));
+        contextManager.newSymbol($name, $t, $size, LOCAL_ARRAY);
+        pb.pushBlock(std::make_shared<ArrayDeclaration>($name, $size, $t));
     }
     ;
 
 assignment:
     SET'('variable[c] COMMA expression[ic]')' {
         DEBUG("new assignment");
-        PrimitiveType icType = $ic->type();
+        auto icType = $ic->type;
         auto v = std::static_pointer_cast<Variable>($c);
         auto newAssignment = std::make_shared<Assignment>(v, $ic);
 
@@ -425,7 +437,7 @@ assignment:
             auto position = std::make_pair(currentFile, @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
-            checkType(currentFile, @c.begin.line, v->id(), $c->type(), icType);
+            checkType(currentFile, @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
         }
         pb.pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
@@ -435,28 +447,28 @@ assignment:
 value:
     INT {
         DEBUG("new int: " << $1);
-        LiteralValue v = { ._int = $1 };
-        $$ = Value(v, INT);
+        type_system::LiteralValue v = { ._int = $1 };
+        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::Primitive>(type_system::INT));
     }
     | FLT {
         DEBUG("new double: " << $1);
-        LiteralValue v = { ._flt = $1 };
-        $$ = Value(v, FLT);
+        type_system::LiteralValue v = { ._flt = $1 };
+        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::Primitive>(type_system::FLT));
     }
     | CHR {
         DEBUG("new char: " << $1);
-        LiteralValue v = { ._chr = $1 };
-        $$ = Value(v, CHR);
+        type_system::LiteralValue v = { ._chr = $1 };
+        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::Primitive>(type_system::CHR));
     }
     | STRING {
         DEBUG("new char: " << $1);
-        LiteralValue v = {0};
+        type_system::LiteralValue v = {0};
         if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
             errMgr.addLiteralStringOverflowError(currentFile, @1.begin.line);
             return 1;
         }
         memcpy(v._str, $1.c_str(), $1.size());
-        $$ = Value(v, ARR_CHR);
+        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::StaticArray>(type_system::CHR, $1.size()));
     }
     ;
 
@@ -485,7 +497,7 @@ cnd:
     } block[ops] {
         std::shared_ptr<Cnd> ifstmt = $cndb;
         // adding else block
-        ifstmt->elseBlock($ops);
+        ifstmt->elseBlock = $ops;
         $$ = ifstmt;
         contextManager.leaveScope();
     }
@@ -506,13 +518,13 @@ for:
         contextManager.enterScope();
     } block[ops] {
         DEBUG("in for");
-        Variable v($v, NIL);
-        std::list<PrimitiveType> type;
+        Variable v($v, type_system::make_type<type_system::Primitive>(type_system::NIL));
+        type_system::type type;
         if (isDefined(currentFile, @v.begin.line, $v, type)) {
-            v = Variable($v, type.back());
-            checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type.back(), $b->type());
-            checkType(currentFile, @e.begin.line, "RANGE_END",  type.back(), $e->type());
-            checkType(currentFile, @s.begin.line, "RANGE_STEP", type.back(), $s->type());
+            v = Variable($v, type);
+            checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
+            checkType(currentFile, @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
+            checkType(currentFile, @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
         }
         $$ = pb.createFor(v, $b, $e, $s, $ops);
         contextManager.leaveScope();
@@ -566,36 +578,45 @@ void makeExecutable(std::string file) {
 void checkAssignments() {
     for (auto ap : assignmentsToCheck) {
         checkType(ap.second.first, ap.second.second,
-                  ap.first->variable()->id(),
-                  ap.first->variable()->type(),
-                  ap.first->value()->type());
+                  ap.first->variable->id,
+                  ap.first->variable->type,
+                  ap.first->value->type->getEvaluatedType());
     }
+}
+
+// todo: we shouldn't need this
+type_system::types getTypes(std::list<std::shared_ptr<TypedNode>> const &nodes) {
+    type_system::types parametersTypes = {};
+
+    std::transform(nodes.cbegin(), nodes.cend(),
+                   std::back_insert_iterator<type_system::types>(parametersTypes),
+                   [](auto elt) { return elt->type; });
+    return parametersTypes;
 }
 
 /* Verify the types of all funcalls. To check the type, we have to verify the
  * types of all the parameters. The return type is not important here.
  */
 void checkFuncalls() {
-    // TODO: add the file location in the list
+    // std::list<std::pair<std::shared_ptr<FunctionCall>,
+    //                     std::pair<std::string, int>>> funcallsToCheck;
     for (auto fp : funcallsToCheck) {
-        std::list<PrimitiveType> funcallType = getTypes(fp.first->params());
-        std::optional<Symbol> sym = contextManager.lookup(fp.first->functionName());
-        std::list<PrimitiveType> expectedType;
+        std::optional<Symbol> sym = contextManager.lookup(fp.first->functionName);
 
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
-            std::list<PrimitiveType> funcallType = getTypes(fp.first->params());
-            fp.first->type(expectedType.back());
-            expectedType = sym.value().getType();
-            expectedType.pop_back(); // remove the return type
+            type_system::types funcallType = getTypes(fp.first->parameters);
+            type_system::types expectedType = std::static_pointer_cast<type_system::Function>(
+                                                sym.value().getType())->argumentsTypes;
 
-            if (checkTypeError(expectedType, funcallType)) {
+            if (checkParametersTypes(expectedType, funcallType)) {
                 errMgr.addFuncallTypeError(fp.second.first,
                                            fp.second.second,
-                                           fp.first->functionName(),
+                                           fp.first->functionName,
                                            expectedType, funcallType);
             }
         } else {
+            // todo
             // errMgr.addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
         }
     }
