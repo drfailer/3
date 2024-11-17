@@ -26,7 +26,6 @@ set(files
   src/ast/ast.cpp
   src/ast/program.cpp
   src/symtable/symtable.cpp
-  src/symtable/symbol.cpp
   src/symtable/contextmanager.cpp
   src/typesystem/types.cpp
   src/tools/errormanager.cpp
