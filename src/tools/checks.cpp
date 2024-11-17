@@ -24,7 +24,7 @@ bool isDefined(std::string file, int line, std::string name,
 bool checkParametersTypes(type_system::types expectedTypes,
                           type_system::types funcallTypes) {
     auto expectedIt = expectedTypes.begin(), expectedEnd = expectedTypes.end();
-    auto funcallIt = funcallTypes.begin(), funcallEnd = funcallTypes.begin();
+    auto funcallIt = funcallTypes.begin(), funcallEnd = funcallTypes.end();
 
     while (expectedIt != expectedEnd && funcallIt != funcallEnd) {
         if (!(*expectedIt++)->compare(*funcallIt++)) {

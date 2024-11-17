@@ -39,6 +39,8 @@ std::shared_ptr<T> make_type(Args &&...args) {
 std::ostream &operator<<(std::ostream &os, PrimitiveTypes type);
 std::ostream &operator<<(std::ostream &os, types const &types);
 
+// TODO: create a none type
+
 struct Primitive : Type {
     Primitive(PrimitiveTypes type = INT)
         : Type(TypeKinds::Primitive), type(type) {}

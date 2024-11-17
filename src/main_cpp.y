@@ -48,6 +48,7 @@
     #include "tools/checks.hpp"
     #include "lexer.hpp"
     #include <memory>
+    #include <functional>
     // #define yylex(x) scanner->lex(x)
     #define yylex(x, y) scanner->lex(x, y) // now we use yylval and yylloc
     Symtable symtable;
@@ -57,8 +58,9 @@
     type_system::type currentFunctionReturnType = nullptr;
     std::string currentFile = "";
 
-    std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck;
-    std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck;
+    std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck = {};
+    std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck = {};
+    std::list<std::pair<std::string, std::function<bool(type_system::type)>>> expressionsToCheck = {};
 }
 
 %token <long long>  INT
@@ -313,6 +315,9 @@ variable:
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
+        // todo: create a template function make_arithmetic_operator (if one of
+        // the expressions is an undefined function, add the expression to the
+        // expression to check)
         if (!isNumber($left->type) || !isNumber($right->type)) {
             errMgr.addOperatorError(currentFile, @1.begin.line, "add");
         }
@@ -389,12 +394,11 @@ functionCall:
         // cannot get the return type (should be verified afterward)
         std::shared_ptr<FunctionCall> funcall;
         if (std::optional<Symbol> symbol = contextManager.lookup($1)) {
-            funcall = pb.createFuncall(symbol.value().getType());
+            funcall =
+            pb.createFuncall(type_system::make_type<type_system::Primitive>(symbol.value().getType()->getEvaluatedType()));
         } else {
             funcall = pb.createFuncall();
         }
-        // TODO: save the funcall and params in a vector (create a struct)
-        funcall->type = type_system::make_type<type_system::Primitive>(type_system::NIL); // type to NIL by default, will change on the type check
         std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
         funcallsToCheck.push_back(std::make_pair(funcall, position));
         // the type check is done at the end !
@@ -605,15 +609,16 @@ void checkFuncalls() {
 
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
-            type_system::types funcallType = getTypes(fp.first->parameters);
-            type_system::types expectedType = std::static_pointer_cast<type_system::Function>(
-                                                sym.value().getType())->argumentsTypes;
+            type_system::types foundArgumentsTypes = getTypes(fp.first->parameters);
+            type_system::types expectedArgumentsTypes =
+                std::static_pointer_cast<type_system::Function>(
+                                            sym.value().getType())->argumentsTypes;
 
-            if (checkParametersTypes(expectedType, funcallType)) {
+            if (!checkParametersTypes(expectedArgumentsTypes, foundArgumentsTypes)) {
                 errMgr.addFuncallTypeError(fp.second.first,
                                            fp.second.second,
                                            fp.first->functionName,
-                                           expectedType, funcallType);
+                                           expectedArgumentsTypes, foundArgumentsTypes);
             }
         } else {
             // todo
@@ -647,7 +652,7 @@ void compile(std::string fileName, std::string outputName) {
     checkFuncalls();
     checkAssignments();
 
-    // loock for main
+    // look for main
     std::optional<Symbol> sym = contextManager.lookup("main");
     if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym.has_value()) {
         errMgr.addNoEntryPointError();

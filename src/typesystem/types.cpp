@@ -24,7 +24,10 @@ std::ostream &operator<<(std::ostream &os, PrimitiveTypes type) {
 std::ostream &operator<<(std::ostream &os, types const &types) {
     auto it = types.cbegin();
 
-    os << "(" << (*it++)->toString();
+    os << "(";
+    if (it != types.cend()) {
+        os << (*it++)->toString();
+    }
     for (; it != types.cend(); it++) {
         os << ", " << (*it)->toString();
     }
