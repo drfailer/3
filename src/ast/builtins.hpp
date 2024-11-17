@@ -8,36 +8,33 @@
 /******************************************************************************/
 
 /**
- * @brief  Gestion de l'affichage. On ne peut afficher que soit une chaine de
- *         caratères (`"str"`), soit une variable.
+ * @brief  Builtin show function that can be used to display a literal string, a
+ *         array of chr (3's strings) or a variable of a primitive type.
  */
-class Print : public Node {
-  public:
-    Print(std::shared_ptr<Node> content) : str_(""), content_(content) {}
+struct Shw : Node {
+    Shw(std::shared_ptr<Node> content) : str(""), content(content) {}
 
-    Print(std::string str)
-        : str_(str), content_(std::shared_ptr<Node>(nullptr)) {}
+    Shw(std::string str)
+        : str(str), content(std::shared_ptr<Node>(nullptr)) {}
 
     void compile(std::ofstream &, int) override;
     void display() override;
 
-  private:
-    std::string str_;
-    std::shared_ptr<Node> content_ = nullptr;
+    std::string str;
+    std::shared_ptr<Node> content = nullptr;
 };
 
 /**
- * @brief  Gestion de la saisie clavier.
+ * @brief  Reads a primitive type to the standard input and store the result in
+ *         the specified variable.
  */
-class Read : public Node {
-  public:
-    Read(std::shared_ptr<TypedNode> variable) : variable_(variable) {}
+struct Ipt : Node {
+    Ipt(std::shared_ptr<TypedNode> variable) : variable(variable) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::shared_ptr<TypedNode> variable_ = nullptr;
+    std::shared_ptr<TypedNode> variable = nullptr;
 };
 
 #endif

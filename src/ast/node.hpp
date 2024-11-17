@@ -8,6 +8,7 @@
 class Node {
   public:
     virtual ~Node() = default;
+    // TODO: remove
     virtual void compile(std::ofstream &, int) = 0;
     virtual void display() = 0;
 };
