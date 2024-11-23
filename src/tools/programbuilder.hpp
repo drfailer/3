@@ -1,20 +1,22 @@
 #ifndef PROGRAMBUILDER_H
 #define PROGRAMBUILDER_H
+#include "symtable/symtable.hpp"
+#include "symtable/contextmanager.hpp"
+#include "tools/errormanager.hpp"
 #include "ast/program.hpp"
 #include <memory>
 #include <stack>
 
-// TODO: cette classe doit être utilisée pour construire l'abre avec le parser.
-// elle doit contenir des piles tampons pour pouvoir ajouter les opération, les
-// block, les statements, ... quand le parser les trouves. Les éléments en haut
-// de l'arbre sont construit en derniers ! => on doit pouvoir créer une liste de
-// commandes, qu'on peut combiner dans un block, block qu'on peut ajouter à un
-// statement qui sera lui aussi ajouter à une liste pour pouvoir créer une
-// fonction ou être ajouter à un autre block.
 class ProgramBuilder {
   public:
     ProgramBuilder();
 
+    // TODO: temporary
+    Symtable &symtable() { return symtable_; }
+    ContextManager &contextManager() { return contextManager_ ; }
+    ErrorManager &errMgr() { return errMgr_; }
+
+    // TODO: change this
     std::list<Variable> const &functionParameters() const;
     std::shared_ptr<Program> program() const;
     type_system::types parametersTypes() const;
@@ -33,31 +35,19 @@ class ProgramBuilder {
 
     std::string const &currFileName() const { return currFileName_; }
 
-    void currFunctionReturnType(type_system::type currFunctionReturnType) {
-        currFunctionReturnType_ = currFunctionReturnType;
-    }
+    void currFunctionReturnType(type_system::type currFunctionReturnType) { currFunctionReturnType_ = currFunctionReturnType; }
 
-    type_system::type const currFunctionReturnType() const {
-        return currFunctionReturnType_;
-    }
+    type_system::type const currFunctionReturnType() const { return currFunctionReturnType_; }
 
-    void currFunctionName(std::string const &currFunctionName) {
-        currFunctionName_ = currFunctionName;
-    }
+    void currFunctionName(std::string const &currFunctionName) { currFunctionName_ = currFunctionName; }
     std::string const &currFunctionName() { return currFunctionName_; }
 
     /* create functions *******************************************************/
 
-    std::shared_ptr<FunctionCall> createFuncall(
-        type_system::type = type_system::make_type<type_system::None>());
-
-    std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>,
-                                   std::shared_ptr<Block>);
-    std::shared_ptr<For> createFor(Variable, std::shared_ptr<Node>,
-                                   std::shared_ptr<Node>, std::shared_ptr<Node>,
-                                   std::shared_ptr<Block>);
-    std::shared_ptr<Whl> createWhl(std::shared_ptr<Node>,
-                                   std::shared_ptr<Block>);
+    std::shared_ptr<FunctionCall> createFuncall(type_system::type = type_system::make_type<type_system::None>());
+    std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>, std::shared_ptr<Block>);
+    std::shared_ptr<For> createFor(Variable, std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Block>);
+    std::shared_ptr<Whl> createWhl(std::shared_ptr<Node>, std::shared_ptr<Block>);
 
     void pushFuncallParam(std::shared_ptr<TypedNode>);
     void pushFunctionParam(Variable);
@@ -66,6 +56,11 @@ class ProgramBuilder {
     void createFunction(std::string, std::shared_ptr<Block>, type_system::type);
 
   private:
+    Symtable symtable_;
+    ContextManager contextManager_;
+    ErrorManager errMgr_;
+
+    // TODO: split the tasks of managing funcalls, functions, ...
     std::string currFileName_;
     type_system::type currFunctionReturnType_ = nullptr;
     std::string currFunctionName_;

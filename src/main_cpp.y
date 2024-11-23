@@ -51,9 +51,6 @@
     #include <functional>
     // #define yylex(x) scanner->lex(x)
     #define yylex(x, y) scanner->lex(x, y) // now we use yylval and yylloc
-    Symtable symtable;
-    ContextManager contextManager;
-    ErrorManager errMgr;
 
     std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck = {};
     std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck = {};
@@ -121,25 +118,25 @@ returnTypeSpecifier:
 functionDefinition:
     returnTypeSpecifier IDENTIFIER[name] {
         pb.currFunctionName($name);
-        std::optional<Symbol> sym = contextManager.lookup($name);
+        std::optional<Symbol> sym = pb.contextManager().lookup($name);
         // error on function redefinition
         if (sym.has_value()) {
-            errMgr.addMultipleDefinitionError(pb.currFileName(), @name.begin.line,
+            pb.errMgr().addMultipleDefinitionError(pb.currFileName(), @name.begin.line,
                                               $name);
             // TODO: print the previous definition location
             return 1;
         }
-        contextManager.enterScope();
+        pb.contextManager().enterScope();
     } '('parameterDeclarationList')' {
         type_system::type funType = type_system::make_type<type_system::Function>(
             pb.currFunctionReturnType(),
             pb.parametersTypes()
         );
-        contextManager.newGlobalSymbol(pb.currFunctionName(), funType, FUNCTION);
+        pb.contextManager().newGlobalSymbol(pb.currFunctionName(), funType, FUNCTION);
     } block[ops] {
         // error if there is a return statement
         pb.createFunction(pb.currFunctionName(), $ops, pb.currFunctionReturnType());
-        contextManager.leaveScope();
+        pb.contextManager().leaveScope();
     }
     ;
 
@@ -152,7 +149,7 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        contextManager.newSymbol($2, $t, FUN_PARAM);
+        pb.contextManager().newSymbol($2, $t, FUN_PARAM);
         pb.pushFunctionParam(Variable($2, $t));
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
@@ -161,7 +158,7 @@ parameterDeclaration:
         // -1 (or any default value) in order to specify that we don't
         // want to check the size at compile time when we treat the
         // function
-        contextManager.newSymbol($2, $t, LOCAL_ARRAY);
+        pb.contextManager().newSymbol($2, $t, LOCAL_ARRAY);
         pb.pushFunctionParam(Array($2, $size,
             std::static_pointer_cast<type_system::StaticArray>($t)));
     }
@@ -205,7 +202,7 @@ code:
     | statement code
     | instruction code
     | RET expression[rs] {
-        std::optional<Symbol> sym = contextManager.lookup(pb.currFunctionName());
+        std::optional<Symbol> sym = pb.contextManager().lookup(pb.currFunctionName());
         type_system::type foundType = $rs->type;
         type_system::type expectedType = sym.value().getType();
         type_system::PrimitiveTypes e_expectedType = expectedType->getEvaluatedType();
@@ -213,7 +210,7 @@ code:
         std::ostringstream oss;
 
         if (e_expectedType == type_system::NIL) { // no return allowed
-            errMgr.addUnexpectedReturnError(pb.currFileName(), @1.begin.line,
+            pb.errMgr().addUnexpectedReturnError(pb.currFileName(), @1.begin.line,
                                             pb.currFunctionName());
         } else if (e_expectedType != e_foundType && e_foundType != type_system::NIL) {
             // TODO: create a function to compare types
@@ -221,7 +218,7 @@ code:
             // must check if foundType is not void because of the
             // buildin function (add, ...) which are not in the
             // symtable
-            errMgr.addReturnTypeWarning(pb.currFileName(), @1.begin.line,
+            pb.errMgr().addReturnTypeWarning(pb.currFileName(), @1.begin.line,
                                         pb.currFunctionName(), foundType, expectedType);
         }
         // else verify the type and throw a warning
@@ -273,9 +270,9 @@ variable:
 
         // TODO: this is really bad, the function isDefined will be
         // changed !
-        if (isDefined(pb.currFileName(), @1.begin.line, $1, type)) {
+        if (isDefined(pb, pb.currFileName(), @1.begin.line, $1, type)) {
             if (isArray(type)) {
-                Symbol sym = contextManager.lookup($1).value();
+                Symbol sym = pb.contextManager().lookup($1).value();
                 v = std::make_shared<Array>($1, getArraySize(sym.getType()), type);
             } else {
                 v = std::make_shared<Variable>($1, type);
@@ -290,11 +287,11 @@ variable:
         type_system::type type;
         std::shared_ptr<ArrayAccess> v;
         // TODO: refactor isDefined
-        if (isDefined(pb.currFileName(), @1.begin.line, $1, type)) {
-            std::optional<Symbol> sym = contextManager.lookup($1);
+        if (isDefined(pb, pb.currFileName(), @1.begin.line, $1, type)) {
+            std::optional<Symbol> sym = pb.contextManager().lookup($1);
             // error if the symbol is not an array
             if (sym.value().getKind() != LOCAL_ARRAY) {
-                errMgr.addBadArrayUsageError(pb.currFileName(), @1.begin.line, $1);
+                pb.errMgr().addBadArrayUsageError(pb.currFileName(), @1.begin.line, $1);
             }
             v = std::make_shared<ArrayAccess>($1, type, $index);
         } else {
@@ -313,21 +310,21 @@ arithmeticOperation:
         // the expressions is an undefined function, add the expression to the
         // expression to check)
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "add");
+            pb.errMgr().addOperatorError(pb.currFileName(), @1.begin.line, "add");
         }
         $$ = std::make_shared<AddOP>($left, $right);
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "mns");
+            pb.errMgr().addOperatorError(pb.currFileName(), @1.begin.line, "mns");
         }
         $$ = std::make_shared<MnsOP>($left, $right);
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "tms");
+            pb.errMgr().addOperatorError(pb.currFileName(), @1.begin.line, "tms");
         }
         $$ = std::make_shared<TmsOP>($left, $right);
     }
@@ -335,7 +332,7 @@ arithmeticOperation:
         DEBUG("divOP");
         $$ = std::make_shared<DivOP>($left, $right);
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "div");
+            pb.errMgr().addOperatorError(pb.currFileName(), @1.begin.line, "div");
         }
     }
     ;
@@ -392,7 +389,7 @@ functionCall:
         // TODO: we need a none type as if the function is not defined, we
         // cannot get the return type (should be verified afterward)
         std::shared_ptr<FunctionCall> funcall;
-        if (std::optional<Symbol> symbol = contextManager.lookup($1)) {
+        if (std::optional<Symbol> symbol = pb.contextManager().lookup($1)) {
             funcall =
             pb.createFuncall(type_system::make_type<type_system::Primitive>(symbol.value().getType()->getEvaluatedType()));
         } else {
@@ -411,19 +408,19 @@ variableDeclaration:
     type[t] IDENTIFIER[name] {
         DEBUG("new declaration: " << $name);
         // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-            errMgr.addMultipleDefinitionError(pb.currFileName(), @name.begin.line, $name);
+        if (std::optional<Symbol> symbol = pb.contextManager().lookup($name)) {
+            pb.errMgr().addMultipleDefinitionError(pb.currFileName(), @name.begin.line, $name);
         }
-        contextManager.newSymbol($2, $t, LOCAL_VAR);
+        pb.contextManager().newSymbol($2, $t, LOCAL_VAR);
         pb.pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
         // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-            errMgr.addMultipleDefinitionError(pb.currFileName(), @name.begin.line, $name);
+        if (std::optional<Symbol> symbol = pb.contextManager().lookup($name)) {
+            pb.errMgr().addMultipleDefinitionError(pb.currFileName(), @name.begin.line, $name);
         }
-        contextManager.newSymbol($name, $t, $size, LOCAL_ARRAY);
+        pb.contextManager().newSymbol($name, $t, $size, LOCAL_ARRAY);
         pb.pushBlock(std::make_shared<ArrayDeclaration>($name, $size, $t));
     }
     ;
@@ -440,7 +437,7 @@ assignment:
             auto position = std::make_pair(pb.currFileName(), @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
-            checkType(pb.currFileName(), @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
+            checkType(pb, pb.currFileName(), @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
         }
         pb.pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
@@ -467,7 +464,7 @@ value:
         DEBUG("new char: " << $1);
         type_system::LiteralValue v = {0};
         if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
-            errMgr.addLiteralStringOverflowError(pb.currFileName(), @1.begin.line);
+            pb.errMgr().addLiteralStringOverflowError(pb.currFileName(), @1.begin.line);
             return 1;
         }
         memcpy(v._str, $1.c_str(), $1.size());
@@ -496,51 +493,51 @@ cnd:
     }
     | cndBase[cndb] ELS {
         DEBUG("els");
-        contextManager.enterScope();
+        pb.contextManager().enterScope();
     } block[ops] {
         std::shared_ptr<Cnd> ifstmt = $cndb;
         // adding else block
         ifstmt->elseBlock = $ops;
         $$ = ifstmt;
-        contextManager.leaveScope();
+        pb.contextManager().leaveScope();
     }
     ;
 
 cndBase:
     CND booleanOperation[cond] {
-        contextManager.enterScope();
+        pb.contextManager().enterScope();
     } block[ops] {
         DEBUG("if");
         $$ = pb.createCnd($cond, $ops);
-        contextManager.leaveScope();
+        pb.contextManager().leaveScope();
     }
     ;
 
 for:
     FOR IDENTIFIER[v] RNG'('expression[b] COMMA expression[e] COMMA expression[s]')' {
-        contextManager.enterScope();
+        pb.contextManager().enterScope();
     } block[ops] {
         DEBUG("in for");
         Variable v($v, type_system::make_type<type_system::Primitive>(type_system::NIL));
         type_system::type type;
-        if (isDefined(pb.currFileName(), @v.begin.line, $v, type)) {
+        if (isDefined(pb, pb.currFileName(), @v.begin.line, $v, type)) {
             v = Variable($v, type);
-            checkType(pb.currFileName(), @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
-            checkType(pb.currFileName(), @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
-            checkType(pb.currFileName(), @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
+            checkType(pb, pb.currFileName(), @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
+            checkType(pb, pb.currFileName(), @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
+            checkType(pb, pb.currFileName(), @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
         }
         $$ = pb.createFor(v, $b, $e, $s, $ops);
-        contextManager.leaveScope();
+        pb.contextManager().leaveScope();
     }
     ;
 
 whl:
     WHL '('booleanOperation[cond]')' {
-        contextManager.enterScope();
+        pb.contextManager().enterScope();
     } block[ops] {
         DEBUG("in whl");
         $$ = pb.createWhl($cond, $ops);
-        contextManager.leaveScope();
+        pb.contextManager().leaveScope();
     }
     ;
 %%
@@ -548,7 +545,7 @@ whl:
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
     oss << pb.currFileName() << ":" << loc.begin.line << ": " << msg << "." << std::endl;
-    errMgr.addError(oss.str());
+    pb.errMgr().addError(oss.str());
 }
 
 /* Run interactive parser. It was used during the beginning of the project. */
@@ -556,10 +553,10 @@ void cli() {
     ProgramBuilder pb;
     interpreter::Scanner scanner{ std::cin, std::cerr };
     interpreter::Parser parser{ &scanner, pb };
-    contextManager.enterScope();
+    pb.contextManager().enterScope();
     parser.parse();
-    errMgr.report();
-    if (!errMgr.getErrors()) {
+    pb.errMgr().report();
+    if (!pb.errMgr().getErrors()) {
         pb.display();
     }
 }
@@ -578,9 +575,10 @@ void makeExecutable(std::string file) {
  * the function in which we make the call. This force to parse all the functions
  * to have a complete table of symbol before checking the types.
  */
-void checkAssignments() {
+ // TODO: should be moved elsewhere
+void checkAssignments(ProgramBuilder &pb) {
     for (auto ap : assignmentsToCheck) {
-        checkType(ap.second.first, ap.second.second,
+        checkType(pb, ap.second.first, ap.second.second,
                   ap.first->variable->id,
                   ap.first->variable->type,
                   ap.first->value->type->getEvaluatedType());
@@ -600,11 +598,12 @@ type_system::types getTypes(std::list<std::shared_ptr<TypedNode>> const &nodes) 
 /* Verify the types of all funcalls. To check the type, we have to verify the
  * types of all the parameters. The return type is not important here.
  */
-void checkFuncalls() {
+// TODO: will be moved elsewhere
+void checkFuncalls(ProgramBuilder &pb) {
     // std::list<std::pair<std::shared_ptr<FunctionCall>,
     //                     std::pair<std::string, int>>> funcallsToCheck;
     for (auto fp : funcallsToCheck) {
-        std::optional<Symbol> sym = contextManager.lookup(fp.first->functionName);
+        std::optional<Symbol> sym = pb.contextManager().lookup(fp.first->functionName);
 
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
@@ -613,15 +612,15 @@ void checkFuncalls() {
                 std::static_pointer_cast<type_system::Function>(
                                             sym.value().getType())->argumentsTypes;
 
-            if (!checkParametersTypes(expectedArgumentsTypes, foundArgumentsTypes)) {
-                errMgr.addFuncallTypeError(fp.second.first,
+            if (!checkParametersTypes(pb, expectedArgumentsTypes, foundArgumentsTypes)) {
+                pb.errMgr().addFuncallTypeError(fp.second.first,
                                            fp.second.second,
                                            fp.first->functionName,
                                            expectedArgumentsTypes, foundArgumentsTypes);
             }
         } else {
             // todo
-            // errMgr.addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
+            // pb.errMgr().addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
         }
     }
 }
@@ -634,12 +633,12 @@ void compile(std::string fileName, std::string outputName) {
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
     pb.currFileName(fileName);
-    contextManager.enterScope(); // update the scope
+    pb.contextManager().enterScope(); // update the scope
 
     try {
         pp.process(fileName); // launch the preprocessor
     } catch (std::logic_error& e) {
-        errMgr.addError(e.what());
+        pb.errMgr().addError(e.what());
         preprocessorErrorStatus = 1;
     }
 
@@ -648,19 +647,19 @@ void compile(std::string fileName, std::string outputName) {
     interpreter::Scanner scanner{ is , std::cerr };
     interpreter::Parser parser{ &scanner, pb };
     parserOutput = parser.parse();
-    checkFuncalls();
-    checkAssignments();
+    checkFuncalls(pb);
+    checkAssignments(pb);
 
     // look for main
-    std::optional<Symbol> sym = contextManager.lookup("main");
+    std::optional<Symbol> sym = pb.contextManager().lookup("main");
     if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym.has_value()) {
-        errMgr.addNoEntryPointError();
+        pb.errMgr().addNoEntryPointError();
     }
     // report errors and warnings
-    errMgr.report();
+    pb.errMgr().report();
 
     // if no errors, transpile the file
-    if (!errMgr.getErrors()) {
+    if (!pb.errMgr().getErrors()) {
         std::ofstream fs(outputName);
         pb.program()->compile(fs);
         makeExecutable(outputName);
