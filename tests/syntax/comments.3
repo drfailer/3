@@ -1,0 +1,19 @@
+~~~ start
+int ~~~ after return type specifier
+double(int a) ~~~ after function signature
+bgn ~~~ after bgn
+  ret tms(2, a) ~~~ after ret
+end ~~~ after end
+
+nil main() bgn
+  int a
+  set(a, 8)
+  cnd eql(double(a), 8) ~~~ after cnd
+  bgn
+    shw("in cnd") ~~~ after shw
+  end ~~~ after end
+  els ~~~ after els
+  bgn
+    shw("Hello, World!\n")
+  end
+end

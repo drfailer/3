@@ -1,0 +1,27 @@
+~~~ error: return type
+int procedure() bgn
+  ret 4
+end
+
+int foo(int a) bgn
+  flt b
+  set(b, tms(1.3, a))
+  ret b ~~~ warning: wrong return type (warning because flt castable to int)
+end
+
+~~~ error: no entry point
+nil main_() bgn
+  int a
+  chr c
+  set(a, 'a') ~~~ warning: a is of type int (warning because chr castable to int)
+  set(b, 5) ~~~ error: undefined symbol b
+  set(c, foo(4)) ~~~ warning: foo returns an int and expected a char
+  set(c, foo(4, 3)) ~~~ error: wrong arguments for foo
+
+  fuction(a, b) ~~~ erreur: undefined symbol
+end
+
+~~~ error: redefinition of procedure
+nil procedure(int a) bgn
+  print(a)
+end
