@@ -12,22 +12,22 @@ void ProgramBuilder::display() { program_->display(); }
  * @brief  Add `command` to the last block of the block stack.
  */
 void ProgramBuilder::pushBlock(std::shared_ptr<Node> command) {
-    blocks.back()->add(command);
+    blocks.top()->add(command);
 }
 
 /**
  * @brief  create an empty block on the top of the blocks stack
  */
 void ProgramBuilder::beginBlock() {
-    blocks.push_back(std::make_shared<Block>());
+    blocks.push(std::make_shared<Block>());
 }
 
 /**
  * @brief  pop the last block of the blocks stack
  */
 std::shared_ptr<Block> ProgramBuilder::endBlock() {
-    std::shared_ptr<Block> lastBlock = blocks.back();
-    blocks.pop_back();
+    std::shared_ptr<Block> lastBlock = blocks.top();
+    blocks.pop();
     return lastBlock;
 }
 

@@ -2,6 +2,7 @@
 #define PROGRAMBUILDER_H
 #include "ast/program.hpp"
 #include <memory>
+#include <stack>
 
 // TODO: cette classe doit être utilisée pour construire l'abre avec le parser.
 // elle doit contenir des piles tampons pour pouvoir ajouter les opération, les
@@ -70,7 +71,7 @@ class ProgramBuilder {
     std::string currFunctionName_;
     std::shared_ptr<Program> program_ = nullptr;
     // todo: use std::stack
-    std::list<std::shared_ptr<Block>> blocks = {};
+    std::stack<std::shared_ptr<Block>> blocks = {};
     std::list<Variable> currFunctionParameters_ = {};
     std::list<std::list<std::shared_ptr<TypedNode>>> functionCallsParameters_ = {};
     // NOTE: maybe move this to the .y file as global variable:
