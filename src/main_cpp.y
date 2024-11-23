@@ -54,9 +54,6 @@
     Symtable symtable;
     ContextManager contextManager;
     ErrorManager errMgr;
-    std::string currentFunctionName = "";
-    type_system::type currentFunctionReturnType = nullptr;
-    std::string currentFile = "";
 
     std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck = {};
     std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck = {};
@@ -108,29 +105,26 @@ programUnit:
         // this line is inserted by the preprcessor and allow to know
         // the current file name. To avoid conflicts in lexer's rules we
         // use the string token, however there must be a better way.
-        currentFile = $1;
-        // suppression des '"':
-        currentFile.erase(0, 1);
-        currentFile.pop_back();
+        pb.currFileName($1);
     }
     ;
 
 returnTypeSpecifier:
     type[rt] {
-        currentFunctionReturnType = $rt;
+        pb.currFunctionReturnType($rt);
     }
     | NIL {
-        currentFunctionReturnType = type_system::make_type<type_system::Primitive>(type_system::NIL);
+        pb.currFunctionReturnType(type_system::make_type<type_system::Primitive>(type_system::NIL));
     }
     ;
 
 functionDefinition:
     returnTypeSpecifier IDENTIFIER[name] {
-        currentFunctionName = $name;
+        pb.currFunctionName($name);
         std::optional<Symbol> sym = contextManager.lookup($name);
         // error on function redefinition
         if (sym.has_value()) {
-            errMgr.addMultipleDefinitionError(currentFile, @name.begin.line,
+            errMgr.addMultipleDefinitionError(pb.currFileName(), @name.begin.line,
                                               $name);
             // TODO: print the previous definition location
             return 1;
@@ -138,13 +132,13 @@ functionDefinition:
         contextManager.enterScope();
     } '('parameterDeclarationList')' {
         type_system::type funType = type_system::make_type<type_system::Function>(
-            currentFunctionReturnType,
+            pb.currFunctionReturnType(),
             pb.getParamsTypes()
         );
-        contextManager.newGlobalSymbol(currentFunctionName, funType, FUNCTION);
+        contextManager.newGlobalSymbol(pb.currFunctionName(), funType, FUNCTION);
     } block[ops] {
         // error if there is a return statement
-        pb.createFunction(currentFunctionName, $ops, currentFunctionReturnType);
+        pb.createFunction(pb.currFunctionName(), $ops, pb.currFunctionReturnType());
         contextManager.leaveScope();
     }
     ;
@@ -211,7 +205,7 @@ code:
     | statement code
     | instruction code
     | RET expression[rs] {
-        std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
+        std::optional<Symbol> sym = contextManager.lookup(pb.currFunctionName());
         type_system::type foundType = $rs->type;
         type_system::type expectedType = sym.value().getType();
         type_system::PrimitiveTypes e_expectedType = expectedType->getEvaluatedType();
@@ -219,16 +213,16 @@ code:
         std::ostringstream oss;
 
         if (e_expectedType == type_system::NIL) { // no return allowed
-            errMgr.addUnexpectedReturnError(currentFile, @1.begin.line,
-                                            currentFunctionName);
+            errMgr.addUnexpectedReturnError(pb.currFileName(), @1.begin.line,
+                                            pb.currFunctionName());
         } else if (e_expectedType != e_foundType && e_foundType != type_system::NIL) {
             // TODO: create a function to compare types
             std::cout << "ERROR: type comparison done wrong." << std::endl;
             // must check if foundType is not void because of the
             // buildin function (add, ...) which are not in the
             // symtable
-            errMgr.addReturnTypeWarning(currentFile, @1.begin.line,
-                                        currentFunctionName, foundType, expectedType);
+            errMgr.addReturnTypeWarning(pb.currFileName(), @1.begin.line,
+                                        pb.currFunctionName(), foundType, expectedType);
         }
         // else verify the type and throw a warning
         pb.pushBlock(std::make_shared<Return>($rs));
@@ -279,7 +273,7 @@ variable:
 
         // TODO: this is really bad, the function isDefined will be
         // changed !
-        if (isDefined(currentFile, @1.begin.line, $1, type)) {
+        if (isDefined(pb.currFileName(), @1.begin.line, $1, type)) {
             if (isArray(type)) {
                 Symbol sym = contextManager.lookup($1).value();
                 v = std::make_shared<Array>($1, getArraySize(sym.getType()), type);
@@ -296,11 +290,11 @@ variable:
         type_system::type type;
         std::shared_ptr<ArrayAccess> v;
         // TODO: refactor isDefined
-        if (isDefined(currentFile, @1.begin.line, $1, type)) {
+        if (isDefined(pb.currFileName(), @1.begin.line, $1, type)) {
             std::optional<Symbol> sym = contextManager.lookup($1);
             // error if the symbol is not an array
             if (sym.value().getKind() != LOCAL_ARRAY) {
-                errMgr.addBadArrayUsageError(currentFile, @1.begin.line, $1);
+                errMgr.addBadArrayUsageError(pb.currFileName(), @1.begin.line, $1);
             }
             v = std::make_shared<ArrayAccess>($1, type, $index);
         } else {
@@ -319,21 +313,21 @@ arithmeticOperation:
         // the expressions is an undefined function, add the expression to the
         // expression to check)
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "add");
+            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "add");
         }
         $$ = std::make_shared<AddOP>($left, $right);
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "mns");
+            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "mns");
         }
         $$ = std::make_shared<MnsOP>($left, $right);
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "tms");
+            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "tms");
         }
         $$ = std::make_shared<TmsOP>($left, $right);
     }
@@ -341,7 +335,7 @@ arithmeticOperation:
         DEBUG("divOP");
         $$ = std::make_shared<DivOP>($left, $right);
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "div");
+            errMgr.addOperatorError(pb.currFileName(), @1.begin.line, "div");
         }
     }
     ;
@@ -399,7 +393,7 @@ functionCall:
         } else {
             funcall = pb.createFuncall();
         }
-        std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
+        std::pair<std::string, int> position = std::make_pair(pb.currFileName(), @1.begin.line);
         funcallsToCheck.push_back(std::make_pair(funcall, position));
         // the type check is done at the end !
         DEBUG("new funcall: " << $1);
@@ -413,7 +407,7 @@ variableDeclaration:
         DEBUG("new declaration: " << $name);
         // redefinitions are not allowed:
         if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-            errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
+            errMgr.addMultipleDefinitionError(pb.currFileName(), @name.begin.line, $name);
         }
         contextManager.newSymbol($2, $t, LOCAL_VAR);
         pb.pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
@@ -422,7 +416,7 @@ variableDeclaration:
         DEBUG("new array declaration: " << $2);
         // redefinitions are not allowed:
         if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-            errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
+            errMgr.addMultipleDefinitionError(pb.currFileName(), @name.begin.line, $name);
         }
         contextManager.newSymbol($name, $t, $size, LOCAL_ARRAY);
         pb.pushBlock(std::make_shared<ArrayDeclaration>($name, $size, $t));
@@ -438,10 +432,10 @@ assignment:
 
         if (std::static_pointer_cast<FunctionCall>($ic)) { // if funcall
             // this is a funcall so we have to wait the end of the parsing to check
-            auto position = std::make_pair(currentFile, @c.begin.line);
+            auto position = std::make_pair(pb.currFileName(), @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
-            checkType(currentFile, @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
+            checkType(pb.currFileName(), @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
         }
         pb.pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
@@ -468,7 +462,7 @@ value:
         DEBUG("new char: " << $1);
         type_system::LiteralValue v = {0};
         if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
-            errMgr.addLiteralStringOverflowError(currentFile, @1.begin.line);
+            errMgr.addLiteralStringOverflowError(pb.currFileName(), @1.begin.line);
             return 1;
         }
         memcpy(v._str, $1.c_str(), $1.size());
@@ -524,11 +518,11 @@ for:
         DEBUG("in for");
         Variable v($v, type_system::make_type<type_system::Primitive>(type_system::NIL));
         type_system::type type;
-        if (isDefined(currentFile, @v.begin.line, $v, type)) {
+        if (isDefined(pb.currFileName(), @v.begin.line, $v, type)) {
             v = Variable($v, type);
-            checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
-            checkType(currentFile, @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
-            checkType(currentFile, @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
+            checkType(pb.currFileName(), @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
+            checkType(pb.currFileName(), @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
+            checkType(pb.currFileName(), @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
         }
         $$ = pb.createFor(v, $b, $e, $s, $ops);
         contextManager.leaveScope();
@@ -548,7 +542,7 @@ whl:
 
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
-    oss << currentFile << ":" << loc.begin.line << ": " << msg << "." << std::endl;
+    oss << pb.currFileName() << ":" << loc.begin.line << ": " << msg << "." << std::endl;
     errMgr.addError(oss.str());
 }
 
@@ -634,7 +628,7 @@ void compile(std::string fileName, std::string outputName) {
     ProgramBuilder pb;
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
-    currentFile = fileName;
+    pb.currFileName(fileName);
     contextManager.enterScope(); // update the scope
 
     try {

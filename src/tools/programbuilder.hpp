@@ -24,6 +24,29 @@ class ProgramBuilder {
     std::shared_ptr<Block> endBlock(); // pop the last block of the blocks stack
     void pushBlock(std::shared_ptr<Node>); // add command to the last block
 
+    void currFileName(std::string const &fileName) {
+        // the filename is surrounded by '"' (we remove them)
+        currFileName_ = fileName.substr(1);
+        currFileName_.pop_back();
+    }
+
+    std::string const &currFileName() const { return currFileName_; }
+
+    void currFunctionReturnType(type_system::type currFunctionReturnType) {
+        currFunctionReturnType_ = currFunctionReturnType;
+    }
+
+    type_system::type const currFunctionReturnType() const {
+        return currFunctionReturnType_;
+    }
+
+    void currFunctionName(std::string const &currFunctionName) {
+        currFunctionName_ = currFunctionName;
+    }
+    std::string const &currFunctionName() { return currFunctionName_; }
+
+    /* create functions *******************************************************/
+
     std::shared_ptr<FunctionCall> createFuncall(
         type_system::type = type_system::make_type<type_system::None>());
 
@@ -39,20 +62,19 @@ class ProgramBuilder {
     void pushFunctionParam(Variable);
     void newFuncall(std::string);
 
-    void createFunction(std::string, std::shared_ptr<Block>,
-                        type_system::type );
+    void createFunction(std::string, std::shared_ptr<Block>, type_system::type);
 
   private:
-    std::shared_ptr<Program> program = nullptr; // current program
-    std::list<std::shared_ptr<Block>> blocks =
-        {};                             // stack of blocks (the last
-                                        // element is the current block)
-    std::list<Variable> funParams = {}; // parameters of the last function
-    std::list<std::list<std::shared_ptr<TypedNode>>> funcallParams =
-        {}; // parameters of the last funcall
+    std::string currFileName_;
+    type_system::type currFunctionReturnType_ = nullptr;
+    std::string currFunctionName_;
+    std::shared_ptr<Program> program = nullptr;
+    // todo: use std::stack
+    std::list<std::shared_ptr<Block>> blocks = {};
+    std::list<Variable> funParams = {};
+    std::list<std::list<std::shared_ptr<TypedNode>>> funcallParams = {};
     // NOTE: maybe move this to the .y file as global variable:
     std::list<std::string> funcallIds = {};
-    // std::shared_ptr<Function> currentFunction; // TODO: user this
 };
 
 #endif
