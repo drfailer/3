@@ -133,7 +133,7 @@ functionDefinition:
     } '('parameterDeclarationList')' {
         type_system::type funType = type_system::make_type<type_system::Function>(
             pb.currFunctionReturnType(),
-            pb.getParamsTypes()
+            pb.parametersTypes()
         );
         contextManager.newGlobalSymbol(pb.currFunctionName(), funType, FUNCTION);
     } block[ops] {
@@ -657,7 +657,7 @@ void compile(std::string fileName, std::string outputName) {
     // if no errors, transpile the file
     if (!errMgr.getErrors()) {
         std::ofstream fs(outputName);
-        pb.getProgram()->compile(fs);
+        pb.program()->compile(fs);
         makeExecutable(outputName);
     }
 

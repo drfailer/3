@@ -14,9 +14,9 @@ class ProgramBuilder {
   public:
     ProgramBuilder();
 
-    std::list<Variable> const &getFunParams() const;
-    std::shared_ptr<Program> getProgram() const;
-    type_system::types getParamsTypes() const;
+    std::list<Variable> const &functionParameters() const;
+    std::shared_ptr<Program> program() const;
+    type_system::types parametersTypes() const;
 
     void display();
 
@@ -68,13 +68,13 @@ class ProgramBuilder {
     std::string currFileName_;
     type_system::type currFunctionReturnType_ = nullptr;
     std::string currFunctionName_;
-    std::shared_ptr<Program> program = nullptr;
+    std::shared_ptr<Program> program_ = nullptr;
     // todo: use std::stack
     std::list<std::shared_ptr<Block>> blocks = {};
-    std::list<Variable> funParams = {};
-    std::list<std::list<std::shared_ptr<TypedNode>>> funcallParams = {};
+    std::list<Variable> currFunctionParameters_ = {};
+    std::list<std::list<std::shared_ptr<TypedNode>>> functionCallsParameters_ = {};
     // NOTE: maybe move this to the .y file as global variable:
-    std::list<std::string> funcallIds = {};
+    std::list<std::string> funcallIds_ = {};
 };
 
 #endif

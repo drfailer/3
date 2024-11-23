@@ -1,8 +1,8 @@
 #include "programbuilder.hpp"
 
-ProgramBuilder::ProgramBuilder() : program(std::make_shared<Program>()) {}
+ProgramBuilder::ProgramBuilder() : program_(std::make_shared<Program>()) {}
 
-void ProgramBuilder::display() { program->display(); }
+void ProgramBuilder::display() { program_->display(); }
 
 /******************************************************************************/
 /*                                   blocks                                   */
@@ -72,33 +72,33 @@ std::shared_ptr<Whl> ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
 std::shared_ptr<FunctionCall>
 ProgramBuilder::createFuncall(type_system::type type) {
     auto newFuncall = std::make_shared<FunctionCall>(
-        funcallIds.back(), funcallParams.back(), type);
-    funcallIds.pop_back();
-    funcallParams.pop_back();
+        funcallIds_.back(), functionCallsParameters_.back(), type);
+    funcallIds_.pop_back();
+    functionCallsParameters_.pop_back();
     return newFuncall;
 }
 
 void ProgramBuilder::newFuncall(std::string name) {
-    funcallIds.push_back(name);
-    funcallParams.push_back(std::list<std::shared_ptr<TypedNode>>());
+    funcallIds_.push_back(name);
+    functionCallsParameters_.push_back(std::list<std::shared_ptr<TypedNode>>());
 }
 
 void ProgramBuilder::createFunction(std::string name,
                                     std::shared_ptr<Block> operations,
                                     type_system::type returnType) {
     type_system::types argumentsTypes;
-    for (Variable v : funParams) {
+    for (Variable v : currFunctionParameters_) {
         argumentsTypes.push_back(v.type);
     }
     std::shared_ptr<Function> function = std::make_shared<Function>(
-        name, funParams, operations,
+        name, currFunctionParameters_, operations,
         type_system::make_type<type_system::Function>(returnType, argumentsTypes));
-    program->addFunction(function);
-    funParams.clear();
+    program_->addFunction(function);
+    currFunctionParameters_.clear();
 }
 
 void ProgramBuilder::pushFuncallParam(std::shared_ptr<TypedNode> newParam) {
-    funcallParams.back().push_back(newParam);
+    functionCallsParameters_.back().push_back(newParam);
 }
 
 /******************************************************************************/
@@ -106,22 +106,22 @@ void ProgramBuilder::pushFuncallParam(std::shared_ptr<TypedNode> newParam) {
 /******************************************************************************/
 
 void ProgramBuilder::pushFunctionParam(Variable newParam) {
-    funParams.push_back(newParam);
+    currFunctionParameters_.push_back(newParam);
 }
 
 /******************************************************************************/
 /*                                  getters                                   */
 /******************************************************************************/
 
-std::shared_ptr<Program> ProgramBuilder::getProgram() const { return program; }
+std::shared_ptr<Program> ProgramBuilder::program() const { return program_; }
 
-std::list<Variable> const &ProgramBuilder::getFunParams() const {
-    return funParams;
+std::list<Variable> const &ProgramBuilder::functionParameters() const {
+    return currFunctionParameters_;
 }
 
-type_system::types ProgramBuilder::getParamsTypes() const {
+type_system::types ProgramBuilder::parametersTypes() const {
     type_system::types paramsTypes;
-    for (Variable v : funParams) {
+    for (Variable v : currFunctionParameters_) {
         paramsTypes.push_back(v.type);
         /* std::cout << "id => " << v.getId() << std::endl; */
     }
