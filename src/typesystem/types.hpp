@@ -17,7 +17,14 @@ union LiteralValue {
 };
 
 enum PrimitiveTypes { NIL, INT, FLT, CHR };
-enum class TypeKinds { Primitive, StaticArray, DynamicArray, Obj, Function };
+enum class TypeKinds {
+    Primitive,
+    StaticArray,
+    DynamicArray,
+    Obj,
+    Function,
+    None
+};
 
 struct Type {
     Type(TypeKinds kind) : kind(kind) {}
@@ -39,7 +46,23 @@ std::shared_ptr<T> make_type(Args &&...args) {
 std::ostream &operator<<(std::ostream &os, PrimitiveTypes type);
 std::ostream &operator<<(std::ostream &os, types const &types);
 
-// TODO: create a none type
+/*
+ * None type used for elements that should be verified after the parser
+ * termination.
+ */
+struct None : Type {
+    None() : Type(TypeKinds::None) {}
+    virtual std::string toString() const { return "none"; }
+
+    virtual PrimitiveTypes getEvaluatedType() const {
+        // TODO: create a custom exception
+        throw std::runtime_error("error: None type can't be evaluated.");
+    }
+
+    virtual bool compare(std::shared_ptr<Type> const other) const {
+        return other->kind == TypeKinds::None;
+    }
+};
 
 struct Primitive : Type {
     Primitive(PrimitiveTypes type = INT)
@@ -171,6 +194,7 @@ size_t getArraySize(type const t);
 PrimitiveTypes getElementType(type const t);
 PrimitiveTypes getValueType(type const t);
 bool isNumber(type const t);
+bool isNone(type const t);
 type getReturnType(type const t);
 
 } // end namespace type_system

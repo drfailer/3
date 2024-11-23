@@ -107,6 +107,10 @@ bool isNumber(type const t) {
     return false;
 }
 
+bool isNone(type const t) {
+    return t->kind == TypeKinds::None;
+}
+
 type getReturnType(type const t) {
     switch (t->kind) {
     case TypeKinds::Function: {
