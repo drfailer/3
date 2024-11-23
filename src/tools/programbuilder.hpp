@@ -24,8 +24,8 @@ class ProgramBuilder {
     std::shared_ptr<Block> endBlock(); // pop the last block of the blocks stack
     void pushBlock(std::shared_ptr<Node>); // add command to the last block
 
-    std::shared_ptr<FunctionCall> createFuncall(type_system::type =
-            type_system::make_type<type_system::Primitive>(type_system::NIL));
+    std::shared_ptr<FunctionCall> createFuncall(
+        type_system::type = type_system::make_type<type_system::None>());
 
     std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>,
                                    std::shared_ptr<Block>);
