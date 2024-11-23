@@ -1,0 +1,27 @@
+nil rec(int a) bgn
+  cnd sup(a, 0) bgn
+    shw(a)
+    shw("\n")
+    rec(mns(a, 1))
+  end
+end
+
+nil fonc1() bgn
+  fonc2("Hello, World!\n")
+end
+
+nil fonc2(chr msg[100]) bgn
+  int i
+
+  set(i, 0)
+  whl not(eql(msg[i], 0)) bgn
+    shw(msg[i])
+    set(i, add(i, 1))
+  end
+end
+
+nil main() bgn
+  shw("Hello, World!\n")
+  fonc1()
+  rec(10)
+end

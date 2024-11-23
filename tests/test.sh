@@ -21,6 +21,20 @@ test_hello_world() {
     clean_test
 }
 
+test_comments() {
+    echo "running test on comments"
+    $S3C ./syntax/comments.3
+    ./a.out
+    clean_test
+}
+
+# note: wont compile because all the types and symbols are wrong
+test_syntax() {
+    echo "running test on syntax"
+    $S3C ./syntax/syntax.3
+    clean_test
+}
+
 test_fib() {
     echo "running test on fib"
     $S3C ./fib.3
@@ -36,9 +50,16 @@ test_arrays() {
     clean_test
 }
 
-test_comments() {
-    echo "running test on comments"
-    $S3C ./syntax/comments.3
+test_set() {
+    echo "running test on set"
+    $S3C ./builtins/set.3
+    ./a.out
+    clean_test
+}
+
+test_operations() {
+    echo "running test on operations"
+    $S3C ./builtins/operations.3
     ./a.out
     clean_test
 }
@@ -81,24 +102,38 @@ test_multiple_definitions2() {
     clean_test
 }
 
+test_recursion() {
+    echo "running test on recursion"
+    $S3C ./symbols/recursion.3
+    ./a.out
+    clean_test
+}
+
 verify_s3c
 
 # syntax
 
 # test_hello_world
 # test_comments
+# test_syntax # error !!!
 
 # builtins
 
+# test_set # python error !!!
+# test_operations # error !!!
 # test_for # todo: save the errors
-# test_no_function_definition_order
 
 # symbols
 
 # test_definitions
-# test_errors # todo: save the errors
+# test_no_function_definition_order
 # test_multiple_definitions1 # todo: save the error
 # test_multiple_definitions2 # todo: save the error
+# test_recursion # error !!!
+
+# errors
+
+# test_errors # todo: save the errors
 
 # programs
 

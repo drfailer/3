@@ -1,0 +1,69 @@
+use test;
+use list;
+use math;
+
+~~~ fonction test
+int test_1(int a) bgn
+  ret tms(a, 3);
+end
+
+nil test_2(int a, flt b, chr c) bgn
+  shw(c);
+  ipt(a);
+  set(b, test_1(a));
+end
+
+int test_3(int a) bgn
+  ret a;
+end
+
+flt test_4(int a) bgn
+  ret 1.3;
+end
+
+~~~ fonction main
+nil main(int p1, flt p2, chr p3) bgn
+  int a;
+  set(a, 4);
+  myFun(a, b, 5, 'a');
+  flt b;
+  set(b, 4.0);
+  set(b, add(add(2,2), 4));
+  set(b, add(2, add(5,6)));
+  set(b, add(mns(3, tms(3, fonction(a))), add(5,6)));
+  set(b, myfun(mns(3, tms(3, fonction(mns(4,6)))), add(5,6)));
+
+  myFun(a, b, fonction(a, b), 4);
+  myFun(a, b, fonction(a, add(3,4)), tms(2,2));
+  myFun(a, add(3,3), fonction(a, b), 4);
+  myFun(a, fonc(a), fonction(a, b), 4);
+
+  cnd and(sup(a, b), or(eql(a, 0), ieq(add(a, b), 4))) bgn
+    chr c;
+    set(c, 'a');
+  end
+
+  cnd and(eql(a, b), or(eql(a, 0), seq(add(a, b), 4))) bgn
+    ~~~ comment in cnd
+    chr c;
+    set(c, 'a');
+  end
+  els bgn
+    flt f;
+    set(f, div(3,4));
+  end
+
+  whl (and(eql(a, 4), eql(fonc(a, 5), 5))) bgn
+    set(f, div(3,4));
+  end
+
+  for a rng(1, 10, fonc(a)) bgn
+    set(a, add(a, 1));
+  end
+
+  ~~~ affichage
+  shw("Hello, World !");
+  shw(a);
+  ipt(a);
+end
+

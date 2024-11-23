@@ -343,22 +343,27 @@ arithmeticOperation:
 booleanOperation:
     EQL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("EqlOP");
+        // TODO: type check
         $$ = std::make_shared<EqlOP>($left, $right);
     }
     | SUP'(' expression[left] COMMA expression[right] ')' {
         DEBUG("SupOP");
+        // TODO: type check
         $$ = std::make_shared<SupOP>($left, $right);
     }
     | INF'(' expression[left] COMMA expression[right] ')' {
         DEBUG("InfOP");
+        // TODO: type check
         $$ = std::make_shared<InfOP>($left, $right);
     }
     | SEQ'(' expression[left] COMMA expression[right] ')' {
         DEBUG("SeqOP");
+        // TODO: type check
         $$ = std::make_shared<SeqOP>($left, $right);
     }
     | IEQ'(' expression[left] COMMA expression[right] ')' {
         DEBUG("IeqOP");
+        // TODO: type check
         $$ = std::make_shared<IeqOP>($left, $right);
     }
     | AND'('booleanOperation[left] COMMA booleanOperation[right]')' {
