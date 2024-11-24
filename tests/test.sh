@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 S3C=../build/s3c
+RESULT=0
 
 ################################################################################
 #                              utility functions                               #
@@ -30,6 +31,7 @@ assert_no_diff() {
     if [ ! -z $diffs ]; then
         echo $error_message
         echo $diffs
+        RESULT=1
     fi
 }
 
@@ -38,10 +40,12 @@ assert_compiled() {
 
     if [ ! $? -eq 0 ]; then
         echo "error: compile result of $test_name is $? instead of 0."
+        RESULT=1
     fi
 
     if [ ! -f ./a.out ]; then
         echo "error: a.out file not present for $test_name."
+        RESULT=1
     fi
 }
 
@@ -256,3 +260,9 @@ test_errors
 test_fib
 
 # test_arrays # error !!!
+
+################################################################################
+#                                  test exit                                   #
+################################################################################
+
+exit $RESULT
