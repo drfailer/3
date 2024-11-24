@@ -220,41 +220,11 @@ expression:
 variable:
     IDENTIFIER {
         DEBUG("new param variable");
-        type_system::type type;
-        std::shared_ptr<Variable> v;
-
-        // TODO: this is really bad, the function isDefined will be
-        // changed !
-        if (isDefined(s3c, s3c.programBuilder().currFileName(), @1.begin.line, $1, type)) {
-            if (isArray(type)) {
-                Symbol sym = s3c.contextManager().lookup($1).value();
-                v = std::make_shared<Array>($1, getArraySize(sym.getType()), type);
-            } else {
-                v = std::make_shared<Variable>($1, type);
-            }
-        } else {
-            v = std::make_shared<Variable>($1, type_system::make_type<type_system::Primitive>(type_system::NIL));
-        }
-        $$ = v;
+        $$ = s3c.newVariable($1, @1.begin.line);
     }
     | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
         DEBUG("using an array");
-        type_system::type type;
-        std::shared_ptr<ArrayAccess> v;
-        // TODO: refactor isDefined
-        if (isDefined(s3c, s3c.programBuilder().currFileName(), @1.begin.line, $1, type)) {
-            std::optional<Symbol> sym = s3c.contextManager().lookup($1);
-            // error if the symbol is not an array
-            if (sym.value().getKind() != LOCAL_ARRAY) {
-                s3c.errorsManager().addBadArrayUsageError(s3c.programBuilder().currFileName(), @1.begin.line, $1);
-            }
-            v = std::make_shared<ArrayAccess>($1, type, $index);
-        } else {
-            // TODO: verify the type of the index
-            v = std::make_shared<ArrayAccess>($1,
-                type_system::make_type<type_system::Primitive>(type_system::NIL), $index);
-        }
-        $$ = v;
+        $$ = s3c.newArrayVariable($1, @1.begin.line, $index);
     }
     ;
 

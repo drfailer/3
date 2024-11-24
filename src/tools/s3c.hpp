@@ -2,6 +2,7 @@
 #define TOOLS_S3C_H
 #include "ast/ast.hpp"
 #include "symtable/context_manager.hpp"
+#include "tools/checks.hpp"
 #include "tools/errors_manager.hpp"
 #include "tools/program_builder.hpp"
 
@@ -99,6 +100,57 @@ class S3C {
         } else {
             programBuilder_.pushBlock(std::make_shared<Shw>(expr));
         }
+    }
+
+  public:
+    std::shared_ptr<Variable> newVariable(std::string const &name,
+                                          size_t line) {
+        type_system::type type;
+        std::shared_ptr<Variable> v;
+
+        // TODO: this is really bad, the function isDefined will be changed !
+        if (isDefined(*this, programBuilder_.currFileName(), line, name,
+                      type)) {
+            if (isArray(type)) {
+                Symbol sym = contextManager_.lookup(name).value();
+                v = std::make_shared<Array>(name, getArraySize(sym.getType()),
+                                            type);
+            } else {
+                v = std::make_shared<Variable>(name, type);
+            }
+        } else {
+            v = std::make_shared<Variable>(
+                name, type_system::make_type<type_system::Primitive>(
+                          type_system::NIL));
+        }
+        return v;
+    }
+
+    std::shared_ptr<ArrayAccess>
+    newArrayVariable(std::string const &name, size_t line,
+                     std::shared_ptr<TypedNode> index) {
+        type_system::type type;
+        std::shared_ptr<ArrayAccess> v;
+
+        // TODO: refactor isDefined
+        if (isDefined(*this, programBuilder_.currFileName(), line, name,
+                      type)) {
+            std::optional<Symbol> sym = contextManager_.lookup(name);
+            // error if the symbol is not an array
+            if (sym.value().getKind() != LOCAL_ARRAY) {
+                errorsManager_.addBadArrayUsageError(
+                    programBuilder_.currFileName(), line, name);
+            }
+            v = std::make_shared<ArrayAccess>(name, type, index);
+        } else {
+            // TODO: verify the type of the index
+            v = std::make_shared<ArrayAccess>(
+                name,
+                type_system::make_type<type_system::Primitive>(
+                    type_system::NIL),
+                index);
+        }
+        return v;
     }
 
   private:

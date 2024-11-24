@@ -1,7 +1,8 @@
 #ifndef CHECKS_H
 #define CHECKS_H
-#include "ast/ast.hpp"
-#include "tools/s3c.hpp"
+#include "type_system/types.hpp"
+
+class S3C;
 
 bool isDefined(S3C &s3c, std::string file, int line, std::string name,
                type_system::type &type);

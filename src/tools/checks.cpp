@@ -1,4 +1,5 @@
 #include "checks.hpp"
+#include "tools/s3c.hpp"
 #include <optional>
 
 // TODO: rewrite all this stuff
