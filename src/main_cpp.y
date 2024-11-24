@@ -184,27 +184,7 @@ code:
     | statement code
     | instruction code
     | RET expression[rs] {
-        std::optional<Symbol> sym = s3c.contextManager().lookup(s3c.programBuilder().currFunctionName());
-        type_system::type foundType = $rs->type;
-        type_system::type expectedType = sym.value().getType();
-        type_system::PrimitiveTypes e_expectedType = expectedType->getEvaluatedType();
-        type_system::PrimitiveTypes e_foundType = foundType->getEvaluatedType();
-        std::ostringstream oss;
-
-        if (e_expectedType == type_system::NIL) { // no return allowed
-            s3c.errorsManager().addUnexpectedReturnError(s3c.programBuilder().currFileName(), @1.begin.line,
-                                            s3c.programBuilder().currFunctionName());
-        } else if (e_expectedType != e_foundType && e_foundType != type_system::NIL) {
-            // TODO: create a function to compare types
-            std::cout << "ERROR: type comparison done wrong." << std::endl;
-            // must check if foundType is not void because of the
-            // buildin function (add, ...) which are not in the
-            // symtable
-            s3c.errorsManager().addReturnTypeWarning(s3c.programBuilder().currFileName(), @1.begin.line,
-                                        s3c.programBuilder().currFunctionName(), foundType, expectedType);
-        }
-        // else verify the type and throw a warning
-        s3c.programBuilder().pushBlock(std::make_shared<Return>($rs));
+        s3c.newReturnExpression($rs, @1.begin.line);
     }
     ;
 

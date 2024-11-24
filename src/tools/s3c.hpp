@@ -60,6 +60,36 @@ class S3C {
                   std::static_pointer_cast<type_system::StaticArray>(type)));
     }
 
+  public:
+    void newReturnExpression(std::shared_ptr<TypedNode> expr, size_t line) {
+        std::optional<Symbol> sym =
+            contextManager_.lookup(programBuilder_.currFunctionName());
+        type_system::type foundType = expr->type;
+        type_system::type expectedType = sym.value().getType();
+        type_system::PrimitiveTypes e_expectedType =
+            expectedType->getEvaluatedType();
+        type_system::PrimitiveTypes e_foundType = foundType->getEvaluatedType();
+        std::ostringstream oss;
+
+        if (e_expectedType == type_system::NIL) { // no return allowed
+            errorsManager_.addUnexpectedReturnError(
+                programBuilder_.currFileName(), line,
+                programBuilder_.currFunctionName());
+        } else if (e_expectedType != e_foundType &&
+                   e_foundType != type_system::NIL) {
+            // TODO: create a function to compare types
+            std::cout << "ERROR: type comparison done wrong." << std::endl;
+            // must check if foundType is not void because of the
+            // buildin function (add, ...) which are not in the
+            // symtable
+            errorsManager_.addReturnTypeWarning(
+                programBuilder_.currFileName(), line,
+                programBuilder_.currFunctionName(), foundType, expectedType);
+        }
+        // else verify the type and throw a warning
+        programBuilder_.pushBlock(std::make_shared<Return>(expr));
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;
