@@ -41,6 +41,25 @@ class S3C {
         contextManager_.leaveScope();
     }
 
+  public:
+    void newParameterDeclaration(std::string const &name,
+                                 type_system::type type) {
+        contextManager_.newSymbol(name, type, FUN_PARAM);
+        programBuilder_.pushFunctionParam(Variable(name, type));
+    }
+
+    void newArrayParameterDeclaration(std::string const &name,
+                                      type_system::type type, long size) {
+        // TODO: remove the size of the array. The size should be set at
+        // -1 (or any default value) in order to specify that we don't
+        // want to check the size at compile time when we treat the
+        // function
+        contextManager_.newSymbol(name, type, LOCAL_ARRAY);
+        programBuilder_.pushFunctionParam(
+            Array(name, size,
+                  std::static_pointer_cast<type_system::StaticArray>(type)));
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;

@@ -138,18 +138,11 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        s3c.contextManager().newSymbol($2, $t, FUN_PARAM);
-        s3c.programBuilder().pushFunctionParam(Variable($2, $t));
+        s3c.newParameterDeclaration($2, $t);
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
         DEBUG("new param: " << $2);
-        // TODO: remove the size of the array. The size should be set at
-        // -1 (or any default value) in order to specify that we don't
-        // want to check the size at compile time when we treat the
-        // function
-        s3c.contextManager().newSymbol($2, $t, LOCAL_ARRAY);
-        s3c.programBuilder().pushFunctionParam(Array($2, $size,
-            std::static_pointer_cast<type_system::StaticArray>($t)));
+        s3c.newArrayParameterDeclaration($2, $t, $size);
     }
     ;
 
