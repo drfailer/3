@@ -1,6 +1,6 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
-#include "typesystem/types.hpp"
+#include "type_system/types.hpp"
 
 enum Kind { FUNCTION, FUN_PARAM, LOCAL_VAR, LOCAL_ARRAY };
 

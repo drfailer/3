@@ -1,7 +1,7 @@
 #ifndef FACTORS_H
 #define FACTORS_H
 #include "node.hpp"
-#include "typesystem/types.hpp"
+#include "type_system/types.hpp"
 #include <memory>
 
 /**

@@ -1,8 +1,5 @@
 #ifndef PROGRAMBUILDER_H
 #define PROGRAMBUILDER_H
-#include "symtable/symtable.hpp"
-#include "symtable/contextmanager.hpp"
-#include "tools/errormanager.hpp"
 #include "ast/program.hpp"
 #include <memory>
 #include <stack>
@@ -57,11 +54,9 @@ class ProgramBuilder {
     type_system::type currFunctionReturnType_ = nullptr;
     std::string currFunctionName_;
     std::shared_ptr<Program> program_ = nullptr;
-    // todo: use std::stack
     std::stack<std::shared_ptr<Block>> blocks = {};
     std::list<Variable> currFunctionParameters_ = {};
     std::list<std::list<std::shared_ptr<TypedNode>>> functionCallsParameters_ = {};
-    // NOTE: maybe move this to the .y file as global variable:
     std::list<std::string> funcallIds_ = {};
 };
 

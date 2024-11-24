@@ -2,7 +2,7 @@
 #define ERROR_MANAGER_H
 // this shouldn't be done this way -> add include directrories in the CMake
 // configuration
-#include "typesystem/types.hpp"
+#include "type_system/types.hpp"
 #include <sstream>
 
 class ErrorManager {

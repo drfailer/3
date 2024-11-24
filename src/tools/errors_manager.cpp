@@ -1,4 +1,4 @@
-#include "errormanager.hpp"
+#include "errors_manager.hpp"
 #include <ostream>
 #define LOC(f, l) f << ":" << l
 #define ERR "\033[1;31m"

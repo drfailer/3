@@ -1,6 +1,8 @@
 #ifndef TOOLS_S3C_H
 #define TOOLS_S3C_H
-#include "tools/programbuilder.hpp"
+#include "tools/program_builder.hpp"
+#include "tools/errors_manager.hpp"
+#include "symtable/context_manager.hpp"
 
 class S3C {
   public:

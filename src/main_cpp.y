@@ -9,9 +9,9 @@
 #include "ast/ast.hpp"
 #include "symtable/symtable.hpp"
 #include "symtable/symbol.hpp"
-#include "symtable/contextmanager.hpp"
-#include "tools/programbuilder.hpp"
-#include "tools/errormanager.hpp"
+#include "symtable/context_manager.hpp"
+#include "tools/program_builder.hpp"
+#include "tools/errors_manager.hpp"
 #include "tools/s3c.hpp"
 #include "preprocessor/preprocessor.hpp"
 #define YYLOCATION_PRINT   location_print
