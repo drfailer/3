@@ -206,14 +206,7 @@ ipt:
 shw:
     SHW'('expression[ic]')' {
         DEBUG("shw var");
-        // spcial case for strings
-        if (type_system::isArrayOfChr($ic->type)) {
-            auto stringValue = std::dynamic_pointer_cast<Value>($ic);
-            std::string str = stringValue->value._str;
-            s3c.programBuilder().pushBlock(std::make_shared<Shw>(str));
-        } else {
-            s3c.programBuilder().pushBlock(std::make_shared<Shw>($ic));
-        }
+        s3c.newShw($ic);
     }
     ;
 

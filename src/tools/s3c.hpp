@@ -90,6 +90,17 @@ class S3C {
         programBuilder_.pushBlock(std::make_shared<Return>(expr));
     }
 
+  public:
+    void newShw(std::shared_ptr<TypedNode> expr) {
+        if (type_system::isArrayOfChr(expr->type)) {
+            auto stringValue = std::dynamic_pointer_cast<Value>(expr);
+            std::string str = stringValue->value._str;
+            programBuilder_.pushBlock(std::make_shared<Shw>(str));
+        } else {
+            programBuilder_.pushBlock(std::make_shared<Shw>(expr));
+        }
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;
