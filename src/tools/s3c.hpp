@@ -153,6 +153,19 @@ class S3C {
         return v;
     }
 
+  public:
+    template <typename OperatorType>
+    std::shared_ptr<TypedNode>
+    newArithmeticOperator(std::shared_ptr<TypedNode> lhs,
+                          std::shared_ptr<TypedNode> rhs, size_t line,
+                          std::string const &operatorName) {
+        if (!isNumber(lhs->type) || !isNumber(rhs->type)) {
+            errorsManager_.addOperatorError(programBuilder_.currFileName(),
+                                            line, operatorName);
+        }
+        return std::make_shared<OperatorType>(lhs, rhs);
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;

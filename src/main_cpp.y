@@ -231,34 +231,19 @@ variable:
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
-        // todo: create a template function make_arithmetic_operator (if one of
-        // the expressions is an undefined function, add the expression to the
-        // expression to check)
-        if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "add");
-        }
-        $$ = std::make_shared<AddOP>($left, $right);
+        $$ = s3c.newArithmeticOperator<AddOP>($left, $right, @1.begin.line, "add");
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
-        if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "mns");
-        }
-        $$ = std::make_shared<MnsOP>($left, $right);
+        $$ = s3c.newArithmeticOperator<MnsOP>($left, $right, @1.begin.line, "mns");
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
-        if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "tms");
-        }
-        $$ = std::make_shared<TmsOP>($left, $right);
+        $$ = s3c.newArithmeticOperator<TmsOP>($left, $right, @1.begin.line, "tms");
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
-        $$ = std::make_shared<DivOP>($left, $right);
-        if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "div");
-        }
+        $$ = s3c.newArithmeticOperator<DivOP>($left, $right, @1.begin.line, "div");
     }
     ;
 
