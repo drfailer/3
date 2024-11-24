@@ -76,6 +76,7 @@
 %token <std::string> PREPROCESSOR_LOCATION
 
 %nterm <type_system::type> type
+%nterm <type_system::type> returnTypeSpecifier
 %nterm <std::shared_ptr<Value>> value
 %nterm <std::shared_ptr<TypedNode>> expression
 %nterm <std::shared_ptr<TypedNode>> variable
@@ -109,35 +110,22 @@ programUnit:
 
 returnTypeSpecifier:
     type[rt] {
-        s3c.programBuilder().currFunctionReturnType($rt);
+        $$ = $rt;
     }
     | NIL {
-        s3c.programBuilder().currFunctionReturnType(type_system::make_type<type_system::Primitive>(type_system::NIL));
+        $$ = type_system::make_type<type_system::Primitive>(type_system::NIL);
     }
     ;
 
 functionDefinition:
-    returnTypeSpecifier IDENTIFIER[name] {
-        s3c.programBuilder().currFunctionName($name);
-        std::optional<Symbol> sym = s3c.contextManager().lookup($name);
-        // error on function redefinition
-        if (sym.has_value()) {
-            s3c.errorsManager().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line,
-                                              $name);
-            // TODO: print the previous definition location
+    returnTypeSpecifier[rt] IDENTIFIER[name] {
+        if (!s3c.newFunctionDefinition($name, @name.begin.line)) {
             return 1;
         }
-        s3c.contextManager().enterScope();
     } '('parameterDeclarationList')' {
-        type_system::type funType = type_system::make_type<type_system::Function>(
-            s3c.programBuilder().currFunctionReturnType(),
-            s3c.programBuilder().parametersTypes()
-        );
-        s3c.contextManager().newGlobalSymbol(s3c.programBuilder().currFunctionName(), funType, FUNCTION);
+        s3c.setFunctionType($rt);
     } block[ops] {
-        // error if there is a return statement
-        s3c.programBuilder().createFunction(s3c.programBuilder().currFunctionName(), $ops, s3c.programBuilder().currFunctionReturnType());
-        s3c.contextManager().leaveScope();
+        s3c.endFunctionDefintion($name, $rt, $ops);
     }
     ;
 

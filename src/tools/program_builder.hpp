@@ -27,10 +27,6 @@ class ProgramBuilder {
 
     std::string const &currFileName() const { return currFileName_; }
 
-    void currFunctionReturnType(type_system::type currFunctionReturnType) { currFunctionReturnType_ = currFunctionReturnType; }
-
-    type_system::type const currFunctionReturnType() const { return currFunctionReturnType_; }
-
     void currFunctionName(std::string const &currFunctionName) { currFunctionName_ = currFunctionName; }
     std::string const &currFunctionName() { return currFunctionName_; }
 
@@ -51,7 +47,6 @@ class ProgramBuilder {
 
     // TODO: split the tasks of managing funcalls, functions, ...
     std::string currFileName_;
-    type_system::type currFunctionReturnType_ = nullptr;
     std::string currFunctionName_;
     std::shared_ptr<Program> program_ = nullptr;
     std::stack<std::shared_ptr<Block>> blocks = {};
