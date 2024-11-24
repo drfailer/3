@@ -11,11 +11,6 @@ class ProgramBuilder {
   public:
     ProgramBuilder();
 
-    // TODO: temporary
-    Symtable &symtable() { return symtable_; }
-    ContextManager &contextManager() { return contextManager_ ; }
-    ErrorManager &errMgr() { return errMgr_; }
-
     // TODO: change this
     std::list<Variable> const &functionParameters() const;
     std::shared_ptr<Program> program() const;
@@ -56,9 +51,6 @@ class ProgramBuilder {
     void createFunction(std::string, std::shared_ptr<Block>, type_system::type);
 
   private:
-    Symtable symtable_;
-    ContextManager contextManager_;
-    ErrorManager errMgr_;
 
     // TODO: split the tasks of managing funcalls, functions, ...
     std::string currFileName_;

@@ -119,25 +119,25 @@ returnTypeSpecifier:
 functionDefinition:
     returnTypeSpecifier IDENTIFIER[name] {
         s3c.programBuilder().currFunctionName($name);
-        std::optional<Symbol> sym = s3c.programBuilder().contextManager().lookup($name);
+        std::optional<Symbol> sym = s3c.contextManager().lookup($name);
         // error on function redefinition
         if (sym.has_value()) {
-            s3c.programBuilder().errMgr().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line,
+            s3c.errorsManager().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line,
                                               $name);
             // TODO: print the previous definition location
             return 1;
         }
-        s3c.programBuilder().contextManager().enterScope();
+        s3c.contextManager().enterScope();
     } '('parameterDeclarationList')' {
         type_system::type funType = type_system::make_type<type_system::Function>(
             s3c.programBuilder().currFunctionReturnType(),
             s3c.programBuilder().parametersTypes()
         );
-        s3c.programBuilder().contextManager().newGlobalSymbol(s3c.programBuilder().currFunctionName(), funType, FUNCTION);
+        s3c.contextManager().newGlobalSymbol(s3c.programBuilder().currFunctionName(), funType, FUNCTION);
     } block[ops] {
         // error if there is a return statement
         s3c.programBuilder().createFunction(s3c.programBuilder().currFunctionName(), $ops, s3c.programBuilder().currFunctionReturnType());
-        s3c.programBuilder().contextManager().leaveScope();
+        s3c.contextManager().leaveScope();
     }
     ;
 
@@ -150,7 +150,7 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        s3c.programBuilder().contextManager().newSymbol($2, $t, FUN_PARAM);
+        s3c.contextManager().newSymbol($2, $t, FUN_PARAM);
         s3c.programBuilder().pushFunctionParam(Variable($2, $t));
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
@@ -159,7 +159,7 @@ parameterDeclaration:
         // -1 (or any default value) in order to specify that we don't
         // want to check the size at compile time when we treat the
         // function
-        s3c.programBuilder().contextManager().newSymbol($2, $t, LOCAL_ARRAY);
+        s3c.contextManager().newSymbol($2, $t, LOCAL_ARRAY);
         s3c.programBuilder().pushFunctionParam(Array($2, $size,
             std::static_pointer_cast<type_system::StaticArray>($t)));
     }
@@ -203,7 +203,7 @@ code:
     | statement code
     | instruction code
     | RET expression[rs] {
-        std::optional<Symbol> sym = s3c.programBuilder().contextManager().lookup(s3c.programBuilder().currFunctionName());
+        std::optional<Symbol> sym = s3c.contextManager().lookup(s3c.programBuilder().currFunctionName());
         type_system::type foundType = $rs->type;
         type_system::type expectedType = sym.value().getType();
         type_system::PrimitiveTypes e_expectedType = expectedType->getEvaluatedType();
@@ -211,7 +211,7 @@ code:
         std::ostringstream oss;
 
         if (e_expectedType == type_system::NIL) { // no return allowed
-            s3c.programBuilder().errMgr().addUnexpectedReturnError(s3c.programBuilder().currFileName(), @1.begin.line,
+            s3c.errorsManager().addUnexpectedReturnError(s3c.programBuilder().currFileName(), @1.begin.line,
                                             s3c.programBuilder().currFunctionName());
         } else if (e_expectedType != e_foundType && e_foundType != type_system::NIL) {
             // TODO: create a function to compare types
@@ -219,7 +219,7 @@ code:
             // must check if foundType is not void because of the
             // buildin function (add, ...) which are not in the
             // symtable
-            s3c.programBuilder().errMgr().addReturnTypeWarning(s3c.programBuilder().currFileName(), @1.begin.line,
+            s3c.errorsManager().addReturnTypeWarning(s3c.programBuilder().currFileName(), @1.begin.line,
                                         s3c.programBuilder().currFunctionName(), foundType, expectedType);
         }
         // else verify the type and throw a warning
@@ -271,9 +271,9 @@ variable:
 
         // TODO: this is really bad, the function isDefined will be
         // changed !
-        if (isDefined(s3c.programBuilder(), s3c.programBuilder().currFileName(), @1.begin.line, $1, type)) {
+        if (isDefined(s3c, s3c.programBuilder().currFileName(), @1.begin.line, $1, type)) {
             if (isArray(type)) {
-                Symbol sym = s3c.programBuilder().contextManager().lookup($1).value();
+                Symbol sym = s3c.contextManager().lookup($1).value();
                 v = std::make_shared<Array>($1, getArraySize(sym.getType()), type);
             } else {
                 v = std::make_shared<Variable>($1, type);
@@ -288,11 +288,11 @@ variable:
         type_system::type type;
         std::shared_ptr<ArrayAccess> v;
         // TODO: refactor isDefined
-        if (isDefined(s3c.programBuilder(), s3c.programBuilder().currFileName(), @1.begin.line, $1, type)) {
-            std::optional<Symbol> sym = s3c.programBuilder().contextManager().lookup($1);
+        if (isDefined(s3c, s3c.programBuilder().currFileName(), @1.begin.line, $1, type)) {
+            std::optional<Symbol> sym = s3c.contextManager().lookup($1);
             // error if the symbol is not an array
             if (sym.value().getKind() != LOCAL_ARRAY) {
-                s3c.programBuilder().errMgr().addBadArrayUsageError(s3c.programBuilder().currFileName(), @1.begin.line, $1);
+                s3c.errorsManager().addBadArrayUsageError(s3c.programBuilder().currFileName(), @1.begin.line, $1);
             }
             v = std::make_shared<ArrayAccess>($1, type, $index);
         } else {
@@ -311,21 +311,21 @@ arithmeticOperation:
         // the expressions is an undefined function, add the expression to the
         // expression to check)
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.programBuilder().errMgr().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "add");
+            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "add");
         }
         $$ = std::make_shared<AddOP>($left, $right);
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.programBuilder().errMgr().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "mns");
+            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "mns");
         }
         $$ = std::make_shared<MnsOP>($left, $right);
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.programBuilder().errMgr().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "tms");
+            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "tms");
         }
         $$ = std::make_shared<TmsOP>($left, $right);
     }
@@ -333,7 +333,7 @@ arithmeticOperation:
         DEBUG("divOP");
         $$ = std::make_shared<DivOP>($left, $right);
         if (!isNumber($left->type) || !isNumber($right->type)) {
-            s3c.programBuilder().errMgr().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "div");
+            s3c.errorsManager().addOperatorError(s3c.programBuilder().currFileName(), @1.begin.line, "div");
         }
     }
     ;
@@ -390,7 +390,7 @@ functionCall:
         // TODO: we need a none type as if the function is not defined, we
         // cannot get the return type (should be verified afterward)
         std::shared_ptr<FunctionCall> funcall;
-        if (std::optional<Symbol> symbol = s3c.programBuilder().contextManager().lookup($1)) {
+        if (std::optional<Symbol> symbol = s3c.contextManager().lookup($1)) {
             funcall =
             s3c.programBuilder().createFuncall(type_system::make_type<type_system::Primitive>(symbol.value().getType()->getEvaluatedType()));
         } else {
@@ -409,19 +409,19 @@ variableDeclaration:
     type[t] IDENTIFIER[name] {
         DEBUG("new declaration: " << $name);
         // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = s3c.programBuilder().contextManager().lookup($name)) {
-            s3c.programBuilder().errMgr().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line, $name);
+        if (std::optional<Symbol> symbol = s3c.contextManager().lookup($name)) {
+            s3c.errorsManager().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line, $name);
         }
-        s3c.programBuilder().contextManager().newSymbol($2, $t, LOCAL_VAR);
+        s3c.contextManager().newSymbol($2, $t, LOCAL_VAR);
         s3c.programBuilder().pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
         // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = s3c.programBuilder().contextManager().lookup($name)) {
-            s3c.programBuilder().errMgr().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line, $name);
+        if (std::optional<Symbol> symbol = s3c.contextManager().lookup($name)) {
+            s3c.errorsManager().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line, $name);
         }
-        s3c.programBuilder().contextManager().newSymbol($name, $t, $size, LOCAL_ARRAY);
+        s3c.contextManager().newSymbol($name, $t, $size, LOCAL_ARRAY);
         s3c.programBuilder().pushBlock(std::make_shared<ArrayDeclaration>($name, $size, $t));
     }
     ;
@@ -438,7 +438,7 @@ assignment:
             auto position = std::make_pair(s3c.programBuilder().currFileName(), @c.begin.line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
-            checkType(s3c.programBuilder(), s3c.programBuilder().currFileName(), @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
+            checkType(s3c, s3c.programBuilder().currFileName(), @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
         }
         s3c.programBuilder().pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
@@ -465,7 +465,7 @@ value:
         DEBUG("new char: " << $1);
         type_system::LiteralValue v = {0};
         if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
-            s3c.programBuilder().errMgr().addLiteralStringOverflowError(s3c.programBuilder().currFileName(), @1.begin.line);
+            s3c.errorsManager().addLiteralStringOverflowError(s3c.programBuilder().currFileName(), @1.begin.line);
             return 1;
         }
         memcpy(v._str, $1.c_str(), $1.size());
@@ -494,51 +494,51 @@ cnd:
     }
     | cndBase[cndb] ELS {
         DEBUG("els");
-        s3c.programBuilder().contextManager().enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         std::shared_ptr<Cnd> ifstmt = $cndb;
         // adding else block
         ifstmt->elseBlock = $ops;
         $$ = ifstmt;
-        s3c.programBuilder().contextManager().leaveScope();
+        s3c.contextManager().leaveScope();
     }
     ;
 
 cndBase:
     CND booleanOperation[cond] {
-        s3c.programBuilder().contextManager().enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("if");
         $$ = s3c.programBuilder().createCnd($cond, $ops);
-        s3c.programBuilder().contextManager().leaveScope();
+        s3c.contextManager().leaveScope();
     }
     ;
 
 for:
     FOR IDENTIFIER[v] RNG'('expression[b] COMMA expression[e] COMMA expression[s]')' {
-        s3c.programBuilder().contextManager().enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in for");
         Variable v($v, type_system::make_type<type_system::Primitive>(type_system::NIL));
         type_system::type type;
-        if (isDefined(s3c.programBuilder(), s3c.programBuilder().currFileName(), @v.begin.line, $v, type)) {
+        if (isDefined(s3c, s3c.programBuilder().currFileName(), @v.begin.line, $v, type)) {
             v = Variable($v, type);
-            checkType(s3c.programBuilder(), s3c.programBuilder().currFileName(), @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
-            checkType(s3c.programBuilder(), s3c.programBuilder().currFileName(), @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
-            checkType(s3c.programBuilder(), s3c.programBuilder().currFileName(), @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
+            checkType(s3c, s3c.programBuilder().currFileName(), @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
+            checkType(s3c, s3c.programBuilder().currFileName(), @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
+            checkType(s3c, s3c.programBuilder().currFileName(), @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
         }
         $$ = s3c.programBuilder().createFor(v, $b, $e, $s, $ops);
-        s3c.programBuilder().contextManager().leaveScope();
+        s3c.contextManager().leaveScope();
     }
     ;
 
 whl:
     WHL '('booleanOperation[cond]')' {
-        s3c.programBuilder().contextManager().enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in whl");
         $$ = s3c.programBuilder().createWhl($cond, $ops);
-        s3c.programBuilder().contextManager().leaveScope();
+        s3c.contextManager().leaveScope();
     }
     ;
 %%
@@ -546,7 +546,7 @@ whl:
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
     oss << s3c.programBuilder().currFileName() << ":" << loc.begin.line << ": " << msg << "." << std::endl;
-    s3c.programBuilder().errMgr().addError(oss.str());
+    s3c.errorsManager().addError(oss.str());
 }
 
 /* Run interactive parser. It was used during the beginning of the project. */
@@ -554,10 +554,10 @@ void cli() {
     S3C s3c;
     interpreter::Scanner scanner{ std::cin, std::cerr };
     interpreter::Parser parser{ &scanner, s3c };
-    s3c.programBuilder().contextManager().enterScope();
+    s3c.contextManager().enterScope();
     parser.parse();
-    s3c.programBuilder().errMgr().report();
-    if (!s3c.programBuilder().errMgr().getErrors()) {
+    s3c.errorsManager().report();
+    if (!s3c.errorsManager().getErrors()) {
         s3c.programBuilder().display();
     }
 }
@@ -579,7 +579,7 @@ void makeExecutable(std::string file) {
  // TODO: should be moved elsewhere
 void checkAssignments(S3C &s3c) {
     for (auto ap : assignmentsToCheck) {
-        checkType(s3c.programBuilder(), ap.second.first, ap.second.second,
+        checkType(s3c, ap.second.first, ap.second.second,
                   ap.first->variable->id,
                   ap.first->variable->type,
                   ap.first->value->type->getEvaluatedType());
@@ -604,7 +604,7 @@ void checkFuncalls(S3C &s3c) {
     // std::list<std::pair<std::shared_ptr<FunctionCall>,
     //                     std::pair<std::string, int>>> funcallsToCheck;
     for (auto fp : funcallsToCheck) {
-        std::optional<Symbol> sym = s3c.programBuilder().contextManager().lookup(fp.first->functionName);
+        std::optional<Symbol> sym = s3c.contextManager().lookup(fp.first->functionName);
 
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
@@ -613,15 +613,15 @@ void checkFuncalls(S3C &s3c) {
                 std::static_pointer_cast<type_system::Function>(
                                             sym.value().getType())->argumentsTypes;
 
-            if (!checkParametersTypes(s3c.programBuilder(), expectedArgumentsTypes, foundArgumentsTypes)) {
-                s3c.programBuilder().errMgr().addFuncallTypeError(fp.second.first,
+            if (!checkParametersTypes(s3c, expectedArgumentsTypes, foundArgumentsTypes)) {
+                s3c.errorsManager().addFuncallTypeError(fp.second.first,
                                            fp.second.second,
                                            fp.first->functionName,
                                            expectedArgumentsTypes, foundArgumentsTypes);
             }
         } else {
             // todo
-            // s3c.programBuilder().errMgr().addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
+            // s3c.errorsManager().addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
         }
     }
 }
@@ -634,12 +634,12 @@ void compile(std::string fileName, std::string outputName) {
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
     s3c.programBuilder().currFileName(fileName);
-    s3c.programBuilder().contextManager().enterScope(); // update the scope
+    s3c.contextManager().enterScope(); // update the scope
 
     try {
         pp.process(fileName); // launch the preprocessor
     } catch (std::logic_error& e) {
-        s3c.programBuilder().errMgr().addError(e.what());
+        s3c.errorsManager().addError(e.what());
         preprocessorErrorStatus = 1;
     }
 
@@ -652,15 +652,15 @@ void compile(std::string fileName, std::string outputName) {
     checkAssignments(s3c);
 
     // look for main
-    std::optional<Symbol> sym = s3c.programBuilder().contextManager().lookup("main");
+    std::optional<Symbol> sym = s3c.contextManager().lookup("main");
     if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym.has_value()) {
-        s3c.programBuilder().errMgr().addNoEntryPointError();
+        s3c.errorsManager().addNoEntryPointError();
     }
     // report errors and warnings
-    s3c.programBuilder().errMgr().report();
+    s3c.errorsManager().report();
 
     // if no errors, transpile the file
-    if (!s3c.programBuilder().errMgr().getErrors()) {
+    if (!s3c.errorsManager().getErrors()) {
         std::ofstream fs(outputName);
         s3c.programBuilder().program()->compile(fs);
         makeExecutable(outputName);

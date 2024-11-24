@@ -5,15 +5,15 @@
 
 // symtable check
 // TODO: should return an optional
-bool isDefined(ProgramBuilder &pb, std::string file, int line, std::string name,
+bool isDefined(S3C &s3c, std::string file, int line, std::string name,
                type_system::type &type) {
     bool defined = true;
-    std::optional<Symbol> sym = pb.contextManager().lookup(name);
+    std::optional<Symbol> sym = s3c.contextManager().lookup(name);
 
     if (!sym.has_value()) {
-        // TODO: this should be not in the pb.errMgr(), not here
+        // TODO: this should be not in the s3c.errorsManager(), not here
         defined = false;
-        pb.errMgr().addUndefinedSymbolError(file, line, name);
+        s3c.errorsManager().addUndefinedSymbolError(file, line, name);
         type = {};
     } else {
         type = sym.value().getType();
@@ -21,7 +21,7 @@ bool isDefined(ProgramBuilder &pb, std::string file, int line, std::string name,
     return defined;
 }
 
-bool checkParametersTypes(ProgramBuilder &, type_system::types expectedTypes,
+bool checkParametersTypes(S3C &, type_system::types expectedTypes,
                           type_system::types funcallTypes) {
     auto expectedIt = expectedTypes.begin(), expectedEnd = expectedTypes.end();
     auto funcallIt = funcallTypes.begin(), funcallEnd = funcallTypes.end();
@@ -34,19 +34,19 @@ bool checkParametersTypes(ProgramBuilder &, type_system::types expectedTypes,
     return expectedIt == expectedEnd && funcallIt == funcallEnd;
 }
 
-void checkType(ProgramBuilder &pb, std::string file, int line, std::string name,
+void checkType(S3C &s3c, std::string file, int line, std::string name,
                type_system::type expected, type_system::type found) {
     if (found == nullptr || expected == nullptr) {
         return;
     }
 
     if (!expected->compare(found)) {
-        pb.errMgr().addTypeAssignedWarning(file, line, name, expected, found);
+        s3c.errorsManager().addTypeAssignedWarning(file, line, name, expected, found);
     }
 }
 
-void checkType(ProgramBuilder &pb, std::string file, int line, std::string name,
+void checkType(S3C &s3c, std::string file, int line, std::string name,
                type_system::type expected, type_system::PrimitiveTypes found) {
     auto primitiveFound = type_system::make_type<type_system::Primitive>(found);
-    checkType(pb, file, line, name, expected, primitiveFound);
+    checkType(s3c, file, line, name, expected, primitiveFound);
 }
