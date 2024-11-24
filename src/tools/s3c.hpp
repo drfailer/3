@@ -166,6 +166,30 @@ class S3C {
         return std::make_shared<OperatorType>(lhs, rhs);
     }
 
+  public:
+    template <typename T>
+    std::shared_ptr<TypedNode> newFunctionCall(std::string const &functionName,
+                                               size_t line,
+                                               T &funcallsToCheck) {
+        // TODO: we need a none type as if the function is not defined, we
+        // cannot get the return type (should be verified afterward)
+        std::shared_ptr<FunctionCall> funcall;
+        if (std::optional<Symbol> symbol =
+                contextManager_.lookup(functionName)) {
+            funcall = programBuilder_.createFuncall(
+                type_system::make_type<type_system::Primitive>(
+                    symbol.value().getType()->getEvaluatedType()));
+        } else {
+            funcall = programBuilder_.createFuncall();
+        }
+        std::pair<std::string, int> position =
+            std::make_pair(programBuilder_.currFileName(), line);
+        // the type check is done at the end !
+        funcallsToCheck.push_back(std::make_pair(funcall, position));
+        // check the type
+        return funcall;
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;

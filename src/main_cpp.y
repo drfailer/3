@@ -296,21 +296,8 @@ functionCall:
         s3c.programBuilder().newFuncall($1);
     }
     parameterList')' {
-        // TODO: we need a none type as if the function is not defined, we
-        // cannot get the return type (should be verified afterward)
-        std::shared_ptr<FunctionCall> funcall;
-        if (std::optional<Symbol> symbol = s3c.contextManager().lookup($1)) {
-            funcall =
-            s3c.programBuilder().createFuncall(type_system::make_type<type_system::Primitive>(symbol.value().getType()->getEvaluatedType()));
-        } else {
-            funcall = s3c.programBuilder().createFuncall();
-        }
-        std::pair<std::string, int> position = std::make_pair(s3c.programBuilder().currFileName(), @1.begin.line);
-        funcallsToCheck.push_back(std::make_pair(funcall, position));
-        // the type check is done at the end !
         DEBUG("new funcall: " << $1);
-        // check the type
-        $$ = funcall;
+        $$ = s3c.newFunctionCall($1, @1.begin.line, funcallsToCheck);
     }
     ;
 
