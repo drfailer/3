@@ -322,28 +322,22 @@ assignment:
 value:
     INT {
         DEBUG("new int: " << $1);
-        type_system::LiteralValue v = { ._int = $1 };
-        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::Primitive>(type_system::INT));
+        $$ = s3c.newInt($1);
     }
     | FLT {
         DEBUG("new double: " << $1);
-        type_system::LiteralValue v = { ._flt = $1 };
-        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::Primitive>(type_system::FLT));
+        $$ = s3c.newFlt($1);
     }
     | CHR {
         DEBUG("new char: " << $1);
-        type_system::LiteralValue v = { ._chr = $1 };
-        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::Primitive>(type_system::CHR));
+        $$ = s3c.newChr($1);
     }
     | STRING {
         DEBUG("new char: " << $1);
-        type_system::LiteralValue v = {0};
-        if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
-            s3c.errorsManager().addLiteralStringOverflowError(s3c.programBuilder().currFileName(), @1.begin.line);
+        auto strValue = s3c.newStr($1, @1.begin.line);
+        if (!strValue)
             return 1;
-        }
-        memcpy(v._str, $1.c_str(), $1.size());
-        $$ = std::make_shared<Value>(v, type_system::make_type<type_system::StaticArray>(type_system::CHR, $1.size()));
+        $$ = strValue;
     }
     ;
 

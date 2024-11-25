@@ -5,6 +5,7 @@
 #include "tools/checks.hpp"
 #include "tools/errors_manager.hpp"
 #include "tools/program_builder.hpp"
+#include <cstring>
 
 class S3C {
   public:
@@ -237,6 +238,42 @@ class S3C {
         programBuilder_.pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
     }
+
+  public:
+    std::shared_ptr<Value> newInt(long long intValue) {
+        type_system::LiteralValue value = { ._int = intValue };
+        return std::make_shared<Value>(
+            value,
+            type_system::make_type<type_system::Primitive>(type_system::INT));
+    }
+
+    std::shared_ptr<Value> newFlt(double fltValue) {
+        type_system::LiteralValue value = { ._flt = fltValue };
+        return std::make_shared<Value>(
+            value,
+            type_system::make_type<type_system::Primitive>(type_system::FLT));
+    }
+
+    std::shared_ptr<Value> newChr(char chrValue) {
+        type_system::LiteralValue value = { ._chr = chrValue };
+        return std::make_shared<Value>(
+            value,
+            type_system::make_type<type_system::Primitive>(type_system::CHR));
+    }
+
+    std::shared_ptr<Value> newStr(std::string const &strValue, size_t line) {
+        type_system::LiteralValue value = {0};
+        if (strValue.size() > MAX_LITERAL_STRING_LENGTH) {
+            errorsManager_.addLiteralStringOverflowError(
+                programBuilder_.currFileName(), line);
+            return nullptr;
+        }
+        memcpy(value._str, strValue.c_str(), strValue.size());
+        return std::make_shared<Value>(
+            value, type_system::make_type<type_system::StaticArray>(
+                       type_system::CHR, strValue.size()));
+    }
+
 
   private:
     ProgramBuilder programBuilder_;
