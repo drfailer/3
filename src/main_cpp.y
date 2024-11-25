@@ -304,21 +304,11 @@ functionCall:
 variableDeclaration:
     type[t] IDENTIFIER[name] {
         DEBUG("new declaration: " << $name);
-        // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = s3c.contextManager().lookup($name)) {
-            s3c.errorsManager().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line, $name);
-        }
-        s3c.contextManager().newSymbol($2, $t, LOCAL_VAR);
-        s3c.programBuilder().pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
+        s3c.newVariableDeclaration($name, $t, @name.begin.line);
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
-        // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = s3c.contextManager().lookup($name)) {
-            s3c.errorsManager().addMultipleDefinitionError(s3c.programBuilder().currFileName(), @name.begin.line, $name);
-        }
-        s3c.contextManager().newSymbol($name, $t, $size, LOCAL_ARRAY);
-        s3c.programBuilder().pushBlock(std::make_shared<ArrayDeclaration>($name, $size, $t));
+        s3c.newArrayDeclaration($name, $t, $size, @name.begin.line);
     }
     ;
 

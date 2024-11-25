@@ -190,6 +190,33 @@ class S3C {
         return funcall;
     }
 
+  public:
+    void newVariableDeclaration(std::string variableName,
+                                type_system::type type, size_t line) {
+        // redefinitions are not allowed:
+        if (std::optional<Symbol> symbol =
+                contextManager_.lookup(variableName)) {
+            errorsManager_.addMultipleDefinitionError(
+                programBuilder_.currFileName(), line, variableName);
+        }
+        contextManager_.newSymbol(variableName, type, LOCAL_VAR);
+        programBuilder_.pushBlock(
+            std::make_shared<Declaration>(Variable(variableName, type)));
+    }
+
+    void newArrayDeclaration(std::string variableName, type_system::type type,
+                             size_t size, size_t line) {
+        // redefinitions are not allowed:
+        if (std::optional<Symbol> symbol =
+                contextManager_.lookup(variableName)) {
+            errorsManager_.addMultipleDefinitionError(
+                programBuilder_.currFileName(), line, variableName);
+        }
+        contextManager_.newSymbol(variableName, type, size, LOCAL_ARRAY);
+        programBuilder_.pushBlock(
+            std::make_shared<ArrayDeclaration>(variableName, size, type));
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;
