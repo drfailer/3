@@ -217,6 +217,27 @@ class S3C {
             std::make_shared<ArrayDeclaration>(variableName, size, type));
     }
 
+  public:
+    void newAssignment(
+        std::shared_ptr<Variable> variable, std::shared_ptr<TypedNode> expr,
+        size_t line,
+        std::list<std::pair<std::shared_ptr<Assignment>,
+                            std::pair<std::string, int>>> &assignmentsToCheck) {
+        auto icType = expr->type;
+        auto newAssignment = std::make_shared<Assignment>(variable, expr);
+
+        if (std::static_pointer_cast<FunctionCall>(expr)) { // if funcall
+            // this is a funcall so we have to wait the end of the parsing to check
+            auto position = std::make_pair(programBuilder_.currFileName(), line);
+            assignmentsToCheck.push_back(std::pair(newAssignment, position));
+        } else {
+            checkType(*this, programBuilder_.currFileName(), line, variable->id,
+                      variable->type, icType->getEvaluatedType());
+        }
+        programBuilder_.pushBlock(newAssignment);
+        // TODO: check the type for strings -> array of char
+    }
+
   private:
     ProgramBuilder programBuilder_;
     Symtable symtable_;

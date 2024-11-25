@@ -79,7 +79,7 @@
 %nterm <type_system::type> returnTypeSpecifier
 %nterm <std::shared_ptr<Value>> value
 %nterm <std::shared_ptr<TypedNode>> expression
-%nterm <std::shared_ptr<TypedNode>> variable
+%nterm <std::shared_ptr<Variable>> variable
 %nterm <std::shared_ptr<TypedNode>> arithmeticOperation
 %nterm <std::shared_ptr<TypedNode>> functionCall
 %nterm <std::shared_ptr<Node>> booleanOperation
@@ -313,21 +313,9 @@ variableDeclaration:
     ;
 
 assignment:
-    SET'('variable[c] COMMA expression[ic]')' {
+    SET'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
-        auto icType = $ic->type;
-        auto v = std::static_pointer_cast<Variable>($c);
-        auto newAssignment = std::make_shared<Assignment>(v, $ic);
-
-        if (std::static_pointer_cast<FunctionCall>($ic)) { // if funcall
-            // this is a funcall so we have to wait the end of the parsing to check
-            auto position = std::make_pair(s3c.programBuilder().currFileName(), @c.begin.line);
-            assignmentsToCheck.push_back(std::pair(newAssignment, position));
-        } else {
-            checkType(s3c, s3c.programBuilder().currFileName(), @c.begin.line, v->id, $c->type, icType->getEvaluatedType());
-        }
-        s3c.programBuilder().pushBlock(newAssignment);
-        // TODO: check the type for strings -> array of char
+        s3c.newAssignment($var, $expr, @var.begin.line, assignmentsToCheck);
     }
     ;
 
