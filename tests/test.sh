@@ -116,14 +116,15 @@ test_set() {
     clean_test
 }
 
-test_operations() {
-    echo "running test on operations"
+test_operators() {
+    echo "running test on operators"
 
-    $S3C ./builtins/operations.3
-    assert_compiled "operations"
+    $S3C ./builtins/operators.3 2> operators.err
+    assert_compiled "operators"
+    assert_no_diff operators.err ./builtins/out/operators.err "error: operators."
 
-    ./a.out
-    # todo: fix operators tests
+    ./a.out > operators.out
+    assert_no_diff operators.out ./builtins/out/operators.out "error: operators."
 
     clean_test
 }
@@ -240,7 +241,7 @@ test_comments
 # builtins
 
 # test_set # python error !!!
-test_operations # error !!!
+test_operators # error !!!
 test_for
 
 # symbols
