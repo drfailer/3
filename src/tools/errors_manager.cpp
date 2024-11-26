@@ -52,8 +52,8 @@ void ErrorManager::report() {
  */
 void ErrorManager::addFuncallTypeError(std::string file, int line,
                                        std::string name,
-                                       type_system::types expected,
-                                       type_system::types found) {
+                                       type_system::types_t expected,
+                                       type_system::types_t found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": Type error in " << BOLD << name << NORM
         << ", the expected type was " << BOLD << expected << NORM << " but "
@@ -181,8 +181,8 @@ void ErrorManager::addNoEntryPointError() { addError("no entry point."); }
  */
 void ErrorManager::addTypeAssignedWarning(std::string file, int line,
                                           std::string name,
-                                          type_system::type expected,
-                                          type_system::type found) {
+                                          type_system::type_t expected,
+                                          type_system::type_t found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in assignment, " << BOLD << name << NORM
         << " is of type " << BOLD << expected->toString()
@@ -204,8 +204,8 @@ void ErrorManager::addTypeAssignedWarning(std::string file, int line,
  */
 void ErrorManager::addReturnTypeWarning(std::string file, int line,
                                         std::string functionName,
-                                        type_system::type expected,
-                                        type_system::type found) {
+                                        type_system::type_t expected,
+                                        type_system::type_t found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
         << ", found return value of type " << BOLD << expected->toString()

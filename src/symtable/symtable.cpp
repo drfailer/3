@@ -48,7 +48,7 @@ std::optional<Symbol> Symtable::lookup(std::string name) {
  * @param  type   Type of the new symbol.
  * @param  kind   Kind of the new symbol (param, local variable, ...)
  */
-void Symtable::add(std::string const &name, type_system::type type, Kind kind) {
+void Symtable::add(std::string const &name, type_system::type_t type, Kind kind) {
     table[name] = Symbol(name, type, kind);
 }
 

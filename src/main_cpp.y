@@ -55,7 +55,7 @@
 
     std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck = {};
     std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck = {};
-    std::list<std::pair<std::string, std::function<bool(type_system::type)>>> expressionsToCheck = {};
+    std::list<std::pair<std::string, std::function<bool(type_system::type_t)>>> expressionsToCheck = {};
 }
 
 %token <long long>  INT
@@ -75,8 +75,8 @@
 %token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
 
-%nterm <type_system::type> type
-%nterm <type_system::type> returnTypeSpecifier
+%nterm <type_system::type_t> type
+%nterm <type_system::type_t> returnTypeSpecifier
 %nterm <std::shared_ptr<Value>> value
 %nterm <std::shared_ptr<TypedNode>> expression
 %nterm <std::shared_ptr<Variable>> variable
@@ -446,11 +446,11 @@ void checkAssignments(S3C &s3c) {
 }
 
 // todo: we shouldn't need this
-type_system::types getTypes(std::list<std::shared_ptr<TypedNode>> const &nodes) {
-    type_system::types parametersTypes = {};
+type_system::types_t getTypes(std::list<std::shared_ptr<TypedNode>> const &nodes) {
+    type_system::types_t parametersTypes = {};
 
     std::transform(nodes.cbegin(), nodes.cend(),
-                   std::back_insert_iterator<type_system::types>(parametersTypes),
+                   std::back_insert_iterator<type_system::types_t>(parametersTypes),
                    [](auto elt) { return elt->type; });
     return parametersTypes;
 }
@@ -467,8 +467,8 @@ void checkFuncalls(S3C &s3c) {
 
         if (sym.has_value()) {
             // get the found return type (types of the parameters)
-            type_system::types foundArgumentsTypes = getTypes(fp.first->parameters);
-            type_system::types expectedArgumentsTypes =
+            type_system::types_t foundArgumentsTypes = getTypes(fp.first->parameters);
+            type_system::types_t expectedArgumentsTypes =
                 std::static_pointer_cast<type_system::Function>(
                                             sym.value().getType())->argumentsTypes;
 
@@ -503,7 +503,7 @@ void compile(std::string fileName, std::string outputName) {
     }
 
     // open and parse the file
-    std::ifstream is("__main_pp.prog__", std::ios::in); // parse the preprocessed file
+    std::ifstream is(PREPROCESSOR_OUTPUT_FILE, std::ios::in); // parse the preprocessed file
     interpreter::Scanner scanner{ is , std::cerr };
     interpreter::Parser parser{ &scanner, s3c };
     parserOutput = parser.parse();

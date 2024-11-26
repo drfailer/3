@@ -6,17 +6,17 @@ enum Kind { FUNCTION, FUN_PARAM, LOCAL_VAR, LOCAL_ARRAY };
 
 class Symbol {
   public:
-    Symbol(std::string const &name, type_system::type type, Kind kind)
+    Symbol(std::string const &name, type_system::type_t type, Kind kind)
         : name(name), type(type), kind(kind) {}
     Symbol() = default;
 
     std::string getName() const { return name; }
-    type_system::type const getType() const { return type; }
+    type_system::type_t const getType() const { return type; }
     Kind getKind() const { return kind; }
 
   private:
     std::string name;
-    type_system::type type;
+    type_system::type_t type;
     Kind kind;
 };
 

@@ -35,8 +35,8 @@ struct Type {
     TypeKinds kind;
 };
 
-using type = std::shared_ptr<Type>;
-using types = std::list<type>;
+using type_t = std::shared_ptr<Type>;
+using types_t = std::list<type_t>;
 
 template <typename T, typename... Args>
 std::shared_ptr<T> make_type(Args &&...args) {
@@ -44,7 +44,7 @@ std::shared_ptr<T> make_type(Args &&...args) {
 }
 
 std::ostream &operator<<(std::ostream &os, PrimitiveTypes type);
-std::ostream &operator<<(std::ostream &os, types const &types);
+std::ostream &operator<<(std::ostream &os, types_t const &types);
 
 /*
  * None type used for elements that should be verified after the parser
@@ -133,10 +133,10 @@ struct DynamicArray : Type {
 };
 
 struct Obj : Type {
-    Obj(std::string const &name, std::map<std::string, type> const &types)
+    Obj(std::string const &name, std::map<std::string, type_t> const &types)
         : Type(TypeKinds::Obj), name(name), types(types) {}
     std::string name;
-    std::map<std::string, type> types = {};
+    std::map<std::string, type_t> types = {};
 
     std::string toString() const override { return name; }
 
@@ -147,12 +147,12 @@ struct Obj : Type {
 };
 
 struct Function : Type {
-    Function(type returnType = make_type<Primitive>(NIL),
-             types const &argumentsTypes = {})
+    Function(type_t returnType = make_type<Primitive>(NIL),
+             types_t const &argumentsTypes = {})
         : Type(TypeKinds::Function), returnType(returnType),
           argumentsTypes(argumentsTypes) {}
-    type returnType = nullptr;
-    types argumentsTypes = {};
+    type_t returnType = nullptr;
+    types_t argumentsTypes = {};
 
     std::string toString() const override {
         std::ostringstream oss;
@@ -187,15 +187,15 @@ struct Function : Type {
     }
 };
 
-type selectType(type left, type right);
-bool isArray(type t);
-bool isArrayOfChr(type const t);
-size_t getArraySize(type const t);
-PrimitiveTypes getElementType(type const t);
-PrimitiveTypes getValueType(type const t);
-bool isNumber(type const t);
-bool isNone(type const t);
-type getReturnType(type const t);
+type_t selectType(type_t left, type_t right);
+bool isArray(type_t t);
+bool isArrayOfChr(type_t const t);
+size_t getArraySize(type_t const t);
+PrimitiveTypes getElementType(type_t const t);
+PrimitiveTypes getValueType(type_t const t);
+bool isNumber(type_t const t);
+bool isNone(type_t const t);
+type_t getReturnType(type_t const t);
 
 } // end namespace type_system
 

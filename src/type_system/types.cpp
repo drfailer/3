@@ -21,7 +21,7 @@ std::ostream &operator<<(std::ostream &os, PrimitiveTypes type) {
     return os;
 }
 
-std::ostream &operator<<(std::ostream &os, types const &types) {
+std::ostream &operator<<(std::ostream &os, types_t const &types) {
     auto it = types.cbegin();
 
     os << "(";
@@ -42,10 +42,10 @@ std::ostream &operator<<(std::ostream &os, Function const &type) {
 /**
  * @brief  Automatic convertion to flt in operators (flt op int).
  */
-type selectType(type left, type right) {
+type_t selectType(type_t left, type_t right) {
     PrimitiveTypes primitiveLeft, primitiveRight;
-    type result;
-    types arguments = {left, right};
+    type_t result;
+    types_t arguments = {left, right};
 
     primitiveLeft = left->getEvaluatedType();
     primitiveRight = right->getEvaluatedType();
@@ -55,12 +55,12 @@ type selectType(type left, type right) {
     return make_type<Function>(make_type<Primitive>(FLT), arguments);
 }
 
-bool isArray(type t) {
+bool isArray(type_t t) {
     return t->kind == TypeKinds::StaticArray ||
            t->kind == TypeKinds::DynamicArray;
 }
 
-size_t getArraySize(type const t) {
+size_t getArraySize(type_t const t) {
     auto arrayType = std::static_pointer_cast<StaticArray>(t);
 
     if (!arrayType) {
@@ -71,7 +71,7 @@ size_t getArraySize(type const t) {
 }
 
 // todo: array might store any type in the future
-PrimitiveTypes getElementType(type const t) {
+PrimitiveTypes getElementType(type_t const t) {
     switch (t->kind) {
     case TypeKinds::Primitive: {
         auto primitive = std::static_pointer_cast<Primitive>(t);
@@ -92,18 +92,18 @@ PrimitiveTypes getElementType(type const t) {
     return NIL;
 }
 
-bool isArrayOfChr(type const t) { return getElementType(t) == CHR; }
+bool isArrayOfChr(type_t const t) { return getElementType(t) == CHR; }
 
-bool isNumber(type const t) {
+bool isNumber(type_t const t) {
     PrimitiveTypes evaluatedType = t->getEvaluatedType();
     return evaluatedType == INT || evaluatedType == FLT;
 }
 
-bool isNone(type const t) {
+bool isNone(type_t const t) {
     return t->kind == TypeKinds::None;
 }
 
-type getReturnType(type const t) {
+type_t getReturnType(type_t const t) {
     switch (t->kind) {
     case TypeKinds::Function: {
         auto functionType = std::static_pointer_cast<Function>(t);

@@ -7,7 +7,7 @@
 // symtable check
 // TODO: should return an optional
 bool isDefined(S3C &s3c, std::string file, int line, std::string name,
-               type_system::type &type) {
+               type_system::type_t &type) {
     bool defined = true;
     std::optional<Symbol> sym = s3c.contextManager().lookup(name);
 
@@ -22,8 +22,8 @@ bool isDefined(S3C &s3c, std::string file, int line, std::string name,
     return defined;
 }
 
-bool checkParametersTypes(S3C &, type_system::types expectedTypes,
-                          type_system::types funcallTypes) {
+bool checkParametersTypes(S3C &, type_system::types_t expectedTypes,
+                          type_system::types_t funcallTypes) {
     auto expectedIt = expectedTypes.begin(), expectedEnd = expectedTypes.end();
     auto funcallIt = funcallTypes.begin(), funcallEnd = funcallTypes.end();
     // todo: refactor getEvaluatedType function
@@ -41,7 +41,7 @@ bool checkParametersTypes(S3C &, type_system::types expectedTypes,
 }
 
 void checkType(S3C &s3c, std::string file, int line, std::string name,
-               type_system::type expected, type_system::type found) {
+               type_system::type_t expected, type_system::type_t found) {
     if (found == nullptr || expected == nullptr) {
         return;
     }
@@ -52,7 +52,7 @@ void checkType(S3C &s3c, std::string file, int line, std::string name,
 }
 
 void checkType(S3C &s3c, std::string file, int line, std::string name,
-               type_system::type expected, type_system::PrimitiveTypes found) {
+               type_system::type_t expected, type_system::PrimitiveTypes found) {
     auto primitiveFound = type_system::make_type<type_system::Primitive>(found);
     checkType(s3c, file, line, name, expected, primitiveFound);
 }

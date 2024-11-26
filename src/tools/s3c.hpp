@@ -29,15 +29,15 @@ class S3C {
         return true;
     }
 
-    void setFunctionType(type_system::type returnType) {
-        type_system::type type = type_system::make_type<type_system::Function>(
+    void setFunctionType(type_system::type_t returnType) {
+        type_system::type_t type = type_system::make_type<type_system::Function>(
             returnType, programBuilder_.parametersTypes());
         contextManager_.newGlobalSymbol(programBuilder_.currFunctionName(),
                                         type, FUNCTION);
     }
 
     void endFunctionDefintion(std::string const &name,
-                              type_system::type returnType,
+                              type_system::type_t returnType,
                               std::shared_ptr<Block> body) {
         programBuilder_.createFunction(name, body, returnType);
         contextManager_.leaveScope();
@@ -45,13 +45,13 @@ class S3C {
 
   public:
     void newParameterDeclaration(std::string const &name,
-                                 type_system::type type) {
+                                 type_system::type_t type) {
         contextManager_.newSymbol(name, type, FUN_PARAM);
         programBuilder_.pushFunctionParam(Variable(name, type));
     }
 
     void newArrayParameterDeclaration(std::string const &name,
-                                      type_system::type type, long size) {
+                                      type_system::type_t type, long size) {
         // TODO: remove the size of the array. The size should be set at
         // -1 (or any default value) in order to specify that we don't
         // want to check the size at compile time when we treat the
@@ -66,8 +66,8 @@ class S3C {
     void newReturnExpression(std::shared_ptr<TypedNode> expr, size_t line) {
         std::optional<Symbol> sym =
             contextManager_.lookup(programBuilder_.currFunctionName());
-        type_system::type foundType = expr->type;
-        type_system::type expectedType = sym.value().getType();
+        type_system::type_t foundType = expr->type;
+        type_system::type_t expectedType = sym.value().getType();
         type_system::PrimitiveTypes e_expectedType =
             expectedType->getEvaluatedType();
         type_system::PrimitiveTypes e_foundType = foundType->getEvaluatedType();
@@ -106,7 +106,7 @@ class S3C {
   public:
     std::shared_ptr<Variable> newVariable(std::string const &name,
                                           size_t line) {
-        type_system::type type;
+        type_system::type_t type;
         std::shared_ptr<Variable> v;
 
         // TODO: this is really bad, the function isDefined will be changed !
@@ -130,7 +130,7 @@ class S3C {
     std::shared_ptr<ArrayAccess>
     newArrayVariable(std::string const &name, size_t line,
                      std::shared_ptr<TypedNode> index) {
-        type_system::type type;
+        type_system::type_t type;
         std::shared_ptr<ArrayAccess> v;
 
         // TODO: refactor isDefined
@@ -193,7 +193,7 @@ class S3C {
 
   public:
     void newVariableDeclaration(std::string variableName,
-                                type_system::type type, size_t line) {
+                                type_system::type_t type, size_t line) {
         // redefinitions are not allowed:
         if (std::optional<Symbol> symbol =
                 contextManager_.lookup(variableName)) {
@@ -205,7 +205,7 @@ class S3C {
             std::make_shared<Declaration>(Variable(variableName, type)));
     }
 
-    void newArrayDeclaration(std::string variableName, type_system::type type,
+    void newArrayDeclaration(std::string variableName, type_system::type_t type,
                              size_t size, size_t line) {
         // redefinitions are not allowed:
         if (std::optional<Symbol> symbol =
@@ -281,7 +281,7 @@ class S3C {
             std::shared_ptr<TypedNode> begin, std::shared_ptr<TypedNode> end,
             std::shared_ptr<TypedNode> step, std::shared_ptr<Block> block, size_t line) {
         Variable variable(variableName, type_system::make_type<type_system::Primitive>(type_system::NIL));
-        type_system::type type;
+        type_system::type_t type;
 
         if (isDefined(*this, programBuilder_.currFileName(), line, variableName, type)) {
             variable.type = type;

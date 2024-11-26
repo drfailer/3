@@ -17,8 +17,8 @@ class ErrorManager {
 
     // Errors:
     void addFuncallTypeError(std::string file, int line, std::string name,
-                             type_system::types expected,
-                             type_system::types found);
+                             type_system::types_t expected,
+                             type_system::types_t found);
     void addUndefinedSymbolError(std::string file, int line, std::string name);
     void addMultipleDefinitionError(std::string file, int line,
                                     std::string name);
@@ -32,11 +32,11 @@ class ErrorManager {
     // Warnings:
     void addTypeAssignedWarning(std::string file, int line,
                                 std::string functionName,
-                                type_system::type expected,
-                                type_system::type found);
+                                type_system::type_t expected,
+                                type_system::type_t found);
     void addReturnTypeWarning(std::string file, int line, std::string name,
-                              type_system::type expected,
-                              type_system::type found);
+                              type_system::type_t expected,
+                              type_system::type_t found);
 
   private:
     std::ostringstream errStream;

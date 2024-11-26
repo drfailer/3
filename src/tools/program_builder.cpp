@@ -70,7 +70,7 @@ std::shared_ptr<Whl> ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
 /******************************************************************************/
 
 std::shared_ptr<FunctionCall>
-ProgramBuilder::createFuncall(type_system::type type) {
+ProgramBuilder::createFuncall(type_system::type_t type) {
     auto newFuncall = std::make_shared<FunctionCall>(
         funcallIds_.back(), functionCallsParameters_.back(), type);
     funcallIds_.pop_back();
@@ -85,8 +85,8 @@ void ProgramBuilder::newFuncall(std::string name) {
 
 void ProgramBuilder::createFunction(std::string name,
                                     std::shared_ptr<Block> operations,
-                                    type_system::type returnType) {
-    type_system::types argumentsTypes;
+                                    type_system::type_t returnType) {
+    type_system::types_t argumentsTypes;
     for (Variable v : currFunctionParameters_) {
         argumentsTypes.push_back(v.type);
     }
@@ -119,8 +119,8 @@ std::list<Variable> const &ProgramBuilder::functionParameters() const {
     return currFunctionParameters_;
 }
 
-type_system::types ProgramBuilder::parametersTypes() const {
-    type_system::types paramsTypes;
+type_system::types_t ProgramBuilder::parametersTypes() const {
+    type_system::types_t paramsTypes;
     for (Variable v : currFunctionParameters_) {
         paramsTypes.push_back(v.type);
         /* std::cout << "id => " << v.getId() << std::endl; */

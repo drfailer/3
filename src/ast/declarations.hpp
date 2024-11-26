@@ -21,7 +21,7 @@ struct Declaration : Node {
  * TODO: constructor for dynamic arrays
  */
 struct ArrayDeclaration : Array {
-    ArrayDeclaration(std::string name, int size, type_system::type type)
+    ArrayDeclaration(std::string name, int size, type_system::type_t type)
         : Array(name, size, type) {}
 
     void display() override;

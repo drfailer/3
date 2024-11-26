@@ -38,7 +38,7 @@ struct Block : Node {
  */
 struct Function : TypedNode {
     Function(std::string id, std::list<Variable> parameters,
-             std::shared_ptr<Block> instructions, type_system::type type)
+             std::shared_ptr<Block> instructions, type_system::type_t type)
         : TypedNode(type), id(id), parameters(parameters),
           block(instructions) {}
     void display() override;

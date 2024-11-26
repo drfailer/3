@@ -8,17 +8,17 @@
  * @brief  Interface for typed nodes.
  */
 struct TypedNode : Node {
-    TypedNode(type_system::type type) : type(type) {}
+    TypedNode(type_system::type_t type) : type(type) {}
     virtual ~TypedNode() = default;
 
-    type_system::type type = nullptr;
+    type_system::type_t type = nullptr;
 };
 
 /**
  * @brief  Basic values of an available type.
  */
 struct Value : TypedNode {
-    Value(type_system::LiteralValue value, type_system::type type)
+    Value(type_system::LiteralValue value, type_system::type_t type)
         : TypedNode(type), value(value) {}
 
     void compile(std::ofstream &, int) override;
@@ -31,7 +31,7 @@ struct Value : TypedNode {
  * @brief  Reference to a variable.
  */
 struct Variable : TypedNode {
-    Variable(std::string const &id, type_system::type type)
+    Variable(std::string const &id, type_system::type_t type)
         : TypedNode(type), id(id) {}
 
     void display() override;
@@ -45,7 +45,7 @@ struct Variable : TypedNode {
  *         Note: the language supports only 1 dimentional arrays.
  */
 struct Array : Variable {
-    Array(std::string name, int size, type_system::type type)
+    Array(std::string name, int size, type_system::type_t type)
         : Variable(name, type), size(size) {}
 
     int size;
@@ -56,7 +56,7 @@ struct Array : Variable {
  *         index which is a node)
  */
 struct ArrayAccess : Array {
-    ArrayAccess(std::string name, type_system::type type,
+    ArrayAccess(std::string name, type_system::type_t type,
                 std::shared_ptr<Node> index)
         : Array(name, -1, type), index(index) {}
 
@@ -74,7 +74,7 @@ struct ArrayAccess : Array {
 struct FunctionCall : TypedNode {
     FunctionCall(std::string const &functionName,
                  std::list<std::shared_ptr<TypedNode>> const &parameters,
-                 type_system::type type)
+                 type_system::type_t type)
         : TypedNode(type), functionName(functionName),
           parameters(parameters) {}
 

@@ -11,7 +11,7 @@ class ProgramBuilder {
     // TODO: change this
     std::list<Variable> const &functionParameters() const;
     std::shared_ptr<Program> program() const;
-    type_system::types parametersTypes() const;
+    type_system::types_t parametersTypes() const;
 
     void display();
 
@@ -32,7 +32,7 @@ class ProgramBuilder {
 
     /* create functions *******************************************************/
 
-    std::shared_ptr<FunctionCall> createFuncall(type_system::type = type_system::make_type<type_system::None>());
+    std::shared_ptr<FunctionCall> createFuncall(type_system::type_t = type_system::make_type<type_system::None>());
     std::shared_ptr<Cnd> createCnd(std::shared_ptr<Node>, std::shared_ptr<Block>);
     std::shared_ptr<For> createFor(Variable, std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Node>, std::shared_ptr<Block>);
     std::shared_ptr<Whl> createWhl(std::shared_ptr<Node>, std::shared_ptr<Block>);
@@ -41,7 +41,7 @@ class ProgramBuilder {
     void pushFunctionParam(Variable);
     void newFuncall(std::string);
 
-    void createFunction(std::string, std::shared_ptr<Block>, type_system::type);
+    void createFunction(std::string, std::shared_ptr<Block>, type_system::type_t);
 
   private:
 
