@@ -188,14 +188,14 @@ struct Function : Type {
 };
 
 type_t selectType(type_t left, type_t right);
-bool isArray(type_t t);
-bool isArrayOfChr(type_t const t);
-size_t getArraySize(type_t const t);
-PrimitiveTypes getElementType(type_t const t);
-PrimitiveTypes getValueType(type_t const t);
-bool isNumber(type_t const t);
-bool isNone(type_t const t);
-type_t getReturnType(type_t const t);
+bool isArray(type_t type);
+bool isArrayOfChr(type_t const type);
+size_t getArraySize(type_t const type);
+PrimitiveTypes getElementType(type_t const type);
+PrimitiveTypes getValueType(type_t const type);
+bool isNumber(type_t const type);
+bool isNone(type_t const type);
+type_t getReturnType(type_t const type);
 
 } // end namespace type_system
 

@@ -55,13 +55,13 @@ type_t selectType(type_t left, type_t right) {
     return make_type<Function>(make_type<Primitive>(FLT), arguments);
 }
 
-bool isArray(type_t t) {
-    return t->kind == TypeKinds::StaticArray ||
-           t->kind == TypeKinds::DynamicArray;
+bool isArray(type_t const type) {
+    return type->kind == TypeKinds::StaticArray ||
+           type->kind == TypeKinds::DynamicArray;
 }
 
-size_t getArraySize(type_t const t) {
-    auto arrayType = std::static_pointer_cast<StaticArray>(t);
+size_t getArraySize(type_t const type) {
+    auto arrayType = std::static_pointer_cast<StaticArray>(type);
 
     if (!arrayType) {
         throw std::runtime_error("error: try to use getArraySize on a type "
@@ -71,18 +71,18 @@ size_t getArraySize(type_t const t) {
 }
 
 // todo: array might store any type in the future
-PrimitiveTypes getElementType(type_t const t) {
-    switch (t->kind) {
+PrimitiveTypes getElementType(type_t const type) {
+    switch (type->kind) {
     case TypeKinds::Primitive: {
-        auto primitive = std::static_pointer_cast<Primitive>(t);
+        auto primitive = std::static_pointer_cast<Primitive>(type);
         return primitive->type;
     } break;
     case TypeKinds::StaticArray: {
-        auto staticArray = std::static_pointer_cast<StaticArray const>(t);
+        auto staticArray = std::static_pointer_cast<StaticArray const>(type);
         return staticArray->elementType;
     } break;
     case TypeKinds::DynamicArray: {
-        auto dynamicArray = std::static_pointer_cast<DynamicArray const>(t);
+        auto dynamicArray = std::static_pointer_cast<DynamicArray const>(type);
         return dynamicArray->elementType;
     } break;
     default:
@@ -92,21 +92,21 @@ PrimitiveTypes getElementType(type_t const t) {
     return NIL;
 }
 
-bool isArrayOfChr(type_t const t) { return getElementType(t) == CHR; }
+bool isArrayOfChr(type_t const type) { return getElementType(type) == CHR; }
 
-bool isNumber(type_t const t) {
-    PrimitiveTypes evaluatedType = t->getEvaluatedType();
+bool isNumber(type_t const type) {
+    PrimitiveTypes evaluatedType = type->getEvaluatedType();
     return evaluatedType == INT || evaluatedType == FLT;
 }
 
-bool isNone(type_t const t) {
-    return t->kind == TypeKinds::None;
+bool isNone(type_t const type) {
+    return type->kind == TypeKinds::None;
 }
 
-type_t getReturnType(type_t const t) {
-    switch (t->kind) {
+type_t getReturnType(type_t const type) {
+    switch (type->kind) {
     case TypeKinds::Function: {
-        auto functionType = std::static_pointer_cast<Function>(t);
+        auto functionType = std::static_pointer_cast<Function>(type);
         return functionType->returnType;
     } break;
     default:
