@@ -95,16 +95,8 @@ PrimitiveTypes getElementType(type const t) {
 bool isArrayOfChr(type const t) { return getElementType(t) == CHR; }
 
 bool isNumber(type const t) {
-    switch (t->kind) {
-    case TypeKinds::Primitive: {
-        auto primitiveType = std::static_pointer_cast<Primitive const>(t);
-        return primitiveType->type == INT || primitiveType->type == FLT;
-    } break;
-    default:
-        break;
-        ;
-    }
-    return false;
+    PrimitiveTypes evaluatedType = t->getEvaluatedType();
+    return evaluatedType == INT || evaluatedType == FLT;
 }
 
 bool isNone(type const t) {

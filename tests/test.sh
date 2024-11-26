@@ -240,7 +240,7 @@ test_comments
 # builtins
 
 # test_set # python error !!!
-# test_operations # error !!!
+test_operations # error !!!
 test_for
 
 # symbols
