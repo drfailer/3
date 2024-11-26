@@ -228,8 +228,10 @@ class S3C {
         auto newAssignment = std::make_shared<Assignment>(variable, expr);
 
         if (std::static_pointer_cast<FunctionCall>(expr)) { // if funcall
-            // this is a funcall so we have to wait the end of the parsing to check
-            auto position = std::make_pair(programBuilder_.currFileName(), line);
+            // this is a funcall so we have to wait the end of the parsing to
+            // check
+            auto position =
+                std::make_pair(programBuilder_.currFileName(), line);
             assignmentsToCheck.push_back(std::pair(newAssignment, position));
         } else {
             checkType(*this, programBuilder_.currFileName(), line, variable->id,
@@ -241,21 +243,21 @@ class S3C {
 
   public:
     std::shared_ptr<Value> newInt(long long intValue) {
-        type_system::LiteralValue value = { ._int = intValue };
+        type_system::LiteralValue value = {._int = intValue};
         return std::make_shared<Value>(
             value,
             type_system::make_type<type_system::Primitive>(type_system::INT));
     }
 
     std::shared_ptr<Value> newFlt(double fltValue) {
-        type_system::LiteralValue value = { ._flt = fltValue };
+        type_system::LiteralValue value = {._flt = fltValue};
         return std::make_shared<Value>(
             value,
             type_system::make_type<type_system::Primitive>(type_system::FLT));
     }
 
     std::shared_ptr<Value> newChr(char chrValue) {
-        type_system::LiteralValue value = { ._chr = chrValue };
+        type_system::LiteralValue value = {._chr = chrValue};
         return std::make_shared<Value>(
             value,
             type_system::make_type<type_system::Primitive>(type_system::CHR));
@@ -274,6 +276,22 @@ class S3C {
                        type_system::CHR, strValue.size()));
     }
 
+  public:
+    std::shared_ptr<For> newFor(std::string const &variableName,
+            std::shared_ptr<TypedNode> begin, std::shared_ptr<TypedNode> end,
+            std::shared_ptr<TypedNode> step, std::shared_ptr<Block> block, size_t line) {
+        Variable variable(variableName, type_system::make_type<type_system::Primitive>(type_system::NIL));
+        type_system::type type;
+
+        if (isDefined(*this, programBuilder_.currFileName(), line, variableName, type)) {
+            variable.type = type;
+            checkType(*this, programBuilder_.currFileName(), line, "RANGE_BEGIN", type, begin->type->getEvaluatedType());
+            checkType(*this, programBuilder_.currFileName(), line, "RANGE_END",  type, end->type->getEvaluatedType());
+            checkType(*this, programBuilder_.currFileName(), line, "RANGE_STEP", type, step->type->getEvaluatedType());
+        }
+        contextManager_.leaveScope();
+        return programBuilder_.createFor(variable, begin, end, step, block);
+    }
 
   private:
     ProgramBuilder programBuilder_;

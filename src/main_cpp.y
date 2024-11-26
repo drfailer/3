@@ -387,16 +387,7 @@ for:
         s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in for");
-        Variable v($v, type_system::make_type<type_system::Primitive>(type_system::NIL));
-        type_system::type type;
-        if (isDefined(s3c, s3c.programBuilder().currFileName(), @v.begin.line, $v, type)) {
-            v = Variable($v, type);
-            checkType(s3c, s3c.programBuilder().currFileName(), @b.begin.line, "RANGE_BEGIN", type, $b->type->getEvaluatedType());
-            checkType(s3c, s3c.programBuilder().currFileName(), @e.begin.line, "RANGE_END",  type, $e->type->getEvaluatedType());
-            checkType(s3c, s3c.programBuilder().currFileName(), @s.begin.line, "RANGE_STEP", type, $s->type->getEvaluatedType());
-        }
-        $$ = s3c.programBuilder().createFor(v, $b, $e, $s, $ops);
-        s3c.contextManager().leaveScope();
+        $$ = s3c.newFor($v, $b, $e, $s, $ops, @v.begin.line);
     }
     ;
 
