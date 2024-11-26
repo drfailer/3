@@ -392,7 +392,7 @@ for:
     ;
 
 whl:
-    WHL '('booleanOperation[cond]')' {
+    WHL booleanOperation[cond] {
         s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in whl");
