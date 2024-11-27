@@ -85,7 +85,7 @@ class S3C {
             std::cout << "ERROR: by type verification" << std::endl;
             errorsManager_.addReturnTypeWarning(
                 programBuilder_.currFileName(), line,
-                programBuilder_.currFunctionName(), foundType, expectedType);
+                programBuilder_.currFunctionName(), foundType, sym.value().getType());
         }
         // else verify the type and throw a warning
         programBuilder_.pushBlock(std::make_shared<Return>(expr));
