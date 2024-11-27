@@ -26,13 +26,10 @@ bool checkParametersTypes(S3C &, type_system::types_t expectedTypes,
                           type_system::types_t funcallTypes) {
     auto expectedIt = expectedTypes.begin(), expectedEnd = expectedTypes.end();
     auto funcallIt = funcallTypes.begin(), funcallEnd = funcallTypes.end();
-    // todo: refactor getEvaluatedType function
-    auto evaluatedPrimitiveType =
-        type_system::make_type<type_system::Primitive>(type_system::NIL);
 
     while (expectedIt != expectedEnd && funcallIt != funcallEnd) {
-        evaluatedPrimitiveType->type = (*funcallIt)->getEvaluatedType();
-        if (!(*expectedIt++)->compare(evaluatedPrimitiveType)) {
+        auto evaluatedType = (*funcallIt)->getEvaluatedType();
+        if (!(*expectedIt++)->compare(evaluatedType)) {
             return false;
         }
         funcallIt++;

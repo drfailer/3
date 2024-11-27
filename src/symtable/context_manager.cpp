@@ -12,13 +12,14 @@ void ContextManager::enterScope() {
 
 void ContextManager::leaveScope() { currentScope = currentScope->getFather(); }
 
-void ContextManager::newSymbol(std::string const &name, type_system::type_t type,
-                               Kind kind) {
+void ContextManager::newSymbol(std::string const &name,
+                               type_system::type_t type, Kind kind) {
     currentScope->add(name, type, kind);
 }
 
-void ContextManager::newSymbol(std::string const &name, type_system::type_t type,
-                               unsigned int size, Kind kind) {
+void ContextManager::newSymbol(std::string const &name,
+                               type_system::type_t type, unsigned int size,
+                               Kind kind) {
     currentScope->add(name,
                       type_system::make_type<type_system::StaticArray>(
                           type_system::getElementType(type), size),

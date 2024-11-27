@@ -30,8 +30,9 @@ class S3C {
     }
 
     void setFunctionType(type_system::type_t returnType) {
-        type_system::type_t type = type_system::make_type<type_system::Function>(
-            returnType, programBuilder_.parametersTypes());
+        type_system::type_t type =
+            type_system::make_type<type_system::Function>(
+                returnType, programBuilder_.parametersTypes());
         contextManager_.newGlobalSymbol(programBuilder_.currFunctionName(),
                                         type, FUNCTION);
     }
@@ -64,26 +65,24 @@ class S3C {
 
   public:
     void newReturnExpression(std::shared_ptr<TypedNode> expr, size_t line) {
+        std::ostringstream oss;
         std::optional<Symbol> sym =
             contextManager_.lookup(programBuilder_.currFunctionName());
-        type_system::type_t foundType = expr->type;
-        type_system::type_t expectedType = sym.value().getType();
-        type_system::PrimitiveTypes e_expectedType =
-            expectedType->getEvaluatedType();
-        type_system::PrimitiveTypes e_foundType = foundType->getEvaluatedType();
-        std::ostringstream oss;
+        auto foundType = expr->type->getEvaluatedType();
+        auto expectedType = sym.value().getType()->getEvaluatedType();
 
-        if (e_expectedType == type_system::NIL) { // no return allowed
+        if (isNone(foundType)) {
+            std::cout << "ERROR: none type found" << std::endl;
+            throw std::runtime_error("error: not implemented");
+        }
+
+        if (type_system::isNil(expectedType)) { // no return allowed
             errorsManager_.addUnexpectedReturnError(
                 programBuilder_.currFileName(), line,
                 programBuilder_.currFunctionName());
-        } else if (e_expectedType != e_foundType &&
-                   e_foundType != type_system::NIL) {
-            // TODO: create a function to compare types
-            std::cout << "ERROR: type comparison done wrong." << std::endl;
-            // must check if foundType is not void because of the
-            // buildin function (add, ...) which are not in the
-            // symtable
+        } else if (!expectedType->compare(foundType)) {
+            // TODO: return type can be a warning or an error
+            std::cout << "ERROR: by type verification" << std::endl;
             errorsManager_.addReturnTypeWarning(
                 programBuilder_.currFileName(), line,
                 programBuilder_.currFunctionName(), foundType, expectedType);
@@ -131,27 +130,30 @@ class S3C {
     newArrayVariable(std::string const &name, size_t line,
                      std::shared_ptr<TypedNode> index) {
         type_system::type_t type;
-        std::shared_ptr<ArrayAccess> v;
+        std::shared_ptr<ArrayAccess> variable;
 
         // TODO: refactor isDefined
         if (isDefined(*this, programBuilder_.currFileName(), line, name,
                       type)) {
             std::optional<Symbol> sym = contextManager_.lookup(name);
             // error if the symbol is not an array
-            if (sym.value().getKind() != LOCAL_ARRAY) {
+            if (sym.value().getKind() != LOCAL_ARRAY || !isArray(type)) {
                 errorsManager_.addBadArrayUsageError(
                     programBuilder_.currFileName(), line, name);
             }
-            v = std::make_shared<ArrayAccess>(name, type, index);
+            // TODO: refactor this
+            variable = std::make_shared<ArrayAccess>(
+                name, type_system::getElementType(type), index);
         } else {
+            // TODO: error ???
             // TODO: verify the type of the index
-            v = std::make_shared<ArrayAccess>(
+            variable = std::make_shared<ArrayAccess>(
                 name,
                 type_system::make_type<type_system::Primitive>(
                     type_system::NIL),
                 index);
         }
-        return v;
+        return variable;
     }
 
   public:
@@ -178,8 +180,7 @@ class S3C {
         if (std::optional<Symbol> symbol =
                 contextManager_.lookup(functionName)) {
             funcall = programBuilder_.createFuncall(
-                type_system::make_type<type_system::Primitive>(
-                    symbol.value().getType()->getEvaluatedType()));
+                symbol.value().getType()->getEvaluatedType());
         } else {
             funcall = programBuilder_.createFuncall();
         }
@@ -273,21 +274,31 @@ class S3C {
         memcpy(value._str, strValue.c_str(), strValue.size());
         return std::make_shared<Value>(
             value, type_system::make_type<type_system::StaticArray>(
-                       type_system::CHR, strValue.size()));
+                       type_system::make_type<type_system::Primitive>(
+                           type_system::CHR),
+                       strValue.size()));
     }
 
   public:
     std::shared_ptr<For> newFor(std::string const &variableName,
-            std::shared_ptr<TypedNode> begin, std::shared_ptr<TypedNode> end,
-            std::shared_ptr<TypedNode> step, std::shared_ptr<Block> block, size_t line) {
-        Variable variable(variableName, type_system::make_type<type_system::Primitive>(type_system::NIL));
+                                std::shared_ptr<TypedNode> begin,
+                                std::shared_ptr<TypedNode> end,
+                                std::shared_ptr<TypedNode> step,
+                                std::shared_ptr<Block> block, size_t line) {
+        Variable variable(
+            variableName,
+            type_system::make_type<type_system::Primitive>(type_system::NIL));
         type_system::type_t type;
 
-        if (isDefined(*this, programBuilder_.currFileName(), line, variableName, type)) {
+        if (isDefined(*this, programBuilder_.currFileName(), line, variableName,
+                      type)) {
             variable.type = type;
-            checkType(*this, programBuilder_.currFileName(), line, "RANGE_BEGIN", type, begin->type->getEvaluatedType());
-            checkType(*this, programBuilder_.currFileName(), line, "RANGE_END",  type, end->type->getEvaluatedType());
-            checkType(*this, programBuilder_.currFileName(), line, "RANGE_STEP", type, step->type->getEvaluatedType());
+            checkType(*this, programBuilder_.currFileName(), line,
+                      "RANGE_BEGIN", type, begin->type->getEvaluatedType());
+            checkType(*this, programBuilder_.currFileName(), line, "RANGE_END",
+                      type, end->type->getEvaluatedType());
+            checkType(*this, programBuilder_.currFileName(), line, "RANGE_STEP",
+                      type, step->type->getEvaluatedType());
         }
         contextManager_.leaveScope();
         return programBuilder_.createFor(variable, begin, end, step, block);

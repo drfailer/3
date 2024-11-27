@@ -47,8 +47,9 @@ type_t selectType(type_t left, type_t right) {
     type_t result;
     types_t arguments = {left, right};
 
-    primitiveLeft = left->getEvaluatedType();
-    primitiveRight = right->getEvaluatedType();
+    // FIXME: could go wrong
+    primitiveLeft = std::static_pointer_cast<Primitive>(left->getEvaluatedType())->type;
+    primitiveRight = std::static_pointer_cast<Primitive>(right->getEvaluatedType())->type;
     if (primitiveLeft == INT && primitiveRight == INT) {
         return make_type<Function>(make_type<Primitive>(INT), arguments);
     }
@@ -61,7 +62,7 @@ bool isArray(type_t const type) {
 }
 
 size_t getArraySize(type_t const type) {
-    auto arrayType = std::static_pointer_cast<StaticArray>(type);
+    auto arrayType = std::static_pointer_cast<type_system::StaticArray>(type);
 
     if (!arrayType) {
         throw std::runtime_error("error: try to use getArraySize on a type "
@@ -70,13 +71,15 @@ size_t getArraySize(type_t const type) {
     return arrayType->size;
 }
 
-// todo: array might store any type in the future
-PrimitiveTypes getElementType(type_t const type) {
+std::optional<PrimitiveTypes> getPrimitiveType(type_t const type) {
+    if (auto primitive = std::static_pointer_cast<Primitive>(type)) {
+        return std::make_optional<PrimitiveTypes>(primitive->type);
+    }
+    return std::nullopt;
+}
+
+std::shared_ptr<Type> getElementType(type_t const type) {
     switch (type->kind) {
-    case TypeKinds::Primitive: {
-        auto primitive = std::static_pointer_cast<Primitive>(type);
-        return primitive->type;
-    } break;
     case TypeKinds::StaticArray: {
         auto staticArray = std::static_pointer_cast<StaticArray const>(type);
         return staticArray->elementType;
@@ -86,21 +89,40 @@ PrimitiveTypes getElementType(type_t const type) {
         return dynamicArray->elementType;
     } break;
     default:
+        return type;
         break;
         ;
     }
-    return NIL;
+    return make_type<Primitive>(NIL);
 }
 
-bool isArrayOfChr(type_t const type) { return getElementType(type) == CHR; }
+bool isArrayOfChr(type_t const type) {
+    if (auto primitive = getPrimitiveType(getElementType(type))) {
+        return primitive.value() == CHR;
+    }
+    return false;
+}
 
 bool isNumber(type_t const type) {
-    PrimitiveTypes evaluatedType = type->getEvaluatedType();
-    return evaluatedType == INT || evaluatedType == FLT;
+    if (auto evaluatedType = getPrimitiveType(type->getEvaluatedType())) {
+        return evaluatedType.value() == INT || evaluatedType.value() == FLT;
+    }
+    return false;
 }
 
 bool isNone(type_t const type) {
     return type->kind == TypeKinds::None;
+}
+
+bool isNil(type_t const type) {
+    if (auto primitive = getPrimitiveType(type)) {
+        return primitive.value() == PrimitiveTypes::NIL;
+    }
+    return false;
+}
+
+bool isCastableTo(type_t const t1, type_t const t2) {
+    // TODO
 }
 
 type_t getReturnType(type_t const type) {

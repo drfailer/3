@@ -28,7 +28,7 @@ assert_no_diff() {
 
     diffs=$(diff $out_file $ground_truth)
 
-    if [ ! -z $diffs ]; then
+    if [ ! -z "$diffs" ]; then
         echo $error_message
         echo $diffs
         RESULT=1

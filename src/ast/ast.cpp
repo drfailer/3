@@ -16,7 +16,8 @@ void indent(std::ofstream &fs, int lvl) {
 
 void Value::display() {
     // todo: we can't use getElementType because of the strings
-    switch (getElementType(type)) {
+    switch (type_system::getPrimitiveType(type_system::getElementType(type))
+                .value()) {
     case type_system::INT:
         std::cout << value._int;
         break;
@@ -35,7 +36,8 @@ void Value::compile(std::ofstream &fs, int) {
     // todo: we can't use getElementType because of the strings
     switch (type->kind) {
     case type_system::TypeKinds::Primitive:
-        switch (type_system::getElementType(type)) {
+        switch (type_system::getPrimitiveType(type_system::getElementType(type))
+                    .value()) {
         case type_system::INT:
             fs << value._int;
             break;
@@ -52,7 +54,8 @@ void Value::compile(std::ofstream &fs, int) {
         }
         break;
     case type_system::TypeKinds::StaticArray:
-        if (type_system::getElementType(type) == type_system::CHR) {
+        if (type_system::getPrimitiveType(type_system::getElementType(type))
+                .value() == type_system::CHR) {
             // WARN: the '"' are in the string (this may change).
             // TODO: this doesn't work, the value is technically correct but
             // it doesn't take in count the size of the targeted array.
@@ -172,7 +175,9 @@ void Assignment::compile(std::ofstream &fs, int lvl) {
     } else {
         variable->compile(fs, lvl);
         fs << "=";
-        switch (type_system::getElementType(variable->type)) {
+        switch (type_system::getPrimitiveType(
+                    type_system::getElementType(variable->type))
+                    .value()) {
         case type_system::INT:
             fs << "int(";
             break;
@@ -510,7 +515,9 @@ void Ipt::compile(std::ofstream &fs, int lvl) {
     indent(fs, lvl);
     variable->compile(fs, 0);
     // todo: make shura that the variable is a primitive type
-    switch (type_system::getElementType(variable->type)) {
+    switch (type_system::getPrimitiveType(
+                type_system::getElementType(variable->type))
+                .value()) {
     case type_system::INT:
         fs << " = int(input())";
         break;

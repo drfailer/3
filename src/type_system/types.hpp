@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #define MAX_LITERAL_STRING_LENGTH 1000
 
@@ -30,7 +31,7 @@ struct Type {
     Type(TypeKinds kind) : kind(kind) {}
     virtual ~Type() {}
     virtual std::string toString() const = 0;
-    virtual PrimitiveTypes getEvaluatedType() const = 0;
+    virtual std::shared_ptr<Type> const getEvaluatedType() const = 0;
     virtual bool compare(std::shared_ptr<Type> const) const = 0;
     TypeKinds kind;
 };
@@ -54,10 +55,7 @@ struct None : Type {
     None() : Type(TypeKinds::None) {}
     virtual std::string toString() const { return "none"; }
 
-    virtual PrimitiveTypes getEvaluatedType() const {
-        // TODO: create a custom exception
-        throw std::runtime_error("error: None type can't be evaluated.");
-    }
+    virtual type_t const getEvaluatedType() const { return make_type<None>(); }
 
     virtual bool compare(std::shared_ptr<Type> const other) const {
         return other->kind == TypeKinds::None;
@@ -75,7 +73,9 @@ struct Primitive : Type {
         return oss.str();
     }
 
-    PrimitiveTypes getEvaluatedType() const override { return type; }
+    type_t const getEvaluatedType() const override {
+        return make_type<Primitive>(type);
+    }
 
     bool compare(std::shared_ptr<Type> const other) const override {
         if (other->kind != TypeKinds::Primitive) {
@@ -87,9 +87,10 @@ struct Primitive : Type {
 };
 
 struct StaticArray : Type {
-    StaticArray(PrimitiveTypes elementType = INT, size_t size = 0)
-        : Type(TypeKinds::StaticArray), elementType(elementType), size(size) {}
-    PrimitiveTypes elementType;
+    // FIXME: should take a type as parameter
+    StaticArray(type_t type, size_t size = 0)
+        : Type(TypeKinds::StaticArray), elementType(type), size(size) {}
+    type_t elementType;
     size_t size;
 
     std::string toString() const override {
@@ -98,7 +99,8 @@ struct StaticArray : Type {
         return oss.str();
     }
 
-    PrimitiveTypes getEvaluatedType() const override { return elementType; }
+    // FIXME: it is not elementType
+    type_t const getEvaluatedType() const override { return elementType; }
 
     bool compare(std::shared_ptr<Type> const other) const override {
         if (other->kind != TypeKinds::StaticArray) {
@@ -111,9 +113,10 @@ struct StaticArray : Type {
 };
 
 struct DynamicArray : Type {
-    DynamicArray(PrimitiveTypes elementType)
-        : Type(TypeKinds::DynamicArray), elementType(elementType) {}
-    PrimitiveTypes elementType;
+    // FIXME: should take a type as parameter
+    DynamicArray(type_t type)
+        : Type(TypeKinds::DynamicArray), elementType(type) {}
+    type_t elementType;
 
     std::string toString() const override {
         std::ostringstream oss;
@@ -121,7 +124,8 @@ struct DynamicArray : Type {
         return oss.str();
     }
 
-    PrimitiveTypes getEvaluatedType() const override { return elementType; }
+    // FIXME: it is not elementType
+    type_t const getEvaluatedType() const override { return elementType; }
 
     bool compare(std::shared_ptr<Type> const other) const override {
         if (other->kind != TypeKinds::DynamicArray) {
@@ -140,9 +144,9 @@ struct Obj : Type {
 
     std::string toString() const override { return name; }
 
-    PrimitiveTypes getEvaluatedType() const override {
+    type_t const getEvaluatedType() const override {
         throw std::runtime_error("todo: how to handle returned structs");
-        return NIL;
+        return nullptr;
     }
 };
 
@@ -160,9 +164,7 @@ struct Function : Type {
         return oss.str();
     }
 
-    PrimitiveTypes getEvaluatedType() const override {
-        return returnType->getEvaluatedType();
-    }
+    type_t const getEvaluatedType() const override { return returnType; }
 
     bool compare(std::shared_ptr<Type> const other) const override {
         if (other->kind != TypeKinds::Function) {
@@ -191,10 +193,13 @@ type_t selectType(type_t left, type_t right);
 bool isArray(type_t type);
 bool isArrayOfChr(type_t const type);
 size_t getArraySize(type_t const type);
-PrimitiveTypes getElementType(type_t const type);
+std::optional<PrimitiveTypes> getPrimitiveType(type_t const type);
+std::shared_ptr<Type> getElementType(type_t const type);
 PrimitiveTypes getValueType(type_t const type);
 bool isNumber(type_t const type);
 bool isNone(type_t const type);
+bool isNil(type_t const type);
+bool isCastableTo(type_t const t1, type_t const t2);
 type_t getReturnType(type_t const type);
 
 } // end namespace type_system
