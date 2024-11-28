@@ -73,7 +73,7 @@ class S3C {
         contextManager_.newSymbol(name, type, LOCAL_ARRAY);
         programBuilder_.pushFunctionParam(
             Array(name, size,
-                  std::static_pointer_cast<type_system::StaticArray>(type)));
+                  std::dynamic_pointer_cast<type_system::StaticArray>(type)));
     }
 
   public:
@@ -212,7 +212,7 @@ class S3C {
             type_system::types_t foundArgumentsTypes =
                 getFunctionCallParametersTypes(functionCall->parameters);
             type_system::types_t expectedArgumentsTypes =
-                std::static_pointer_cast<type_system::Function>(
+                std::dynamic_pointer_cast<type_system::Function>(
                     sym.value().getType())
                     ->argumentsTypes;
 
@@ -276,20 +276,33 @@ class S3C {
     }
 
   public:
-    void newAssignment(
-        std::shared_ptr<Variable> variable, std::shared_ptr<TypedNode> expr,
-        size_t line,
-        std::list<std::pair<std::shared_ptr<Assignment>,
-                            std::pair<std::string, int>>> &assignmentsToCheck) {
+    void verifyAssignmentType(std::shared_ptr<Assignment> assignment,
+                              std::shared_ptr<FunctionCall> expr,
+                              std::string const &fileName, size_t line) {
+        if (auto functionCallSymbol =
+                contextManager_.lookup(expr->functionName)) {
+            checkType(*this, fileName, line, assignment->variable->id,
+                      assignment->variable->type,
+                      functionCallSymbol->getType()->getEvaluatedType());
+        } else {
+            errorsManager_.addUndefinedSymbolError(fileName, line,
+                                                   expr->functionName);
+        }
+    }
+
+    void newAssignment(std::shared_ptr<Variable> variable,
+                       std::shared_ptr<TypedNode> expr, size_t line) {
         auto icType = expr->type;
         auto newAssignment = std::make_shared<Assignment>(variable, expr);
 
-        if (std::static_pointer_cast<FunctionCall>(expr)) { // if funcall
+        if (auto functionCall = std::dynamic_pointer_cast<FunctionCall>(expr)) {
             // this is a funcall so we have to wait the end of the parsing to
-            // check
-            auto position =
-                std::make_pair(programBuilder_.currFileName(), line);
-            assignmentsToCheck.push_back(std::pair(newAssignment, position));
+            // check (this is due to the fact that a function can be used before
+            // it's defined).
+            postProcessVerifications_.push_back([=]() {
+                verifyAssignmentType(newAssignment, functionCall,
+                                     programBuilder_.currFileName(), line);
+            });
         } else {
             checkType(*this, programBuilder_.currFileName(), line, variable->id,
                       variable->type, icType->getEvaluatedType());

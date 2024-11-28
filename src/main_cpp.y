@@ -52,9 +52,6 @@
     #include <functional>
     // #define yylex(x) scanner->lex(x)
     #define yylex(x, y) scanner->lex(x, y) // now we use yylval and yylloc
-
-    std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck = {};
-    std::list<std::pair<std::string, std::function<bool(type_system::type_t)>>> expressionsToCheck = {};
 }
 
 %token <long long>  INT
@@ -314,7 +311,7 @@ variableDeclaration:
 assignment:
     SET'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
-        s3c.newAssignment($var, $expr, @var.begin.line, assignmentsToCheck);
+        s3c.newAssignment($var, $expr, @var.begin.line);
     }
     ;
 
@@ -429,21 +426,6 @@ void makeExecutable(std::string file) {
             std::filesystem::perm_options::add);
 }
 
-/* Verify the types of all assignments that involve funcalls.
- * It's done because we want to be able to use functions that are declared after
- * the function in which we make the call. This force to parse all the functions
- * to have a complete table of symbol before checking the types.
- */
- // TODO: should be moved elsewhere
-void checkAssignments(S3C &s3c) {
-    for (auto ap : assignmentsToCheck) {
-        checkType(s3c, ap.second.first, ap.second.second,
-                  ap.first->variable->id,
-                  ap.first->variable->type,
-                  ap.first->value->type->getEvaluatedType());
-    }
-}
-
 void compile(std::string fileName, std::string outputName) {
     int parserOutput;
     int preprocessorErrorStatus = 0;
@@ -466,8 +448,6 @@ void compile(std::string fileName, std::string outputName) {
     interpreter::Scanner scanner{ is , std::cerr };
     interpreter::Parser parser{ &scanner, s3c };
     parserOutput = parser.parse();
-    //checkFuncalls(s3c);
-    checkAssignments(s3c);
     s3c.runPostProcessVerifications();
 
     // look for main

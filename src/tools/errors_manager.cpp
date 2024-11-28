@@ -89,7 +89,7 @@ void ErrorManager::addUnexpectedReturnError(std::string file, int line,
                                             std::string functionName) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": found return statement in " << BOLD
-        << functionName << NORM << " which is of type void." << std::endl;
+        << functionName << NORM << " which is of type nil." << std::endl;
     addError(oss.str());
 }
 
