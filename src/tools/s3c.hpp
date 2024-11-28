@@ -5,6 +5,7 @@
 #include "tools/checks.hpp"
 #include "tools/errors_manager.hpp"
 #include "tools/program_builder.hpp"
+#include "type_system/types.hpp"
 #include <cstring>
 
 class S3C {
@@ -81,11 +82,17 @@ class S3C {
                 programBuilder_.currFileName(), line,
                 programBuilder_.currFunctionName());
         } else if (!expectedType->compare(foundType)) {
-            // TODO: return type can be a warning or an error
-            std::cout << "ERROR: by type verification" << std::endl;
-            errorsManager_.addReturnTypeWarning(
-                programBuilder_.currFileName(), line,
-                programBuilder_.currFunctionName(), foundType, sym.value().getType());
+            if (type_system::isCastableTo(expectedType, foundType)) {
+                errorsManager_.addReturnTypeWarning(
+                    programBuilder_.currFileName(), line,
+                    programBuilder_.currFunctionName(), foundType,
+                    sym.value().getType());
+            } else {
+                errorsManager_.addReturnTypeError(
+                    programBuilder_.currFileName(), line,
+                    programBuilder_.currFunctionName(), foundType,
+                    sym.value().getType());
+            }
         }
         // else verify the type and throw a warning
         programBuilder_.pushBlock(std::make_shared<Return>(expr));

@@ -160,6 +160,29 @@ void ErrorManager::addLiteralStringOverflowError(std::string file, int line) {
 }
 
 /**
+ * @brief  Record a return type error. This occurs when the type of the
+ *         returned value doesn't match the return type of the function and
+ *         cannot be casted into the expected type.
+ *
+ * @param  name      Name of the funcion.
+ * @param  line      Location.line
+ * @param  column    Location.column
+ * @param  expected  Expected return type.
+ * @param  found     Found return type.
+ */
+void ErrorManager::addReturnTypeError(std::string file, int line,
+                                      std::string functionName,
+                                      type_system::type_t expected,
+                                      type_system::type_t found) {
+    std::ostringstream oss;
+    oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
+        << ", found return value of type " << BOLD << expected->toString()
+        << NORM << " but this function is of type " << BOLD << found->toString()
+        << NORM << "." << std::endl;
+    addError(oss.str());
+}
+
+/**
  * @brief  Record a no entry point error. This occurs when no main function has
  *         been found.
  */

@@ -122,7 +122,28 @@ bool isNil(type_t const type) {
 }
 
 bool isCastableTo(type_t const t1, type_t const t2) {
-    // TODO
+    auto p1 = getPrimitiveType(t1);
+    auto p2 = getPrimitiveType(t2);
+
+    if (p1.has_value() && p2.has_value()) {
+        switch (p1.value()) {
+            case PrimitiveTypes::INT:
+                return p2.value() == PrimitiveTypes::FLT ||
+                       p2.value() == PrimitiveTypes::INT ||
+                       p2.value() == PrimitiveTypes::CHR;
+                break;
+            case PrimitiveTypes::CHR:
+                return p2.value() == PrimitiveTypes::INT ||
+                       p2.value() == PrimitiveTypes::CHR;
+                break;
+            case PrimitiveTypes::FLT:
+                return p2.value() == PrimitiveTypes::INT;
+                break;
+            default:
+                break;
+        }
+    }
+    return false;
 }
 
 type_t getReturnType(type_t const type) {
