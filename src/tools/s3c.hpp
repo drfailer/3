@@ -6,7 +6,9 @@
 #include "tools/errors_manager.hpp"
 #include "tools/program_builder.hpp"
 #include "type_system/types.hpp"
+#include <algorithm>
 #include <cstring>
+#include <functional>
 
 class S3C {
   public:
@@ -14,6 +16,16 @@ class S3C {
     Symtable &symtable() { return symtable_; }
     ContextManager &contextManager() { return contextManager_; }
     ErrorManager &errorsManager() { return errorsManager_; }
+
+    using VerificationFunction = std::function<void(void)>;
+
+  public:
+    // Move outside the class ?
+    void runPostProcessVerifications() {
+        for (auto verify : postProcessVerifications_) {
+            verify();
+        }
+    }
 
   public:
     bool newFunctionDefinition(std::string const &functionName, size_t line) {
@@ -177,10 +189,47 @@ class S3C {
     }
 
   public:
-    template <typename T>
+    // TODO: move out of the class
+    type_system::types_t getFunctionCallParametersTypes(
+        std::list<std::shared_ptr<TypedNode>> const &nodes) {
+        type_system::types_t parametersTypes = {};
+
+        std::transform(
+            nodes.cbegin(), nodes.cend(),
+            std::back_insert_iterator<type_system::types_t>(parametersTypes),
+            [](auto elt) { return elt->type; });
+        return parametersTypes;
+    }
+
+    // TODO: refactor this function
+    void verifyFunctionCallType(std::string const &functionName,
+                                std::shared_ptr<FunctionCall> functionCall,
+                                std::string const &fileName, size_t line) {
+        auto sym = contextManager_.lookup(functionName);
+
+        if (sym.has_value()) {
+            // get the found return type (types of the parameters)
+            type_system::types_t foundArgumentsTypes =
+                getFunctionCallParametersTypes(functionCall->parameters);
+            type_system::types_t expectedArgumentsTypes =
+                std::static_pointer_cast<type_system::Function>(
+                    sym.value().getType())
+                    ->argumentsTypes;
+
+            if (!checkParametersTypes(*this, expectedArgumentsTypes,
+                                      foundArgumentsTypes)) {
+                errorsManager_.addFuncallTypeError(fileName, line, functionName,
+                                                   expectedArgumentsTypes,
+                                                   foundArgumentsTypes);
+            }
+        } else {
+            errorsManager_.addUndefinedSymbolError(fileName, line,
+                                                   functionName);
+        }
+    }
+
     std::shared_ptr<TypedNode> newFunctionCall(std::string const &functionName,
-                                               size_t line,
-                                               T &funcallsToCheck) {
+                                               size_t line) {
         // TODO: we need a none type as if the function is not defined, we
         // cannot get the return type (should be verified afterward)
         std::shared_ptr<FunctionCall> funcall;
@@ -191,11 +240,11 @@ class S3C {
         } else {
             funcall = programBuilder_.createFuncall();
         }
-        std::pair<std::string, int> position =
-            std::make_pair(programBuilder_.currFileName(), line);
-        // the type check is done at the end !
-        funcallsToCheck.push_back(std::make_pair(funcall, position));
-        // check the type
+        // setup type verification
+        postProcessVerifications_.push_back([=]() {
+            verifyFunctionCallType(functionName, funcall,
+                                   programBuilder_.currFileName(), line);
+        });
         return funcall;
     }
 
@@ -316,6 +365,8 @@ class S3C {
     Symtable symtable_;
     ContextManager contextManager_;
     ErrorManager errorsManager_;
+
+    std::list<VerificationFunction> postProcessVerifications_ = {};
 };
 
 #endif

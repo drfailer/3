@@ -53,7 +53,6 @@
     // #define yylex(x) scanner->lex(x)
     #define yylex(x, y) scanner->lex(x, y) // now we use yylval and yylloc
 
-    std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck = {};
     std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck = {};
     std::list<std::pair<std::string, std::function<bool(type_system::type_t)>>> expressionsToCheck = {};
 }
@@ -297,7 +296,7 @@ functionCall:
     }
     parameterList')' {
         DEBUG("new funcall: " << $1);
-        $$ = s3c.newFunctionCall($1, @1.begin.line, funcallsToCheck);
+        $$ = s3c.newFunctionCall($1, @1.begin.line);
     }
     ;
 
@@ -445,46 +444,6 @@ void checkAssignments(S3C &s3c) {
     }
 }
 
-// todo: we shouldn't need this
-type_system::types_t getTypes(std::list<std::shared_ptr<TypedNode>> const &nodes) {
-    type_system::types_t parametersTypes = {};
-
-    std::transform(nodes.cbegin(), nodes.cend(),
-                   std::back_insert_iterator<type_system::types_t>(parametersTypes),
-                   [](auto elt) { return elt->type; });
-    return parametersTypes;
-}
-
-/* Verify the types of all funcalls. To check the type, we have to verify the
- * types of all the parameters. The return type is not important here.
- */
-// TODO: will be moved elsewhere
-void checkFuncalls(S3C &s3c) {
-    // std::list<std::pair<std::shared_ptr<FunctionCall>,
-    //                     std::pair<std::string, int>>> funcallsToCheck;
-    for (auto fp : funcallsToCheck) {
-        std::optional<Symbol> sym = s3c.contextManager().lookup(fp.first->functionName);
-
-        if (sym.has_value()) {
-            // get the found return type (types of the parameters)
-            type_system::types_t foundArgumentsTypes = getTypes(fp.first->parameters);
-            type_system::types_t expectedArgumentsTypes =
-                std::static_pointer_cast<type_system::Function>(
-                                            sym.value().getType())->argumentsTypes;
-
-            if (!checkParametersTypes(s3c, expectedArgumentsTypes, foundArgumentsTypes)) {
-                s3c.errorsManager().addFuncallTypeError(fp.second.first,
-                                           fp.second.second,
-                                           fp.first->functionName,
-                                           expectedArgumentsTypes, foundArgumentsTypes);
-            }
-        } else {
-            // todo
-            // s3c.errorsManager().addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
-        }
-    }
-}
-
 void compile(std::string fileName, std::string outputName) {
     int parserOutput;
     int preprocessorErrorStatus = 0;
@@ -507,8 +466,9 @@ void compile(std::string fileName, std::string outputName) {
     interpreter::Scanner scanner{ is , std::cerr };
     interpreter::Parser parser{ &scanner, s3c };
     parserOutput = parser.parse();
-    checkFuncalls(s3c);
+    //checkFuncalls(s3c);
     checkAssignments(s3c);
+    s3c.runPostProcessVerifications();
 
     // look for main
     std::optional<Symbol> sym = s3c.contextManager().lookup("main");

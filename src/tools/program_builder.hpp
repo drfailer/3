@@ -21,8 +21,10 @@ class ProgramBuilder {
 
     void currFileName(std::string const &fileName) {
         // the filename is surrounded by '"' (we remove them)
-        currFileName_ = fileName.substr(1);
-        currFileName_.pop_back();
+        currFileName_ = fileName[0] == '"' ? fileName.substr(1) : fileName;
+        if (fileName.back() == '"') {
+            currFileName_.pop_back();
+        }
     }
 
     std::string const &currFileName() const { return currFileName_; }
