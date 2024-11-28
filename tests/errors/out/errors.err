@@ -1,11 +1,12 @@
+[[1;31mERROR[0m]: ./errors/errors.3:3: found return statement in [1;34mprocedure[0m which is of type nil.
 [[1;33mWARN[0m]: ./errors/errors.3:9: in [1;34mfoo[0m, found return value of type [1;34mflt[0m but this function is of type [1;34mint(int)[0m.
+[[1;33mWARN[0m]: ./errors/errors.3:16: in assignment, [1;34ma[0m is of type [1;34mint[0m but the value assigned is of type [1;34mchr[0m.
 [[1;31mERROR[0m]: ./errors/errors.3:17: undefined Symbol [1;34mb[0m.
+[[1;33mWARN[0m]: ./errors/errors.3:17: in assignment, [1;34mb[0m is of type [1;34mnil[0m but the value assigned is of type [1;34mint[0m.
 [[1;31mERROR[0m]: ./errors/errors.3:21: undefined Symbol [1;34mb[0m.
 [[1;31mERROR[0m]: ./errors/errors.3:25: redefinition of [1;34mprocedure[0m.
-[[1;33mWARN[0m]: ./errors/errors.3:16: in assignment, [1;34ma[0m is of type [1;34mint[0m but the value assigned is of type [1;34mchr[0m.
-[[1;33mWARN[0m]: ./errors/errors.3:17: in assignment, [1;34mb[0m is of type [1;34mnil[0m but the value assigned is of type [1;34mint[0m.
 [[1;33mWARN[0m]: ./errors/errors.3:18: in assignment, [1;34mc[0m is of type [1;34mchr[0m but the value assigned is of type [1;34mint[0m.
-[[1;33mWARN[0m]: ./errors/errors.3:19: in assignment, [1;34mc[0m is of type [1;34mchr[0m but the value assigned is of type [1;34mint[0m.
 [[1;31mERROR[0m]: ./errors/errors.3:19: Type error in [1;34mfoo[0m, the expected type was [1;34m(int)[0m but [1;34m(int, int)[0m was found.
+[[1;33mWARN[0m]: ./errors/errors.3:19: in assignment, [1;34mc[0m is of type [1;34mchr[0m but the value assigned is of type [1;34mint[0m.
 [[1;31mERROR[0m]: ./errors/errors.3:21: undefined Symbol [1;34mfuction[0m.
 

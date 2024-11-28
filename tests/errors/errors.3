@@ -1,5 +1,5 @@
-~~~ error: return type
-int procedure() bgn
+~~~ error: return statement in a nil function
+nil procedure() bgn
   ret 4
 end
 
@@ -18,7 +18,7 @@ nil main_() bgn
   set(c, foo(4)) ~~~ warning: foo returns an int and expected a char
   set(c, foo(4, 3)) ~~~ error: wrong arguments for foo
 
-  fuction(a, b) ~~~ erreur: undefined symbol
+  fuction(a, b) ~~~ error: undefined symbol
 end
 
 ~~~ error: redefinition of procedure
