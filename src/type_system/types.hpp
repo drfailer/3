@@ -71,11 +71,14 @@ struct Primitive : Type {
     std::string toString() const override {
         std::ostringstream oss;
         oss << type;
+        if (type == STR) {
+            oss << "[" << size << "]";
+        }
         return oss.str();
     }
 
     type_t const getEvaluatedType() const override {
-        return make_type<Primitive>(type);
+        return std::make_shared<Primitive>(type, size);
     }
 
     bool compare(std::shared_ptr<Type> const other) const override {
@@ -88,7 +91,6 @@ struct Primitive : Type {
 };
 
 struct StaticArray : Type {
-    // FIXME: should take a type as parameter
     StaticArray(type_t type, size_t size = 0)
         : Type(TypeKinds::StaticArray), elementType(type), size(size) {}
     type_t elementType;
@@ -100,21 +102,24 @@ struct StaticArray : Type {
         return oss.str();
     }
 
-    // FIXME: it is not elementType
-    type_t const getEvaluatedType() const override { return elementType; }
+    type_t const getEvaluatedType() const override {
+        return std::make_shared<StaticArray>(this->elementType, this->size);
+    }
 
     bool compare(std::shared_ptr<Type> const other) const override {
-        if (other->kind != TypeKinds::StaticArray) {
-            return false;
+        if (other->kind == TypeKinds::StaticArray) {
+            auto staticArray = std::static_pointer_cast<StaticArray>(other);
+            return staticArray->elementType->compare(elementType) &&
+                   staticArray->size <= size;
+        } else if (other->kind == TypeKinds::Primitive) {
+            auto primitive = std::static_pointer_cast<Primitive>(other);
+            return primitive->type == STR && primitive->size <= size;
         }
-        auto otherStaticArray = std::static_pointer_cast<StaticArray>(other);
-        return otherStaticArray->elementType == elementType &&
-               otherStaticArray->size == size;
+        return false;
     }
 };
 
 struct DynamicArray : Type {
-    // FIXME: should take a type as parameter
     DynamicArray(type_t type)
         : Type(TypeKinds::DynamicArray), elementType(type) {}
     type_t elementType;
@@ -125,8 +130,9 @@ struct DynamicArray : Type {
         return oss.str();
     }
 
-    // FIXME: it is not elementType
-    type_t const getEvaluatedType() const override { return elementType; }
+    type_t const getEvaluatedType() const override {
+        return std::make_shared<DynamicArray>(this->elementType);
+    }
 
     bool compare(std::shared_ptr<Type> const other) const override {
         if (other->kind != TypeKinds::DynamicArray) {
