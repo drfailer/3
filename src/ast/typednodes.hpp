@@ -55,10 +55,10 @@ struct Array : Variable {
  * @brief  Represents the access to a particular element in an array (save the
  *         index which is a node)
  */
-struct ArrayAccess : Array {
+struct ArrayAccess : Variable {
     ArrayAccess(std::string name, type_system::type_t type,
                 std::shared_ptr<Node> index)
-        : Array(name, -1, type), index(index) {}
+        : Variable(name, type), index(index) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;

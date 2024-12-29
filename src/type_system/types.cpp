@@ -104,6 +104,9 @@ std::shared_ptr<Type> getElementType(type_t const type) {
 }
 
 bool isArrayOfChr(type_t const type) {
+    if (!isArray(type)) {
+        return false;
+    }
     if (auto primitive = getPrimitiveType(getElementType(type))) {
         return primitive.value() == CHR;
     }

@@ -1,9 +1,11 @@
 #include "ast.hpp"
+#include "type_system/types.hpp"
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 
 void indent(std::ofstream &fs, int lvl) {
@@ -503,6 +505,13 @@ void Shw::compile(std::ofstream &fs, int lvl) {
     fs << "print(";
     if (content == nullptr) {
         fs << str;
+    } else if (auto array = std::dynamic_pointer_cast<Array>(content)) {
+        if (!type_system::isArrayOfChr(array->type) && !type_system::isLiteralString(array->type)) {
+            throw std::runtime_error("error: bad usage of shw");
+        }
+        fs << "\"\".join(list(filter(lambda _ZZ_CHAR:_ZZ_CHAR!=0,";
+        content->compile(fs, 0);
+        fs << ")))";
     } else {
         content->compile(fs, 0);
     }
