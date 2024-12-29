@@ -14,8 +14,11 @@ std::ostream &operator<<(std::ostream &os, PrimitiveTypes type) {
     case CHR:
         os << "chr";
         break;
-    default:
+    case NIL:
         os << "nil";
+        break;
+    case STR:
+        os << "str";
         break;
     }
     return os;
@@ -103,6 +106,13 @@ bool isArrayOfChr(type_t const type) {
     return false;
 }
 
+bool isLiteralString(type_t const type) {
+    if (auto primitive = std::dynamic_pointer_cast<Primitive>(type)) {
+        return primitive->type == STR;
+    }
+    return false;
+}
+
 bool isNumber(type_t const type) {
     if (auto evaluatedType = getPrimitiveType(type->getEvaluatedType())) {
         return evaluatedType.value() == INT || evaluatedType.value() == FLT;
@@ -157,5 +167,13 @@ type_t getReturnType(type_t const type) {
     }
     return make_type<Primitive>(NIL);
 }
+
+size_t getPrimitiveTypeSize(type_t const type) {
+    if (auto primitive = std::dynamic_pointer_cast<Primitive>(type)) {
+        return primitive->size;
+    }
+    return 0;
+}
+
 
 } // end namespace type_system

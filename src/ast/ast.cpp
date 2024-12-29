@@ -47,6 +47,10 @@ void Value::compile(std::ofstream &fs, int) {
         case type_system::CHR:
             fs << "'" << value._chr << "'";
             break;
+        case type_system::STR:
+            /* fs << "\"" << value._str << "\""; */
+            fs << value._str;
+            break;
         default:
             // TODO: proper error
             throw std::runtime_error("error: unknown primitive type.");

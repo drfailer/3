@@ -17,7 +17,7 @@ union LiteralValue {
     char _str[MAX_LITERAL_STRING_LENGTH];
 };
 
-enum PrimitiveTypes { NIL, INT, FLT, CHR };
+enum PrimitiveTypes { NIL, INT, FLT, CHR, STR };
 enum class TypeKinds {
     Primitive,
     StaticArray,
@@ -63,9 +63,10 @@ struct None : Type {
 };
 
 struct Primitive : Type {
-    Primitive(PrimitiveTypes type = INT)
-        : Type(TypeKinds::Primitive), type(type) {}
+    Primitive(PrimitiveTypes type = INT, size_t size = 0)
+        : Type(TypeKinds::Primitive), type(type), size(size) {}
     PrimitiveTypes type;
+    size_t size;
 
     std::string toString() const override {
         std::ostringstream oss;
@@ -95,7 +96,7 @@ struct StaticArray : Type {
 
     std::string toString() const override {
         std::ostringstream oss;
-        oss << elementType << "[" << size << "]";
+        oss << elementType->toString() << "[" << size << "]";
         return oss.str();
     }
 
@@ -120,7 +121,7 @@ struct DynamicArray : Type {
 
     std::string toString() const override {
         std::ostringstream oss;
-        oss << elementType << "[dyn]";
+        oss << elementType->toString() << "[dyn]";
         return oss.str();
     }
 
@@ -192,6 +193,7 @@ struct Function : Type {
 type_t selectType(type_t left, type_t right);
 bool isArray(type_t type);
 bool isArrayOfChr(type_t const type);
+bool isLiteralString(type_t const type);
 size_t getArraySize(type_t const type);
 std::optional<PrimitiveTypes> getPrimitiveType(type_t const type);
 std::shared_ptr<Type> getElementType(type_t const type);
@@ -201,6 +203,7 @@ bool isNone(type_t const type);
 bool isNil(type_t const type);
 bool isCastableTo(type_t const t1, type_t const t2);
 type_t getReturnType(type_t const type);
+size_t getPrimitiveTypeSize(type_t const type);
 
 } // end namespace type_system
 
