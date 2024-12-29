@@ -138,7 +138,8 @@ parameterDeclaration:
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
         DEBUG("new param: " << $2);
-        s3c.newArrayParameterDeclaration($2, $t, $size);
+        s3c.newArrayParameterDeclaration($2,
+            type_system::make_type<type_system::StaticArray>($t, $size), $size);
     }
     ;
 
@@ -329,7 +330,7 @@ value:
         $$ = s3c.newChr($1);
     }
     | STRING {
-        DEBUG("new char: " << $1);
+        DEBUG("new str: " << $1);
         auto strValue = s3c.newStr($1, @1.begin.line);
         if (!strValue)
             return 1;

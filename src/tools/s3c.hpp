@@ -71,9 +71,7 @@ class S3C {
         // want to check the size at compile time when we treat the
         // function
         contextManager_.newSymbol(name, type, LOCAL_ARRAY);
-        programBuilder_.pushFunctionParam(
-            Array(name, size,
-                  std::dynamic_pointer_cast<type_system::StaticArray>(type)));
+        programBuilder_.pushFunctionParam(Array(name, size, type));
     }
 
   public:
@@ -112,8 +110,9 @@ class S3C {
 
   public:
     void newShw(std::shared_ptr<TypedNode> expr) {
-        if (type_system::isArrayOfChr(expr->type)) {
+        if (type_system::isLiteralString(expr->type)) {
             auto stringValue = std::dynamic_pointer_cast<Value>(expr);
+            // TODO: create a clean quote function
             std::string str = stringValue->value._str;
             programBuilder_.pushBlock(std::make_shared<Shw>(str));
         } else {
@@ -181,6 +180,8 @@ class S3C {
     newArithmeticOperator(std::shared_ptr<TypedNode> lhs,
                           std::shared_ptr<TypedNode> rhs, size_t line,
                           std::string const &operatorName) {
+        // TODO: if one of the operands is an undefined function (None type),
+        // make the verification in post process
         if (!isNumber(lhs->type) || !isNumber(rhs->type)) {
             errorsManager_.addOperatorError(programBuilder_.currFileName(),
                                             line, operatorName);
@@ -241,9 +242,9 @@ class S3C {
             funcall = programBuilder_.createFuncall();
         }
         // setup type verification
+        std::string file = programBuilder_.currFileName();
         postProcessVerifications_.push_back([=]() {
-            verifyFunctionCallType(functionName, funcall,
-                                   programBuilder_.currFileName(), line);
+            verifyFunctionCallType(functionName, funcall, file, line);
         });
         return funcall;
     }
@@ -342,10 +343,8 @@ class S3C {
         }
         memcpy(value._str, strValue.c_str(), strValue.size());
         return std::make_shared<Value>(
-            value, type_system::make_type<type_system::StaticArray>(
-                       type_system::make_type<type_system::Primitive>(
-                           type_system::CHR),
-                       strValue.size()));
+            value, type_system::make_type<type_system::Primitive>(
+                       type_system::STR, strValue.size()));
     }
 
   public:
