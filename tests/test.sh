@@ -92,11 +92,12 @@ test_syntax() {
 test_arrays() {
     echo "running test on arrays"
 
-    $S3C ./data/arrays.3
+    $S3C ./data/arrays.3 2> arrays.err
     assert_compiled "arrays"
+    assert_no_diff arrays.err ./data/out/arrays.err "error: arrays (errors)."
 
-    ./a.out
-    # todo: fix arrays
+    ./a.out > arrays.out
+    assert_no_diff arrays.out ./data/out/arrays.out "error: arrays (output)."
 
     clean_test
 }
@@ -260,7 +261,7 @@ test_errors
 
 test_fib
 
-# test_arrays # error !!!
+test_arrays # error !!!
 
 ################################################################################
 #                                  test exit                                   #

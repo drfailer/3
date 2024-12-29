@@ -1,0 +1,2 @@
+[[1;33mWARN[0m]: ./data/arrays.3:28: in assignment, [1;34mc[0m is of type [1;34mchr[0m but the value assigned is of type [1;34mint[0m.
+
