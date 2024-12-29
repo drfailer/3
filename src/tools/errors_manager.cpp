@@ -164,9 +164,9 @@ void ErrorManager::addLiteralStringOverflowError(std::string file, int line) {
  *         returned value doesn't match the return type of the function and
  *         cannot be casted into the expected type.
  *
+ * @param  file      File name.
  * @param  name      Name of the funcion.
  * @param  line      Location.line
- * @param  column    Location.column
  * @param  expected  Expected return type.
  * @param  found     Found return type.
  */
@@ -187,6 +187,23 @@ void ErrorManager::addReturnTypeError(std::string file, int line,
  *         been found.
  */
 void ErrorManager::addNoEntryPointError() { addError("no entry point."); }
+
+/**
+ * @brief  Record a bad usage of the builtin shw function. This error occurs
+ *         when the shw function is used with a non printable type.
+ *
+ * @param  file      File name.
+ * @param  line      Location.line
+ * @param  exprType  Type of the expression that was given to the function.
+ */
+void ErrorManager::addBadUsageOfShwError(std::string file, int line,
+                                         type_system::type_t exprType) {
+    std::ostringstream oss;
+    oss << LOC(file, line) << ": bad usage of " << BOLD << "shw" << NORM
+        << " with an expression of type " BOLD << exprType->toString()
+        << NORM "." << std::endl;
+    addError(oss.str());
+}
 
 /******************************************************************************/
 /*                                  warnings                                  */

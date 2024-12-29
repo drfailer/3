@@ -198,6 +198,7 @@ struct Function : Type {
 
 type_t selectType(type_t left, type_t right);
 bool isArray(type_t type);
+bool isPrimitive(type_t const type);
 bool isArrayOfChr(type_t const type);
 bool isLiteralString(type_t const type);
 size_t getArraySize(type_t const type);

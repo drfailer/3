@@ -203,7 +203,7 @@ ipt:
 shw:
     SHW'('expression[ic]')' {
         DEBUG("shw var");
-        s3c.newShw($ic);
+        s3c.newShw($ic, @ic.begin.line);
     }
     ;
 

@@ -109,14 +109,20 @@ class S3C {
     }
 
   public:
-    void newShw(std::shared_ptr<TypedNode> expr) {
+    void newShw(std::shared_ptr<TypedNode> expr, size_t line) {
         if (type_system::isLiteralString(expr->type)) {
             auto stringValue = std::dynamic_pointer_cast<Value>(expr);
             // TODO: create a clean quote function
             std::string str = stringValue->value._str;
             programBuilder_.pushBlock(std::make_shared<Shw>(str));
-        } else {
+        } else if (type_system::isArrayOfChr(expr->type->getEvaluatedType()) ||
+                   type_system::isPrimitive(expr->type->getEvaluatedType())) {
             programBuilder_.pushBlock(std::make_shared<Shw>(expr));
+        } else {
+            // TODO: this is error is not very clear (note that the syntax is
+            // not strong ehough on the shw function)
+            errorsManager_.addBadUsageOfShwError(programBuilder_.currFileName(),
+                    line, expr->type);
         }
     }
 

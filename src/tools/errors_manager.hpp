@@ -31,6 +31,8 @@ class ErrorManager {
     void addReturnTypeError(std::string file, int line, std::string name,
                             type_system::type_t expected,
                             type_system::type_t found);
+    void addBadUsageOfShwError(std::string file, int line,
+                               type_system::type_t exprType);
 
     // Warnings:
     void addTypeAssignedWarning(std::string file, int line,

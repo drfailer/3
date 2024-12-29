@@ -64,6 +64,10 @@ bool isArray(type_t const type) {
            type->kind == TypeKinds::DynamicArray;
 }
 
+bool isPrimitive(type_t const type) {
+    return type->kind == TypeKinds::Primitive;
+}
+
 size_t getArraySize(type_t const type) {
     auto arrayType = std::static_pointer_cast<type_system::StaticArray>(type);
 
