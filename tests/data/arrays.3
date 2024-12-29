@@ -19,7 +19,7 @@ nil main() bgn
   test(string)
   test("hello")
 
-  for b in rng(0, 5, 1) bgn
+  for b rng(0, 5, 1) bgn
     set(a[b], b)
   end
   set(a[4], 97)
@@ -28,7 +28,7 @@ nil main() bgn
   set(c, a[4])
   shw(c)
   shw("\n")
-  for b in rng(0, 5, 1) bgn
+  for b rng(0, 5, 1) bgn
     shw(a[b])
     shw("\n")
   end
