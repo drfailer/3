@@ -6,7 +6,7 @@
 #define DBG_LEX 0
 #if DBG_LEX == 1
 #define DEBUG(A) std::cout << A << std::endl
-#else
+#otwe
 #define DEBUG(A)
 #endif
 %}
@@ -30,7 +30,7 @@ int          { DEBUG("L_nbrt"); return Parser::token::INTT; }
 flt          { DEBUG("L_fltt"); return Parser::token::FLTT; }
 chr          { DEBUG("L_chrt"); return Parser::token::CHRT; }
 cnd          { DEBUG("L_cnd"); return Parser::token::CND; }
-els          { DEBUG("L_els"); return Parser::token::ELS; }
+otw          { DEBUG("L_otw"); return Parser::token::OTW; }
 whl          { DEBUG("L_whl"); return Parser::token::WHL; }
 for          { DEBUG("L_for"); return Parser::token::FOR; }
 shw          { DEBUG("L_shw"); return Parser::token::SHW; }

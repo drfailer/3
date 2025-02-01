@@ -6,10 +6,6 @@
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
-#include "ast/ast.hpp"
-#include "symtable/symtable.hpp"
-#include "symtable/symbol.hpp"
-#include "symtable/context_manager.hpp"
 #include "tools/program_builder.hpp"
 #include "tools/errors_manager.hpp"
 #include "tools/s3c.hpp"
@@ -59,7 +55,7 @@
 %token <char>       CHR
 %token NIL
 %token INTT FLTT CHRT
-%token CND ELS FOR WHL
+%token CND OTW FOR WHL
 %token COMMA OSQUAREB CSQUAREB
 %token SHW IPT ADD SUB MUL DIV RNG SET
 %token EQL SUP INF SEQ IEQ AND LOR XOR NOT
@@ -93,15 +89,8 @@ start: program;
 program: %empty | programUnit program ;
 
 programUnit:
-    functionDefinition {
-        DEBUG("create new function" );
-    }
-    | PREPROCESSOR_LOCATION {
-        // this line is inserted by the preprcessor and allow to know
-        // the current file name. To avoid conflicts in lexer's rules we
-        // use the string token, however there must be a better way.
-        s3c.programBuilder().currFileName($1);
-    }
+    functionDefinition { DEBUG("create new function" ); }
+    | PREPROCESSOR_LOCATION { s3c.programBuilder().currFileName($1); }
     ;
 
 returnTypeSpecifier:
@@ -357,7 +346,7 @@ cnd:
     cndBase {
         $$ = $1;
     }
-    | cndBase[cndb] ELS {
+    | cndBase[cndb] OTW {
         DEBUG("els");
         s3c.contextManager().enterScope();
     } block[ops] {
