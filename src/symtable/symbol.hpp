@@ -1,31 +1,22 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
-#include "typesystem/types.hpp"
-#include <list>
+#include "type_system/types.hpp"
 
-enum Kind {
-    FUNCTION,
-    FUN_PARAM,
-    LOCAL_VAR,
-    LOCAL_ARRAY
-};
+enum Kind { FUNCTION, FUN_PARAM, LOCAL_VAR, LOCAL_ARRAY };
 
 class Symbol {
   public:
-    Symbol(std::string name, std::list<PrimitiveType> type, Kind kind);
-    Symbol(std::string name, std::list<PrimitiveType> type, unsigned int size,
-           Kind kind);
+    Symbol(std::string const &name, type_system::type_t type, Kind kind)
+        : name(name), type(type), kind(kind) {}
     Symbol() = default;
 
-    std::string getName() const;
-    std::list<PrimitiveType> getType() const;
-    int getSize() const { return size; }
-    Kind getKind() const;
+    std::string getName() const { return name; }
+    type_system::type_t const getType() const { return type; }
+    Kind getKind() const { return kind; }
 
   private:
     std::string name;
-    std::list<PrimitiveType> type;
-    unsigned int size; // size for arrays
+    type_system::type_t type;
     Kind kind;
 };
 

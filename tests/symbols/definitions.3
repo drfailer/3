@@ -1,0 +1,17 @@
+int test() bgn
+  shw("test")
+  ret 2
+end
+
+int times_two(int a) bgn
+  ret tms(a, 2)
+end
+
+nil main() bgn
+  int b
+  test()
+  set(b, 3)
+  set(b, times_two(b))
+  shw(b)
+  shw("\n")
+end

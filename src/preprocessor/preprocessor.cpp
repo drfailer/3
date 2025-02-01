@@ -54,8 +54,7 @@ void Preprocessor::process_rec(std::string fileName) {
         }
         // search for include statement
         if (std::regex_match(line, includeStmt)) {
-            includedFileName =
-                pathToProject + line.substr(8, line.length() - 9) + ".prog";
+            includedFileName = pathToProject + line.substr(4) + ".3";
             bool isTreated = std::find(treatedFiles.begin(), treatedFiles.end(),
                                        includedFileName) != treatedFiles.end();
             bool isInStack = std::find(filesStack.begin(), filesStack.end(),

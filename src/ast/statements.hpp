@@ -2,8 +2,8 @@
 #define STATEMENTS_H
 #include "node.hpp"
 #include "typednodes.hpp"
-#include <memory>
 #include <list>
+#include <memory>
 
 /******************************************************************************/
 /*                                   block                                    */
@@ -12,20 +12,18 @@
 /**
  * @brief  Define a block of instructions.
  */
-class Block : public Node {
-  public:
+struct Block : Node {
     Block() = default;
 
-    std::shared_ptr<Node> lastNode() { return instructions_.back(); }
+    std::shared_ptr<Node> lastNode() { return instructions.back(); }
     void add(std::shared_ptr<Node> instruction) {
-        instructions_.push_back(instruction);
+        instructions.push_back(instruction);
     }
 
     void compile(std::ofstream &, int = 0) override;
     void display() override;
 
-  private:
-    std::list<std::shared_ptr<Node>> instructions_ = {};
+    std::list<std::shared_ptr<Node>> instructions = {};
 };
 
 /******************************************************************************/
@@ -38,39 +36,35 @@ class Block : public Node {
  *
  * TODO: create a return statment and manage return type.
  */
-class Function : public TypedNode {
-  public:
+struct Function : TypedNode {
     Function(std::string id, std::list<Variable> parameters,
-             std::shared_ptr<Block> instructions, std::list<PrimitiveType> type)
-        : id_(id), parameters_(parameters), type_(type), block_(instructions) {}
-    PrimitiveType type() const override { return type_.back(); }
+             std::shared_ptr<Block> instructions, type_system::type_t type)
+        : TypedNode(type), id(id), parameters(parameters),
+          block(instructions) {}
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::string id_;
-    std::list<Variable> parameters_;
-    std::list<PrimitiveType> type_;
-    std::shared_ptr<Block> block_ = nullptr;
+    // todo: override getType and return a static_casted Function type (so we
+    // can an a return type)
+
+    std::string id;
+    std::list<Variable> parameters;
+    std::shared_ptr<Block> block = nullptr;
 };
 
 /**
  * @brief  Cnd statement.
  */
-class Cnd : public Node {
-  public:
+struct Cnd : Node {
     Cnd(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
-        : condition_(condition), block_(block), elseBlock_(nullptr) {}
-
-    void elseBlock(std::shared_ptr<Block> block) { elseBlock_ = block; }
+        : condition(condition), block(block) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::shared_ptr<Node> condition_ = nullptr;
-    std::shared_ptr<Block> block_ = nullptr;
-    std::shared_ptr<Block> elseBlock_ = nullptr;
+    std::shared_ptr<Node> condition = nullptr;
+    std::shared_ptr<Block> block = nullptr;
+    std::shared_ptr<Block> elseBlock = nullptr;
 };
 
 /**
@@ -78,54 +72,48 @@ class Cnd : public Node {
  *         expressions that determine the begining, the end and the step of the
  *         loop.
  */
-class For : public Node {
-  public:
+struct For : Node {
     For(Variable variable, std::shared_ptr<Node> begin,
         std::shared_ptr<Node> end, std::shared_ptr<Node> step,
         std::shared_ptr<Block> block)
-        : variable_(variable), begin_(begin), end_(end), step_(step),
-          block_(block) {}
+        : variable(variable), begin(begin), end(end), step(step), block(block) {
+    }
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    Variable variable_;
-    std::shared_ptr<Node> begin_;
-    std::shared_ptr<Node> end_;
-    std::shared_ptr<Node> step_;
-    std::shared_ptr<Block> block_ = nullptr;
+    Variable variable;
+    std::shared_ptr<Node> begin;
+    std::shared_ptr<Node> end;
+    std::shared_ptr<Node> step;
+    std::shared_ptr<Block> block = nullptr;
 };
 
 /**
  * @brief  While declaration. The while loop just has a condition.
  */
-class Whl : public Node {
-  public:
+struct Whl : Node {
     Whl(std::shared_ptr<Node> condition, std::shared_ptr<Block> block)
-        : condition_(condition), block_(block) {}
+        : condition(condition), block(block) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::shared_ptr<Node> condition_ = nullptr;
-    std::shared_ptr<Block> block_ = nullptr;
+    std::shared_ptr<Node> condition = nullptr;
+    std::shared_ptr<Block> block = nullptr;
 };
 
 /******************************************************************************/
 /*                                   return                                   */
 /******************************************************************************/
 
-class Return : public Node {
-  public:
-    Return(std::shared_ptr<Node> returnExpr) : returnExpr_(returnExpr) {}
+struct Return : Node {
+    Return(std::shared_ptr<Node> returnExpr) : returnExpr(returnExpr) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::shared_ptr<Node> returnExpr_ = nullptr;
+    std::shared_ptr<Node> returnExpr = nullptr;
 };
 
 #endif

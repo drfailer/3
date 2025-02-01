@@ -48,22 +48,8 @@ std::optional<Symbol> Symtable::lookup(std::string name) {
  * @param  type   Type of the new symbol.
  * @param  kind   Kind of the new symbol (param, local variable, ...)
  */
-void Symtable::add(std::string name, std::list<PrimitiveType> type, Kind kind) {
+void Symtable::add(std::string const &name, type_system::type_t type, Kind kind) {
     table[name] = Symbol(name, type, kind);
-}
-
-/**
- * @brief  Add a new Symbol to the symtable.
- *
- * @param  name   Name of the new symbol.
- * @param  scope  Scope where the symbol has been declared.
- * @param  type   Type of the new symbol.
- * @param  size   Size of the data (for arrays).
- * @param  kind   Kind of the new symbol (param, local variable, ...)
- */
-void Symtable::add(std::string name, std::list<PrimitiveType> type, unsigned int size,
-                   Kind kind) {
-    table[name] = Symbol(name, type, size, kind);
 }
 
 std::shared_ptr<Symtable> Symtable::getFather() const { return father; }

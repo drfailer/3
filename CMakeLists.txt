@@ -26,11 +26,10 @@ set(files
   src/ast/ast.cpp
   src/ast/program.cpp
   src/symtable/symtable.cpp
-  src/symtable/symbol.cpp
-  src/symtable/contextmanager.cpp
-  src/typesystem/types.cpp
-  src/tools/errormanager.cpp
-  src/tools/programbuilder.cpp
+  src/symtable/context_manager.cpp
+  src/type_system/types.cpp
+  src/tools/errors_manager.cpp
+  src/tools/program_builder.cpp
   src/tools/checks.cpp
   src/preprocessor/preprocessor.cpp
 )

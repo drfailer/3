@@ -5,12 +5,14 @@
 #include <FlexLexer.h>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 #include "ast/ast.hpp"
 #include "symtable/symtable.hpp"
 #include "symtable/symbol.hpp"
-#include "symtable/contextmanager.hpp"
-#include "tools/programbuilder.hpp"
-#include "tools/errormanager.hpp"
+#include "symtable/context_manager.hpp"
+#include "tools/program_builder.hpp"
+#include "tools/errors_manager.hpp"
+#include "tools/s3c.hpp"
 #include "preprocessor/preprocessor.hpp"
 #define YYLOCATION_PRINT   location_print
 #define YYDEBUG 1
@@ -31,12 +33,12 @@
 %define api.namespace {interpreter}
 %define api.value.type variant
 %locations
-%parse-param {Scanner* scanner} {ProgramBuilder& pb}
+%parse-param {Scanner* scanner} {S3C &s3c}
 
 %code requires
 {
     #include "ast/ast.hpp"
-    #include "tools/programbuilder.hpp"
+    #include "tools/s3c.hpp"
     namespace interpreter {
         class Scanner;
     }
@@ -47,17 +49,9 @@
     #include "tools/checks.hpp"
     #include "lexer.hpp"
     #include <memory>
+    #include <functional>
     // #define yylex(x) scanner->lex(x)
     #define yylex(x, y) scanner->lex(x, y) // now we use yylval and yylloc
-    Symtable symtable;
-    ContextManager contextManager;
-    ErrorManager errMgr;
-    std::string currentFunctionName = "";
-    PrimitiveType currentFunctionReturnType = NIL;
-    std::string currentFile = "";
-
-    std::list<std::pair<std::shared_ptr<FunctionCall>, std::pair<std::string, int>>> funcallsToCheck;
-    std::list<std::pair<std::shared_ptr<Assignment>, std::pair<std::string, int>>> assignmentsToCheck;
 }
 
 %token <long long>  INT
@@ -77,10 +71,11 @@
 %token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
 
-%nterm <PrimitiveType> type
-%nterm <Value> value
+%nterm <type_system::type_t> type
+%nterm <type_system::type_t> returnTypeSpecifier
+%nterm <std::shared_ptr<Value>> value
 %nterm <std::shared_ptr<TypedNode>> expression
-%nterm <std::shared_ptr<TypedNode>> variable
+%nterm <std::shared_ptr<Variable>> variable
 %nterm <std::shared_ptr<TypedNode>> arithmeticOperation
 %nterm <std::shared_ptr<TypedNode>> functionCall
 %nterm <std::shared_ptr<Node>> booleanOperation
@@ -105,42 +100,28 @@ programUnit:
         // this line is inserted by the preprcessor and allow to know
         // the current file name. To avoid conflicts in lexer's rules we
         // use the string token, however there must be a better way.
-        currentFile = $1;
-        // suppression des '"':
-        currentFile.erase(0, 1);
-        currentFile.pop_back();
+        s3c.programBuilder().currFileName($1);
     }
     ;
 
 returnTypeSpecifier:
     type[rt] {
-        currentFunctionReturnType = $rt;
+        $$ = $rt;
     }
     | NIL {
-        currentFunctionReturnType = NIL;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::NIL);
     }
     ;
 
 functionDefinition:
-    returnTypeSpecifier IDENTIFIER[name] {
-        currentFunctionName = $name;
-        std::optional<Symbol> sym = contextManager.lookup($name);
-        // error on function redefinition
-        if (sym.has_value()) {
-            errMgr.addMultipleDefinitionError(currentFile, @name.begin.line,
-                                              $name);
-            // TODO: print the previous definition location
+    returnTypeSpecifier[rt] IDENTIFIER[name] {
+        if (!s3c.newFunctionDefinition($name, @name.begin.line)) {
             return 1;
         }
-        contextManager.enterScope();
     } '('parameterDeclarationList')' {
-        std::list<PrimitiveType> funType = pb.getParamsTypes();
-        funType.push_back(currentFunctionReturnType);
-        contextManager.newGlobalSymbol(currentFunctionName, funType, FUNCTION);
+        s3c.setFunctionType($rt);
     } block[ops] {
-        // error if there is a return statement
-        pb.createFunction(currentFunctionName, $ops, currentFunctionReturnType);
-        contextManager.leaveScope();
+        s3c.endFunctionDefintion($name, $rt, $ops);
     }
     ;
 
@@ -153,17 +134,12 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        contextManager.newSymbol($2, std::list<PrimitiveType>($t), FUN_PARAM);
-        pb.pushFunctionParam(Variable($2, $t));
+        s3c.newParameterDeclaration($2, $t);
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
         DEBUG("new param: " << $2);
-        // TODO: remove the size of the array. The size should be set at
-        // -1 (or any default value) in order to specify that we don't
-        // want to check the size at compile time when we treat the
-        // function
-        contextManager.newSymbol($2, std::list<PrimitiveType>($t), LOCAL_ARRAY);
-        pb.pushFunctionParam(Array($2, $size, getArrayType($t)));
+        s3c.newArrayParameterDeclaration($2,
+            type_system::make_type<type_system::StaticArray>($t, $size), $size);
     }
     ;
 
@@ -175,28 +151,28 @@ parameterList:
 
 parameter:
     expression {
-        pb.pushFuncallParam($1);
+        s3c.programBuilder().pushFuncallParam($1);
     }
     ;
 
 type:
     INTT {
-        $$ = INT;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::INT);
     }
     | FLTT {
-        $$ = FLT;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::FLT);
     }
     | CHRT {
-        $$ = CHR;
+        $$ = type_system::make_type<type_system::Primitive>(type_system::CHR);
     }
     ;
 
 block:
     BGN {
-        pb.beginBlock();
+        s3c.programBuilder().beginBlock();
     } code END {
         DEBUG("new block");
-        $$ = pb.endBlock();
+        $$ = s3c.programBuilder().endBlock();
     }
     ;
 
@@ -205,23 +181,7 @@ code:
     | statement code
     | instruction code
     | RET expression[rs] {
-        std::optional<Symbol> sym = contextManager.lookup(currentFunctionName);
-        PrimitiveType foundType = $rs->type();
-        PrimitiveType expectedType = sym.value().getType().back();
-        std::ostringstream oss;
-
-        if (expectedType == NIL) { // no return allowed
-            errMgr.addUnexpectedReturnError(currentFile, @1.begin.line,
-                                            currentFunctionName);
-        } else if (expectedType != foundType && foundType != NIL) {
-            // must check if foundType is not void because of the
-            // buildin function (add, ...) which are not in the
-            // symtable
-            errMgr.addReturnTypeWarning(currentFile, @1.begin.line,
-                                        currentFunctionName, foundType, expectedType);
-        }
-        // else verify the type and throw a warning
-        pb.pushBlock(std::make_shared<Return>($rs));
+        s3c.newReturnExpression($rs, @1.begin.line);
     }
     ;
 
@@ -230,127 +190,84 @@ instruction:
     | ipt
     | variableDeclaration
     | assignment
-    | functionCall { pb.pushBlock($1); }
+    | functionCall { s3c.programBuilder().pushBlock($1); }
     ;
 
 ipt:
     IPT'('variable[c]')' {
         DEBUG("ipt var");
-        pb.pushBlock(std::make_shared<Read>($c));
+        s3c.programBuilder().pushBlock(std::make_shared<Ipt>($c));
     }
     ;
 
 shw:
     SHW'('expression[ic]')' {
         DEBUG("shw var");
-        // spcial case for strings
-        if ($ic->type() == ARR_CHR) {
-            auto stringValue = std::dynamic_pointer_cast<Value>($ic);
-            std::string str = stringValue->value()._str;
-            pb.pushBlock(std::make_shared<Print>(str));
-        } else {
-            pb.pushBlock(std::make_shared<Print>($ic));
-        }
+        s3c.newShw($ic, @ic.begin.line);
     }
     ;
 
 expression:
     arithmeticOperation { $$ = $1; }
     | functionCall { $$ = $1; }
-    | value { $$ = std::make_shared<Value>($1); }
+    | value { $$ = $1; }
     | variable { $$ = $1; }
     ;
 
 variable:
     IDENTIFIER {
         DEBUG("new param variable");
-        std::list<PrimitiveType> type;
-        std::shared_ptr<Variable> v;
-
-        // TODO: this is really bad, the function isDefined will be
-        // changed !
-        if (isDefined(currentFile, @1.begin.line, $1, type)) {
-            if (isArray(type.back())) {
-                Symbol sym = contextManager.lookup($1).value();
-                v = std::make_shared<Array>($1, sym.getSize(), type.back());
-            } else {
-                v = std::make_shared<Variable>($1, type.back());
-            }
-        } else {
-                v = std::make_shared<Variable>($1, NIL);
-        }
-        $$ = v;
+        $$ = s3c.newVariable($1, @1.begin.line);
     }
     | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
         DEBUG("using an array");
-        std::list<PrimitiveType> type;
-        std::shared_ptr<ArrayAccess> v;
-        // TODO: refactor isDefined
-        if (isDefined(currentFile, @1.begin.line, $1, type)) {
-            std::optional<Symbol> sym = contextManager.lookup($1);
-            // error if the symbol is not an array
-            if (sym.value().getKind() != LOCAL_ARRAY) {
-                errMgr.addBadArrayUsageError(currentFile, @1.begin.line, $1);
-            }
-            v = std::make_shared<ArrayAccess>($1, getValueType(type.back()), $index);
-        } else {
-            // TODO: verify the type of the index
-            v = std::make_shared<ArrayAccess>($1, NIL, $index);
-        }
-        $$ = v;
+        $$ = s3c.newArrayVariable($1, @1.begin.line, $index);
     }
     ;
 
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "add");
-        }
-        $$ = std::make_shared<AddOP>($left, $right);
+        $$ = s3c.newArithmeticOperator<AddOP>($left, $right, @1.begin.line, "add");
     }
     | MNS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "mns");
-        }
-        $$ = std::make_shared<MnsOP>($left, $right);
+        $$ = s3c.newArithmeticOperator<MnsOP>($left, $right, @1.begin.line, "mns");
     }
     | TMS'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "tms");
-        }
-        $$ = std::make_shared<TmsOP>($left, $right);
+        $$ = s3c.newArithmeticOperator<TmsOP>($left, $right, @1.begin.line, "tms");
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
-        $$ = std::make_shared<DivOP>($left, $right);
-        if (!isNumber($left->type()) || !isNumber($right->type())) {
-            errMgr.addOperatorError(currentFile, @1.begin.line, "div");
-        }
+        $$ = s3c.newArithmeticOperator<DivOP>($left, $right, @1.begin.line, "div");
     }
     ;
 
 booleanOperation:
     EQL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("EqlOP");
+        // TODO: type check
         $$ = std::make_shared<EqlOP>($left, $right);
     }
     | SUP'(' expression[left] COMMA expression[right] ')' {
         DEBUG("SupOP");
+        // TODO: type check
         $$ = std::make_shared<SupOP>($left, $right);
     }
     | INF'(' expression[left] COMMA expression[right] ')' {
         DEBUG("InfOP");
+        // TODO: type check
         $$ = std::make_shared<InfOP>($left, $right);
     }
     | SEQ'(' expression[left] COMMA expression[right] ')' {
         DEBUG("SeqOP");
+        // TODO: type check
         $$ = std::make_shared<SeqOP>($left, $right);
     }
     | IEQ'(' expression[left] COMMA expression[right] ')' {
         DEBUG("IeqOP");
+        // TODO: type check
         $$ = std::make_shared<IeqOP>($left, $right);
     }
     | AND'('booleanOperation[left] COMMA booleanOperation[right]')' {
@@ -373,105 +290,66 @@ booleanOperation:
 
 functionCall:
     IDENTIFIER'(' {
-        pb.newFuncall($1);
+        s3c.programBuilder().newFuncall($1);
     }
     parameterList')' {
-        std::shared_ptr<FunctionCall> funcall = pb.createFuncall();
-        // TODO: save the funcall and params in a vector (create a struct)
-        funcall->type(NIL); // type to NIL by default, will change on the type check
-        std::pair<std::string, int> position = std::make_pair(currentFile, @1.begin.line);
-        funcallsToCheck.push_back(std::make_pair(funcall, position));
-        // the type check is done at the end !
         DEBUG("new funcall: " << $1);
-        // check the type
-        $$ = funcall;
+        $$ = s3c.newFunctionCall($1, @1.begin.line);
     }
     ;
 
 variableDeclaration:
     type[t] IDENTIFIER[name] {
         DEBUG("new declaration: " << $name);
-        // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-            errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
-        }
-        std::list<PrimitiveType> t;
-        t.push_back($t);
-        contextManager.newSymbol($2, t, LOCAL_VAR);
-        pb.pushBlock(std::make_shared<Declaration>(Variable($2, $t)));
+        s3c.newVariableDeclaration($name, $t, @name.begin.line);
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
-        // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol = contextManager.lookup($name)) {
-            errMgr.addMultipleDefinitionError(currentFile, @name.begin.line, $name);
-        }
-        std::list<PrimitiveType> t;
-        t.push_back(getArrayType($t));
-        contextManager.newSymbol($name, t, $size, LOCAL_ARRAY);
-        pb.pushBlock(std::make_shared<ArrayDeclaration>($name, $size, getArrayType($t)));
+        s3c.newArrayDeclaration($name, $t, $size, @name.begin.line);
     }
     ;
 
 assignment:
-    SET'('variable[c] COMMA expression[ic]')' {
+    SET'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
-        PrimitiveType icType = $ic->type();
-        auto v = std::static_pointer_cast<Variable>($c);
-        auto newAssignment = std::make_shared<Assignment>(v, $ic);
-
-        if (std::static_pointer_cast<FunctionCall>($ic)) { // if funcall
-            // this is a funcall so we have to wait the end of the parsing to check
-            auto position = std::make_pair(currentFile, @c.begin.line);
-            assignmentsToCheck.push_back(std::pair(newAssignment, position));
-        } else {
-            checkType(currentFile, @c.begin.line, v->id(), $c->type(), icType);
-        }
-        pb.pushBlock(newAssignment);
-        // TODO: check the type for strings -> array of char
+        s3c.newAssignment($var, $expr, @var.begin.line);
     }
     ;
 
 value:
     INT {
         DEBUG("new int: " << $1);
-        LiteralValue v = { ._int = $1 };
-        $$ = Value(v, INT);
+        $$ = s3c.newInt($1);
     }
     | FLT {
         DEBUG("new double: " << $1);
-        LiteralValue v = { ._flt = $1 };
-        $$ = Value(v, FLT);
+        $$ = s3c.newFlt($1);
     }
     | CHR {
         DEBUG("new char: " << $1);
-        LiteralValue v = { ._chr = $1 };
-        $$ = Value(v, CHR);
+        $$ = s3c.newChr($1);
     }
     | STRING {
-        DEBUG("new char: " << $1);
-        LiteralValue v = {0};
-        if ($1.size() > MAX_LITERAL_STRING_LENGTH) {
-            errMgr.addLiteralStringOverflowError(currentFile, @1.begin.line);
+        DEBUG("new str: " << $1);
+        auto strValue = s3c.newStr($1, @1.begin.line);
+        if (!strValue)
             return 1;
-        }
-        memcpy(v._str, $1.c_str(), $1.size());
-        $$ = Value(v, ARR_CHR);
+        $$ = strValue;
     }
     ;
 
 statement:
     cnd {
         DEBUG("new if");
-        pb.pushBlock($1);
+        s3c.programBuilder().pushBlock($1);
     }
     | for {
         DEBUG("new for");
-        pb.pushBlock($1);
+        s3c.programBuilder().pushBlock($1);
     }
     | whl {
         DEBUG("new whl");
-        pb.pushBlock($1);
+        s3c.programBuilder().pushBlock($1);
     }
     ;
 
@@ -481,71 +359,62 @@ cnd:
     }
     | cndBase[cndb] ELS {
         DEBUG("els");
-        contextManager.enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         std::shared_ptr<Cnd> ifstmt = $cndb;
         // adding else block
-        ifstmt->elseBlock($ops);
+        ifstmt->elseBlock = $ops;
         $$ = ifstmt;
-        contextManager.leaveScope();
+        s3c.contextManager().leaveScope();
     }
     ;
 
 cndBase:
     CND booleanOperation[cond] {
-        contextManager.enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("if");
-        $$ = pb.createCnd($cond, $ops);
-        contextManager.leaveScope();
+        $$ = s3c.programBuilder().createCnd($cond, $ops);
+        s3c.contextManager().leaveScope();
     }
     ;
 
 for:
     FOR IDENTIFIER[v] RNG'('expression[b] COMMA expression[e] COMMA expression[s]')' {
-        contextManager.enterScope();
+        s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in for");
-        Variable v($v, NIL);
-        std::list<PrimitiveType> type;
-        if (isDefined(currentFile, @v.begin.line, $v, type)) {
-            v = Variable($v, type.back());
-            checkType(currentFile, @b.begin.line, "RANGE_BEGIN", type.back(), $b->type());
-            checkType(currentFile, @e.begin.line, "RANGE_END",  type.back(), $e->type());
-            checkType(currentFile, @s.begin.line, "RANGE_STEP", type.back(), $s->type());
-        }
-        $$ = pb.createFor(v, $b, $e, $s, $ops);
-        contextManager.leaveScope();
+        $$ = s3c.newFor($v, $b, $e, $s, $ops, @v.begin.line);
     }
     ;
 
 whl:
-    WHL '('booleanOperation[cond]')' {
-        contextManager.enterScope();
+    WHL booleanOperation[cond] {
+        s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in whl");
-        $$ = pb.createWhl($cond, $ops);
-        contextManager.leaveScope();
+        $$ = s3c.programBuilder().createWhl($cond, $ops);
+        s3c.contextManager().leaveScope();
     }
     ;
 %%
 
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
-    oss << currentFile << ":" << loc.begin.line << ": " << msg << "." << std::endl;
-    errMgr.addError(oss.str());
+    oss << s3c.programBuilder().currFileName() << ":" << loc.begin.line << ": " << msg << "." << std::endl;
+    s3c.errorsManager().addError(oss.str());
 }
 
 /* Run interactive parser. It was used during the beginning of the project. */
 void cli() {
-    ProgramBuilder pb;
+    S3C s3c;
     interpreter::Scanner scanner{ std::cin, std::cerr };
-    interpreter::Parser parser{ &scanner, pb };
-    contextManager.enterScope();
+    interpreter::Parser parser{ &scanner, s3c };
+    s3c.contextManager().enterScope();
     parser.parse();
-    errMgr.report();
-    if (!errMgr.getErrors()) {
-        pb.display();
+    s3c.errorsManager().report();
+    if (!s3c.errorsManager().getErrors()) {
+        s3c.programBuilder().display();
     }
 }
 
@@ -558,86 +427,42 @@ void makeExecutable(std::string file) {
             std::filesystem::perm_options::add);
 }
 
-/* Verify the types of all assignments that involve funcalls.
- * It's done because we want to be able to use functions that are declared after
- * the function in which we make the call. This force to parse all the functions
- * to have a complete table of symbol before checking the types.
- */
-void checkAssignments() {
-    for (auto ap : assignmentsToCheck) {
-        checkType(ap.second.first, ap.second.second,
-                  ap.first->variable()->id(),
-                  ap.first->variable()->type(),
-                  ap.first->value()->type());
-    }
-}
-
-/* Verify the types of all funcalls. To check the type, we have to verify the
- * types of all the parameters. The return type is not important here.
- */
-void checkFuncalls() {
-    // TODO: add the file location in the list
-    for (auto fp : funcallsToCheck) {
-        std::list<PrimitiveType> funcallType = getTypes(fp.first->params());
-        std::optional<Symbol> sym = contextManager.lookup(fp.first->functionName());
-        std::list<PrimitiveType> expectedType;
-
-        if (sym.has_value()) {
-            // get the found return type (types of the parameters)
-            std::list<PrimitiveType> funcallType = getTypes(fp.first->params());
-            fp.first->type(expectedType.back());
-            expectedType = sym.value().getType();
-            expectedType.pop_back(); // remove the return type
-
-            if (checkTypeError(expectedType, funcallType)) {
-                errMgr.addFuncallTypeError(fp.second.first,
-                                           fp.second.second,
-                                           fp.first->functionName(),
-                                           expectedType, funcallType);
-            }
-        } else {
-            // errMgr.addUndefinedSymbolError(fp.first->functionName(), fp.second.first, fp.second.second);
-        }
-    }
-}
-
 void compile(std::string fileName, std::string outputName) {
     int parserOutput;
     int preprocessorErrorStatus = 0;
 
-    ProgramBuilder pb;
+    S3C s3c;
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
-    currentFile = fileName;
-    contextManager.enterScope(); // update the scope
+    s3c.programBuilder().currFileName(fileName);
+    s3c.contextManager().enterScope(); // update the scope
 
     try {
         pp.process(fileName); // launch the preprocessor
     } catch (std::logic_error& e) {
-        errMgr.addError(e.what());
+        s3c.errorsManager().addError(e.what());
         preprocessorErrorStatus = 1;
     }
 
     // open and parse the file
-    std::ifstream is("__main_pp.prog__", std::ios::in); // parse the preprocessed file
+    std::ifstream is(PREPROCESSOR_OUTPUT_FILE, std::ios::in); // parse the preprocessed file
     interpreter::Scanner scanner{ is , std::cerr };
-    interpreter::Parser parser{ &scanner, pb };
+    interpreter::Parser parser{ &scanner, s3c };
     parserOutput = parser.parse();
-    checkFuncalls();
-    checkAssignments();
+    s3c.runPostProcessVerifications();
 
-    // loock for main
-    std::optional<Symbol> sym = contextManager.lookup("main");
+    // look for main
+    std::optional<Symbol> sym = s3c.contextManager().lookup("main");
     if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym.has_value()) {
-        errMgr.addNoEntryPointError();
+        s3c.errorsManager().addNoEntryPointError();
     }
     // report errors and warnings
-    errMgr.report();
+    s3c.errorsManager().report();
 
     // if no errors, transpile the file
-    if (!errMgr.getErrors()) {
+    if (!s3c.errorsManager().getErrors()) {
         std::ofstream fs(outputName);
-        pb.getProgram()->compile(fs);
+        s3c.programBuilder().program()->compile(fs);
         makeExecutable(outputName);
     }
 

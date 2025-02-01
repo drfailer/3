@@ -6,24 +6,22 @@
 /**
  * @brief  Variable declaration.
  */
-class Declaration : public Node {
-  public:
-    Declaration(Variable variable) : variable_(variable) {}
+struct Declaration : Node {
+    Declaration(Variable variable) : variable(variable) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    Variable variable_;
+    Variable variable;
 };
 
 /**
- * @brief  Represents array declaration. This class is just used to print the
- *         AST but not for the compilation.
+ * @brief  Array declaration.
+ *
+ * TODO: constructor for dynamic arrays
  */
-class ArrayDeclaration : public Array {
-  public:
-    ArrayDeclaration(std::string name, int size, PrimitiveType type)
+struct ArrayDeclaration : Array {
+    ArrayDeclaration(std::string name, int size, type_system::type_t type)
         : Array(name, size, type) {}
 
     void display() override;

@@ -1,0 +1,24 @@
+int add3(int a, int b, int c) bgn
+  ret add(a, add(b, c))
+end
+
+nil main() bgn
+  int a
+  flt b
+  int c
+
+  set(a, add(1, 2.2))
+  set(b, mns(13, 5.2))
+  shw("a: ")
+  shw(a)
+  shw("\nb: ")
+  shw(b)
+  set(c, b)
+  set(a, add3(a, c, 9))
+  shw("\na: ")
+  shw(a)
+  set(a, add3(-4 , mns(c, add(div(c, 4), 9)), tms(3, div(3, 3))))
+  shw("\na: ")
+  shw(a)
+  shw("\n")
+end

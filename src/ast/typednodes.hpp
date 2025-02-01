@@ -1,84 +1,69 @@
 #ifndef FACTORS_H
 #define FACTORS_H
 #include "node.hpp"
-#include "typesystem/types.hpp"
+#include "type_system/types.hpp"
 #include <memory>
 
 /**
  * @brief  Interface for typed nodes.
  */
-class TypedNode : public Node {
-  public:
-    TypedNode(PrimitiveType type = NIL) : type_(type) {}
+struct TypedNode : Node {
+    TypedNode(type_system::type_t type) : type(type) {}
     virtual ~TypedNode() = default;
 
-    virtual PrimitiveType type() const { return type_; }
-    void type(PrimitiveType type) { this->type_ = type; }
-
-  protected:
-    PrimitiveType type_ = NIL;
+    type_system::type_t type = nullptr;
 };
 
 /**
  * @brief  Basic values of an available type.
  */
-class Value : public TypedNode {
-  public:
-    Value(LiteralValue value, PrimitiveType type) : TypedNode(type), value_(value) {}
-    Value() : TypedNode() {}
-    LiteralValue const &value() const { return value_; }
+struct Value : TypedNode {
+    Value(type_system::LiteralValue value, type_system::type_t type)
+        : TypedNode(type), value(value) {}
 
     void compile(std::ofstream &, int) override;
     void display() override;
 
-  private:
-    LiteralValue value_;
+    type_system::LiteralValue value;
 };
 
 /**
  * @brief  Reference to a variable.
  */
-class Variable : public TypedNode {
-  public:
-    Variable(std::string id, PrimitiveType type) : TypedNode(type), id_(id) {}
-    std::string const &id() const { return id_; }
+struct Variable : TypedNode {
+    Variable(std::string const &id, type_system::type_t type)
+        : TypedNode(type), id(id) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::string id_;
+    std::string id;
 };
 
 /**
  * @brief  Arrays.
  *         Note: the language supports only 1 dimentional arrays.
  */
-class Array : public Variable {
-  public:
-    Array(std::string name, int size, PrimitiveType type)
-        : Variable(name, type), size_(size) {}
-    int size() const { return size_; }
+struct Array : Variable {
+    Array(std::string name, int size, type_system::type_t type)
+        : Variable(name, type), size(size) {}
 
-  protected:
-    int size_;
+    int size;
 };
 
 /**
  * @brief  Represents the access to a particular element in an array (save the
  *         index which is a node)
  */
-class ArrayAccess : public Array {
-  public:
-    ArrayAccess(std::string name, PrimitiveType type, std::shared_ptr<Node> index)
-        : Array(name, -1, type), index_(index) {}
-    std::shared_ptr<Node> index() const { return index_; }
+struct ArrayAccess : Variable {
+    ArrayAccess(std::string name, type_system::type_t type,
+                std::shared_ptr<Node> index)
+        : Variable(name, type), index(index) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::shared_ptr<Node> index_ = nullptr;
+    std::shared_ptr<Node> index = nullptr;
 };
 
 /**
@@ -86,23 +71,18 @@ class ArrayAccess : public Array {
  *         parameters are node as the can have multiple types (binary operation,
  *         variable, values, other funcall, ...)
  */
-class FunctionCall : public TypedNode {
-  public:
+struct FunctionCall : TypedNode {
     FunctionCall(std::string const &functionName,
-            std::list<std::shared_ptr<TypedNode>> const &params, PrimitiveType type)
-        : TypedNode(type), functionName_(functionName), params_(params) {}
-
-    std::list<std::shared_ptr<TypedNode>> const &params() const {
-        return params_;
-    }
-    std::string const &functionName() const { return functionName_; }
+                 std::list<std::shared_ptr<TypedNode>> const &parameters,
+                 type_system::type_t type)
+        : TypedNode(type), functionName(functionName),
+          parameters(parameters) {}
 
     void display() override;
     void compile(std::ofstream &, int) override;
 
-  private:
-    std::string functionName_;
-    std::list<std::shared_ptr<TypedNode>> params_ = {};
+    std::string functionName;
+    std::list<std::shared_ptr<TypedNode>> parameters = {};
 };
 
 #endif

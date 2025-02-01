@@ -1,18 +1,17 @@
 #ifndef CHECKS_H
 #define CHECKS_H
-#include "ast/ast.hpp"
-#include "symtable/contextmanager.hpp"
-#include "tools/errormanager.hpp"
+#include "type_system/types.hpp"
 
-extern ContextManager contextManager;
-extern ErrorManager errMgr;
+class S3C;
 
-bool isDefined(std::string file, int line, std::string name,
-               std::list<PrimitiveType> &type);
-void printType(std::ostringstream &oss, std::list<PrimitiveType> types);
-bool checkTypeError(std::list<PrimitiveType> expectedType, std::list<PrimitiveType> funcallType);
-void checkType(std::string file, int line, std::string name, PrimitiveType expected,
-               PrimitiveType found);
-std::list<PrimitiveType> getTypes(std::list<std::shared_ptr<TypedNode>> nodes);
+bool isDefined(S3C &s3c, std::string file, int line, std::string name,
+               type_system::type_t &type);
+void printType(std::ostringstream &oss, type_system::types_t types);
+bool checkParametersTypes(S3C &s3c, type_system::types_t expectedTypes,
+                          type_system::types_t funcallTypes);
+void checkType(S3C &s3c, std::string file, int line, std::string name,
+               type_system::type_t expected, type_system::type_t found);
+void checkType(S3C &s3c, std::string file, int line, std::string name,
+               type_system::type_t expected, type_system::PrimitiveTypes found);
 
 #endif
