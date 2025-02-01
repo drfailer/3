@@ -4,7 +4,7 @@ use math;
 
 ~~~ fonction test
 int test_1(int a) bgn
-  ret tms(a, 3);
+  ret mul(a, 3);
 end
 
 nil test_2(int a, flt b, chr c) bgn
@@ -30,11 +30,11 @@ nil main(int p1, flt p2, chr p3) bgn
   set(b, 4.0);
   set(b, add(add(2,2), 4));
   set(b, add(2, add(5,6)));
-  set(b, add(mns(3, tms(3, fonction(a))), add(5,6)));
-  set(b, myfun(mns(3, tms(3, fonction(mns(4,6)))), add(5,6)));
+  set(b, add(sub(3, mul(3, fonction(a))), add(5,6)));
+  set(b, myfun(sub(3, mul(3, fonction(sub(4,6)))), add(5,6)));
 
   myFun(a, b, fonction(a, b), 4);
-  myFun(a, b, fonction(a, add(3,4)), tms(2,2));
+  myFun(a, b, fonction(a, add(3,4)), mul(2,2));
   myFun(a, add(3,3), fonction(a, b), 4);
   myFun(a, fonc(a), fonction(a, b), 4);
 

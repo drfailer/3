@@ -61,7 +61,7 @@
 %token INTT FLTT CHRT
 %token CND ELS FOR WHL
 %token COMMA OSQUAREB CSQUAREB
-%token SHW IPT ADD MNS TMS DIV RNG SET
+%token SHW IPT ADD SUB MUL DIV RNG SET
 %token EQL SUP INF SEQ IEQ AND LOR XOR NOT
 %token <std::string> IDENTIFIER
 %token <std::string> STRING
@@ -230,11 +230,11 @@ arithmeticOperation:
         DEBUG("addOP");
         $$ = s3c.newArithmeticOperator<AddOP>($left, $right, @1.begin.line, "add");
     }
-    | MNS'(' expression[left] COMMA expression[right] ')' {
+    | SUB'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
         $$ = s3c.newArithmeticOperator<MnsOP>($left, $right, @1.begin.line, "mns");
     }
-    | TMS'(' expression[left] COMMA expression[right] ')' {
+    | MUL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
         $$ = s3c.newArithmeticOperator<TmsOP>($left, $right, @1.begin.line, "tms");
     }

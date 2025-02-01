@@ -36,8 +36,8 @@ for          { DEBUG("L_for"); return Parser::token::FOR; }
 shw          { DEBUG("L_shw"); return Parser::token::SHW; }
 ipt          { DEBUG("L_ipt"); return Parser::token::IPT; }
 add          { DEBUG("L_add"); return Parser::token::ADD; }
-mns          { DEBUG("L_mns"); return Parser::token::MNS; }
-tms          { DEBUG("L_tms"); return Parser::token::TMS; }
+sub          { DEBUG("L_sub"); return Parser::token::SUB; }
+mul          { DEBUG("L_mul"); return Parser::token::MUL; }
 div          { DEBUG("L_div"); return Parser::token::DIV; }
 eql          { DEBUG("L_eql"); return Parser::token::EQL; }
 sup          { DEBUG("L_sup"); return Parser::token::SUP; }
