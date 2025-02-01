@@ -1,0 +1,38 @@
+~~~ TODO
+
+nil test(chr str[100]) bgn
+  shw(str)
+  shw("\n")
+  shw(str[2])
+  shw("\n")
+end
+
+nil main() bgn
+  int a[5]
+  chr string[10]
+  int b
+  chr c
+
+  ~~~ test assignment to string
+  set(string, "hello")
+
+  shw(string)
+  shw("\n")
+  test(string)
+  test("hello")
+  ~~~ shw(a): error (todo: make a second test)
+
+  for b rng(0, 5, 1) bgn
+    set(a[b], b)
+  end
+  set(a[4], 97)
+
+  ~~~ test assignment to c
+  set(c, a[4])
+  shw(c)
+  shw("\n")
+  for b rng(0, 5, 1) bgn
+    shw(a[b])
+    shw("\n")
+  end
+end
