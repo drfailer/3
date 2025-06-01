@@ -15,7 +15,7 @@ Type *create_nil_type() {
 }
 
 Type *create_primitive_type(PrimitiveType type) {
-    return new Type{TypeKind::Nil, {.primitive = type}};
+    return new Type{TypeKind::Primitive, {.primitive = type}};
 }
 
 Type *create_static_array_type(Type *type, size_t size) {
