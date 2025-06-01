@@ -6,7 +6,7 @@
 #define DBG_LEX 0
 #if DBG_LEX == 1
 #define DEBUG(A) std::cout << A << std::endl
-#otwe
+#else
 #define DEBUG(A)
 #endif
 %}

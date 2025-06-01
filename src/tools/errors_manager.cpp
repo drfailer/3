@@ -1,4 +1,5 @@
 #include "errors_manager.hpp"
+#include <iostream>
 #include <ostream>
 #define LOC(f, l) f << ":" << l
 #define ERR "\033[1;31m"
@@ -51,13 +52,13 @@ void ErrorManager::report() {
  * @param  found     Found type.
  */
 void ErrorManager::addFuncallTypeError(std::string file, int line,
-                                       std::string name,
-                                       type_system::types_t expected,
-                                       type_system::types_t found) {
+                                       std::string name, type::Type *expected,
+                                       type::Type *found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": Type error in " << BOLD << name << NORM
-        << ", the expected type was " << BOLD << expected << NORM << " but "
-        << BOLD << found << NORM << " was found." << std::endl;
+        << ", the expected type was " << BOLD << type_to_string(expected)
+        << NORM << " but " << BOLD << found << NORM << " was found."
+        << std::endl;
     addError(oss.str());
 }
 
@@ -172,13 +173,12 @@ void ErrorManager::addLiteralStringOverflowError(std::string file, int line) {
  */
 void ErrorManager::addReturnTypeError(std::string file, int line,
                                       std::string functionName,
-                                      type_system::type_t expected,
-                                      type_system::type_t found) {
+                                      type::Type *expected, type::Type *found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
-        << ", found return value of type " << BOLD << expected->toString()
-        << NORM << " but this function is of type " << BOLD << found->toString()
-        << NORM << "." << std::endl;
+        << ", found return value of type " << BOLD << type_to_string(expected)
+        << NORM << " but this function is of type " << BOLD
+        << type_to_string(found) << NORM << "." << std::endl;
     addError(oss.str());
 }
 
@@ -197,10 +197,10 @@ void ErrorManager::addNoEntryPointError() { addError("no entry point."); }
  * @param  exprType  Type of the expression that was given to the function.
  */
 void ErrorManager::addBadUsageOfShwError(std::string file, int line,
-                                         type_system::type_t exprType) {
+                                         type::Type *exprType) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": bad usage of " << BOLD << "shw" << NORM
-        << " with an expression of type " BOLD << exprType->toString()
+        << " with an expression of type " BOLD << type::type_to_string(exprType)
         << NORM "." << std::endl;
     addError(oss.str());
 }
@@ -221,13 +221,13 @@ void ErrorManager::addBadUsageOfShwError(std::string file, int line,
  */
 void ErrorManager::addTypeAssignedWarning(std::string file, int line,
                                           std::string name,
-                                          type_system::type_t expected,
-                                          type_system::type_t found) {
+                                          type::Type *expected,
+                                          type::Type *found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in assignment, " << BOLD << name << NORM
-        << " is of type " << BOLD << expected->toString()
+        << " is of type " << BOLD << type_to_string(expected)
         << NORM " but the value assigned is of type " << BOLD
-        << found->toString() << NORM << "." << std::endl;
+        << type_to_string(found) << NORM << "." << std::endl;
     addWarning(oss.str());
 }
 
@@ -244,12 +244,12 @@ void ErrorManager::addTypeAssignedWarning(std::string file, int line,
  */
 void ErrorManager::addReturnTypeWarning(std::string file, int line,
                                         std::string functionName,
-                                        type_system::type_t expected,
-                                        type_system::type_t found) {
+                                        type::Type *expected,
+                                        type::Type *found) {
     std::ostringstream oss;
     oss << LOC(file, line) << ": in " << BOLD << functionName << NORM
-        << ", found return value of type " << BOLD << expected->toString()
-        << NORM << " but this function is of type " << BOLD << found->toString()
-        << NORM << "." << std::endl;
+        << ", found return value of type " << BOLD << type_to_string(expected)
+        << NORM << " but this function is of type " << BOLD
+        << type_to_string(found) << NORM << "." << std::endl;
     addWarning(oss.str());
 }

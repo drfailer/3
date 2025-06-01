@@ -33,7 +33,7 @@
 
 %code requires
 {
-    #include "ast/ast.hpp"
+    #include "ast/node.hpp"
     #include "tools/s3c.hpp"
     namespace interpreter {
         class Scanner;
@@ -42,7 +42,6 @@
 
 %code
 {
-    #include "tools/checks.hpp"
     #include "lexer.hpp"
     #include <memory>
     #include <functional>
@@ -67,19 +66,19 @@
 %token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
 
-%nterm <type_system::type_t> type
-%nterm <type_system::type_t> returnTypeSpecifier
-%nterm <std::shared_ptr<Value>> value
-%nterm <std::shared_ptr<TypedNode>> expression
-%nterm <std::shared_ptr<Variable>> variable
-%nterm <std::shared_ptr<TypedNode>> arithmeticOperation
-%nterm <std::shared_ptr<TypedNode>> functionCall
-%nterm <std::shared_ptr<Node>> booleanOperation
-%nterm <std::shared_ptr<Block>> block
-%nterm <std::shared_ptr<Cnd>> cnd
-%nterm <std::shared_ptr<Cnd>> cndBase
-%nterm <std::shared_ptr<For>> for
-%nterm <std::shared_ptr<Whl>> whl
+%nterm <type::Type*> type
+%nterm <type::Type*> returnTypeSpecifier
+%nterm <node::Node*> value
+%nterm <node::Node*> expression
+%nterm <node::Node*> variable
+%nterm <node::Node*> arithmeticOperation
+%nterm <node::Node*> functionCall
+%nterm <node::Node*> booleanOperation
+%nterm <node::Block*> block
+%nterm <node::Node*> cnd
+%nterm <node::Node*> cndBase
+%nterm <node::Node*> for
+%nterm <node::Node*> whl
 
 %start start
 
@@ -90,7 +89,7 @@ program: %empty | programUnit program ;
 
 programUnit:
     functionDefinition { DEBUG("create new function" ); }
-    | PREPROCESSOR_LOCATION { s3c.programBuilder().currFileName($1); }
+    | PREPROCESSOR_LOCATION { s3c.programBuilder().setCurrFileName($1); }
     ;
 
 returnTypeSpecifier:
@@ -98,7 +97,7 @@ returnTypeSpecifier:
         $$ = $rt;
     }
     | NIL {
-        $$ = type_system::make_type<type_system::Primitive>(type_system::NIL);
+        $$ = type::create_nil_type();
     }
     ;
 
@@ -110,7 +109,7 @@ functionDefinition:
     } '('parameterDeclarationList')' {
         s3c.setFunctionType($rt);
     } block[ops] {
-        s3c.endFunctionDefintion($name, $rt, $ops);
+        s3c.endFunctionDefintion($name, $ops);
     }
     ;
 
@@ -127,8 +126,7 @@ parameterDeclaration:
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
         DEBUG("new param: " << $2);
-        s3c.newArrayParameterDeclaration($2,
-            type_system::make_type<type_system::StaticArray>($t, $size), $size);
+        s3c.newParameterDeclaration($2, type::create_static_array_type($t, $size));
     }
     ;
 
@@ -146,13 +144,14 @@ parameter:
 
 type:
     INTT {
-        $$ = type_system::make_type<type_system::Primitive>(type_system::INT);
+        $$ = type::create_primitive_type(type::PrimitiveType::Int);
     }
     | FLTT {
-        $$ = type_system::make_type<type_system::Primitive>(type_system::FLT);
+        $$ = type::create_primitive_type(type::PrimitiveType::Flt);
     }
     | CHRT {
-        $$ = type_system::make_type<type_system::Primitive>(type_system::CHR);
+        $$ = type::create_primitive_type(type::PrimitiveType::Chr);
+        // TODO: Str
     }
     ;
 
@@ -185,7 +184,10 @@ instruction:
 ipt:
     IPT'('variable[c]')' {
         DEBUG("ipt var");
-        s3c.programBuilder().pushBlock(std::make_shared<Ipt>($c));
+        s3c.programBuilder().pushBlock(
+            node::create_builtin_function(
+                create_location(s3c.programBuilder().currFileName, @c.begin.line),
+                node::BuiltinFunctionKind::Ipt, $c));
     }
     ;
 
@@ -217,63 +219,85 @@ variable:
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
-        $$ = s3c.newArithmeticOperator<AddOP>($left, $right, @1.begin.line, "add");
+        $$ = s3c.newArithmeticOperator($left, $right,
+            node::ArithmeticOperationKind::Add, @1.begin.line, "add");
     }
     | SUB'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
-        $$ = s3c.newArithmeticOperator<MnsOP>($left, $right, @1.begin.line, "mns");
+        $$ = s3c.newArithmeticOperator($left, $right,
+            node::ArithmeticOperationKind::Sub, @1.begin.line, "sub");
     }
     | MUL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
-        $$ = s3c.newArithmeticOperator<TmsOP>($left, $right, @1.begin.line, "tms");
+        $$ = s3c.newArithmeticOperator($left, $right,
+            node::ArithmeticOperationKind::Mul, @1.begin.line, "mul");
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
-        $$ = s3c.newArithmeticOperator<DivOP>($left, $right, @1.begin.line, "div");
+        $$ = s3c.newArithmeticOperator($left, $right,
+            node::ArithmeticOperationKind::Div, @1.begin.line, "div");
     }
     ;
 
 booleanOperation:
-    EQL'(' expression[left] COMMA expression[right] ')' {
+    EQL'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("EqlOP");
         // TODO: type check
-        $$ = std::make_shared<EqlOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Eql, $lhs, $rhs);
     }
-    | SUP'(' expression[left] COMMA expression[right] ')' {
+    | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SupOP");
         // TODO: type check
-        $$ = std::make_shared<SupOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Sup, $lhs, $rhs);
     }
-    | INF'(' expression[left] COMMA expression[right] ')' {
+    | INF'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("InfOP");
         // TODO: type check
-        $$ = std::make_shared<InfOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Inf, $lhs, $rhs);
     }
-    | SEQ'(' expression[left] COMMA expression[right] ')' {
+    | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SeqOP");
         // TODO: type check
-        $$ = std::make_shared<SeqOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Seq, $lhs, $rhs);
     }
-    | IEQ'(' expression[left] COMMA expression[right] ')' {
+    | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("IeqOP");
         // TODO: type check
-        $$ = std::make_shared<IeqOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Ieq, $lhs, $rhs);
     }
-    | AND'('booleanOperation[left] COMMA booleanOperation[right]')' {
+    | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("AndOP");
-        $$ = std::make_shared<AndOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::And, $lhs, $rhs);
     }
-    | LOR'('booleanOperation[left] COMMA booleanOperation[right]')' {
+    | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("LorOP");
-        $$ = std::make_shared<OrOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Lor, $lhs, $rhs);
     }
-    | XOR'('booleanOperation[left] COMMA booleanOperation[right]')' {
+    | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("XorOP");
-        $$ = std::make_shared<XorOP>($left, $right);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Xor, $lhs, $rhs);
     }
     | NOT'('booleanOperation[op]')' {
         DEBUG("NotOP");
-        $$ = std::make_shared<NotOP>($op);
+        $$ = node::create_boolean_operation(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            node::BooleanOperationKind::Not, $op, nullptr);
     }
     ;
 
@@ -294,7 +318,8 @@ variableDeclaration:
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
-        s3c.newArrayDeclaration($name, $t, $size, @name.begin.line);
+        s3c.newVariableDeclaration($name,
+            type::create_static_array_type($t, $size), @name.begin.line);
     }
     ;
 
@@ -302,28 +327,34 @@ assignment:
     SET'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
         s3c.newAssignment($var, $expr, @var.begin.line);
+        // TODO: free var memory
     }
     ;
 
 value:
     INT {
         DEBUG("new int: " << $1);
-        $$ = s3c.newInt($1);
+        $$ = node::create_value(
+            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            (long)$1);
     }
     | FLT {
         DEBUG("new double: " << $1);
-        $$ = s3c.newFlt($1);
+        $$ = node::create_value(
+            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            $1);
     }
     | CHR {
         DEBUG("new char: " << $1);
-        $$ = s3c.newChr($1);
+        $$ = node::create_value(
+            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            $1);
     }
     | STRING {
         DEBUG("new str: " << $1);
-        auto strValue = s3c.newStr($1, @1.begin.line);
-        if (!strValue)
-            return 1;
-        $$ = strValue;
+        $$ = node::create_value(
+            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            $1);
     }
     ;
 
@@ -350,9 +381,10 @@ cnd:
         DEBUG("els");
         s3c.contextManager().enterScope();
     } block[ops] {
-        std::shared_ptr<Cnd> ifstmt = $cndb;
+        auto ifstmt = $cndb;
         // adding else block
-        ifstmt->elseBlock = $ops;
+        ifstmt->value.cnd_stmt->else_expression = node::create_block(
+            ifstmt->location, $ops);
         $$ = ifstmt;
         s3c.contextManager().leaveScope();
     }
@@ -363,7 +395,9 @@ cndBase:
         s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("if");
-        $$ = s3c.programBuilder().createCnd($cond, $ops);
+        $$ = node::create_cnd_stmt(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            $cond, $ops);
         s3c.contextManager().leaveScope();
     }
     ;
@@ -382,7 +416,9 @@ whl:
         s3c.contextManager().enterScope();
     } block[ops] {
         DEBUG("in whl");
-        $$ = s3c.programBuilder().createWhl($cond, $ops);
+        $$ = node::create_whl_stmt(
+            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            $cond, $ops);
         s3c.contextManager().leaveScope();
     }
     ;
@@ -390,7 +426,7 @@ whl:
 
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
-    oss << s3c.programBuilder().currFileName() << ":" << loc.begin.line << ": " << msg << "." << std::endl;
+    oss << s3c.programBuilder().currFileName << ":" << loc.begin.line << ": " << msg << "." << std::endl;
     s3c.errorsManager().addError(oss.str());
 }
 
@@ -423,7 +459,7 @@ void compile(std::string fileName, std::string outputName) {
     S3C s3c;
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
-    s3c.programBuilder().currFileName(fileName);
+    s3c.programBuilder().setCurrFileName(fileName);
     s3c.contextManager().enterScope(); // update the scope
 
     try {
@@ -441,8 +477,8 @@ void compile(std::string fileName, std::string outputName) {
     s3c.runPostProcessVerifications();
 
     // look for main
-    std::optional<Symbol> sym = s3c.contextManager().lookup("main");
-    if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym.has_value()) {
+    auto sym = s3c.contextManager().lookup("main");
+    if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym) {
         s3c.errorsManager().addNoEntryPointError();
     }
     // report errors and warnings
@@ -451,7 +487,7 @@ void compile(std::string fileName, std::string outputName) {
     // if no errors, transpile the file
     if (!s3c.errorsManager().getErrors()) {
         std::ofstream fs(outputName);
-        s3c.programBuilder().program()->compile(fs);
+        std::cerr << "TODO: REWRITE THE COMPILE :D" << std::endl;
         makeExecutable(outputName);
     }
 

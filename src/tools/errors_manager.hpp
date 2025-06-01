@@ -2,7 +2,7 @@
 #define ERROR_MANAGER_H
 // this shouldn't be done this way -> add include directrories in the CMake
 // configuration
-#include "type_system/types.hpp"
+#include "symtable/type.hpp"
 #include <sstream>
 
 class ErrorManager {
@@ -17,8 +17,7 @@ class ErrorManager {
 
     // Errors:
     void addFuncallTypeError(std::string file, int line, std::string name,
-                             type_system::types_t expected,
-                             type_system::types_t found);
+                             type::Type *expected, type::Type *found);
     void addUndefinedSymbolError(std::string file, int line, std::string name);
     void addMultipleDefinitionError(std::string file, int line,
                                     std::string name);
@@ -29,19 +28,16 @@ class ErrorManager {
     void addOperatorError(std::string file, int line, std::string name);
     void addLiteralStringOverflowError(std::string file, int line);
     void addReturnTypeError(std::string file, int line, std::string name,
-                            type_system::type_t expected,
-                            type_system::type_t found);
+                            type::Type *expected, type::Type *found);
     void addBadUsageOfShwError(std::string file, int line,
-                               type_system::type_t exprType);
+                               type::Type *exprType);
 
     // Warnings:
     void addTypeAssignedWarning(std::string file, int line,
-                                std::string functionName,
-                                type_system::type_t expected,
-                                type_system::type_t found);
+                                std::string functionName, type::Type *expected,
+                                type::Type *found);
     void addReturnTypeWarning(std::string file, int line, std::string name,
-                              type_system::type_t expected,
-                              type_system::type_t found);
+                              type::Type *expected, type::Type *found);
 
   private:
     std::ostringstream errStream;

@@ -1,8 +1,10 @@
 #include "program_builder.hpp"
 
-ProgramBuilder::ProgramBuilder() : program_(std::make_shared<Program>()) {}
-
-void ProgramBuilder::display() { program_->display(); }
+void ProgramBuilder::display() {
+    for (auto node : program) {
+        node::print_node(node);
+    }
+}
 
 /******************************************************************************/
 /*                                   blocks                                   */
@@ -11,22 +13,23 @@ void ProgramBuilder::display() { program_->display(); }
 /**
  * @brief  Add `command` to the last block of the block stack.
  */
-void ProgramBuilder::pushBlock(std::shared_ptr<Node> command) {
-    blocks.top()->add(command);
+void ProgramBuilder::pushBlock(node::Node *command) {
+    blocks.top()->nodes.push_back(command);
 }
 
 /**
  * @brief  create an empty block on the top of the blocks stack
  */
 void ProgramBuilder::beginBlock() {
-    blocks.push(std::make_shared<Block>());
+    // TODO: use a pool
+    blocks.push(new node::Block());
 }
 
 /**
  * @brief  pop the last block of the blocks stack
  */
-std::shared_ptr<Block> ProgramBuilder::endBlock() {
-    std::shared_ptr<Block> lastBlock = blocks.top();
+node::Block *ProgramBuilder::endBlock() {
+    node::Block *lastBlock = blocks.top();
     blocks.pop();
     return lastBlock;
 }
@@ -39,91 +42,72 @@ std::shared_ptr<Block> ProgramBuilder::endBlock() {
  * @brief take the last block, add it to a new If and add the new If to the
  * parent block.
  */
-std::shared_ptr<Cnd> ProgramBuilder::createCnd(std::shared_ptr<Node> condition,
-                                               std::shared_ptr<Block> block) {
-    return std::make_shared<Cnd>(condition, block);
+node::CndStmt *ProgramBuilder::createCnd(node::Node *condition,
+                                         node::Block *block) {
+    return new node::CndStmt{condition, block};
 }
 
 /**
  * @brief take the last block, add it to a new For and add the new For to the
  * parent block.
  */
-std::shared_ptr<For> ProgramBuilder::createFor(Variable v,
-                                               std::shared_ptr<Node> begin,
-                                               std::shared_ptr<Node> end,
-                                               std::shared_ptr<Node> step,
-                                               std::shared_ptr<Block> block) {
-    return std::make_shared<For>(v, begin, end, step, block);
+node::ForStmt *ProgramBuilder::createFor(std::string const index_id,
+                                         node::Node *start, node::Node *end,
+                                         node::Node *step, node::Block *block) {
+    return new node::ForStmt{index_id, start, end, step, block};
 }
 
 /**
  * @brief take the last block, add it to a new While and add the new If to the
  * parent block.
  */
-std::shared_ptr<Whl> ProgramBuilder::createWhl(std::shared_ptr<Node> condition,
-                                               std::shared_ptr<Block> block) {
-    return std::make_shared<Whl>(condition, block);
+node::WhlStmt *ProgramBuilder::createWhl(node::Node *condition,
+                                         node::Block *block) {
+    return new node::WhlStmt{condition, block};
 }
 
 /******************************************************************************/
 /*                                  funcalls                                  */
 /******************************************************************************/
 
-std::shared_ptr<FunctionCall>
-ProgramBuilder::createFuncall(type_system::type_t type) {
-    auto newFuncall = std::make_shared<FunctionCall>(
-        funcallIds_.back(), functionCallsParameters_.back(), type);
-    funcallIds_.pop_back();
-    functionCallsParameters_.pop_back();
+node::FunctionCall *ProgramBuilder::createFuncall() {
+    auto newFuncall = new node::FunctionCall{
+        .name = funcallIds.back(),
+        .arguments = functionCallsParameters.back(),
+    };
+    funcallIds.pop_back();
+    functionCallsParameters.pop_back();
     return newFuncall;
 }
 
-void ProgramBuilder::newFuncall(std::string name) {
-    funcallIds_.push_back(name);
-    functionCallsParameters_.push_back(std::list<std::shared_ptr<TypedNode>>());
+void ProgramBuilder::newFuncall(std::string const &name) {
+    funcallIds.push_back(name);
+    functionCallsParameters.push_back({});
 }
 
-void ProgramBuilder::createFunction(std::string name,
-                                    std::shared_ptr<Block> operations,
-                                    type_system::type_t returnType) {
-    type_system::types_t argumentsTypes;
-    for (Variable v : currFunctionParameters_) {
-        argumentsTypes.push_back(v.type);
-    }
-    std::shared_ptr<Function> function = std::make_shared<Function>(
-        name, currFunctionParameters_, operations,
-        type_system::make_type<type_system::Function>(returnType, argumentsTypes));
-    program_->addFunction(function);
-    currFunctionParameters_.clear();
+void ProgramBuilder::createFunction(std::string const &name,
+                                    node::Block *block) {
+    auto function = new node::FunctionDefinition{
+        .name = name,
+        .arguments = currFunctionParameters,
+        .block = block,
+    };
+    program.push_back(new node::Node{
+        .location = {},
+        .kind = node::NodeKind::FunctionDefinition,
+        .value = {.function_definition = function},
+    });
+    currFunctionParameters.clear();
 }
 
-void ProgramBuilder::pushFuncallParam(std::shared_ptr<TypedNode> newParam) {
-    functionCallsParameters_.back().push_back(newParam);
+void ProgramBuilder::pushFuncallParam(node::Node *arg) {
+    functionCallsParameters.back().push_back(arg);
 }
 
 /******************************************************************************/
 /*                                 functions                                  */
 /******************************************************************************/
 
-void ProgramBuilder::pushFunctionParam(Variable newParam) {
-    currFunctionParameters_.push_back(newParam);
-}
-
-/******************************************************************************/
-/*                                  getters                                   */
-/******************************************************************************/
-
-std::shared_ptr<Program> ProgramBuilder::program() const { return program_; }
-
-std::list<Variable> const &ProgramBuilder::functionParameters() const {
-    return currFunctionParameters_;
-}
-
-type_system::types_t ProgramBuilder::parametersTypes() const {
-    type_system::types_t paramsTypes;
-    for (Variable v : currFunctionParameters_) {
-        paramsTypes.push_back(v.type);
-        /* std::cout << "id => " << v.getId() << std::endl; */
-    }
-    return paramsTypes;
+void ProgramBuilder::pushFunctionParam(std::string const &arg) {
+    currFunctionParameters.push_back(arg);
 }

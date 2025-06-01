@@ -9,6 +9,7 @@ struct Symbol {
                     // char const*
     type::Type *type;
     SymbolTable *scope;
+    // TODO: add location
 };
 
 #endif

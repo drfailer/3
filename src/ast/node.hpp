@@ -47,9 +47,13 @@ struct Value {
         char character;
         long integer;
         double real;
-        std::string string;
+        const char* string;
     } value;
 };
+Node *create_value(Location location, char character);
+Node *create_value(Location location, long integer);
+Node *create_value(Location location, double real);
+Node *create_value(Location location, std::string const string);
 
 struct VariableDefinition {
     std::string name;
@@ -62,10 +66,10 @@ struct VariableReference {
 Node *create_variable_reference(Location location, std::string const &name);
 
 struct Assignment {
-    std::string name;
+    Node *target;
     Node *value;
 };
-Node *create_assignment(Location location, std::string const &name,
+Node *create_assignment(Location location, Node *target,
                         Node *value);
 
 struct IndexExpression {
@@ -94,8 +98,10 @@ Node *create_function_call(Location location, std::string const &name,
 struct CndStmt {
     Node *condition;
     Block *block;
+    Node *else_expression;
 };
-Node *create_cnd_stmt(Location location, Node *condition, Block *block);
+Node *create_cnd_stmt(Location location, Node *condition, Block *block, Node
+        *else_expression = nullptr);
 
 struct WhlStmt {
     Node *condition;
@@ -122,6 +128,7 @@ struct Block {
     std::vector<Node *> nodes;
 };
 Node *create_block(Location location, std::vector<Node *> &&nodes);
+Node *create_block(Location location, Block *block);
 
 enum ArithmeticOperationKind {
     Add,
@@ -193,7 +200,7 @@ struct Node {
 };
 
 void delete_node(Location location, Node *node);
-void print_node(Location location, Node *node);
+void print_node(Node *node);
 
 } // end namespace node
 

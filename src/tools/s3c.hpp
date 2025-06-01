@@ -1,19 +1,21 @@
 #ifndef TOOLS_S3C_H
 #define TOOLS_S3C_H
-#include "ast/ast.hpp"
-#include "symtable/context_manager.hpp"
-#include "tools/checks.hpp"
+#include "ast/node.hpp"
+#include "context_manager.hpp"
+#include "symtable/symbol_table.hpp"
+#include "symtable/type.hpp"
 #include "tools/errors_manager.hpp"
 #include "tools/program_builder.hpp"
-#include "type_system/types.hpp"
-#include <algorithm>
 #include <cstring>
 #include <functional>
+#include <iostream>
+
+#define LOCATION create_location(programBuilder_.currFileName, line)
 
 class S3C {
   public:
     ProgramBuilder &programBuilder() { return programBuilder_; }
-    Symtable &symtable() { return symtable_; }
+    SymbolTable &symtable() { return symtable_; }
     ContextManager &contextManager() { return contextManager_; }
     ErrorManager &errorsManager() { return errorsManager_; }
 
@@ -29,12 +31,12 @@ class S3C {
 
   public:
     bool newFunctionDefinition(std::string const &functionName, size_t line) {
-        programBuilder_.currFunctionName(functionName);
-        std::optional<Symbol> sym = contextManager_.lookup(functionName);
+        programBuilder_.currFunctionName = functionName;
+        Symbol *sym = contextManager_.lookup(functionName);
         // error on function redefinition
-        if (sym.has_value()) {
+        if (sym) {
             errorsManager_.addMultipleDefinitionError(
-                programBuilder_.currFileName(), line, functionName);
+                programBuilder_.currFileName, line, functionName);
             // TODO: print the previous definition location
             return false;
         }
@@ -42,192 +44,188 @@ class S3C {
         return true;
     }
 
-    void setFunctionType(type_system::type_t returnType) {
-        type_system::type_t type =
-            type_system::make_type<type_system::Function>(
-                returnType, programBuilder_.parametersTypes());
-        contextManager_.newGlobalSymbol(programBuilder_.currFunctionName(),
-                                        type, FUNCTION);
+    void setFunctionType(type::Type *returnType) {
+        std::list<type::Type *> arguments_types;
+
+        for (auto arg_id : programBuilder_.currFunctionParameters) {
+            auto symbol = contextManager_.lookup(arg_id);
+
+            if (symbol) {
+                arguments_types.push_back(symbol->type);
+            } else {
+                // this should never happen
+                std::cerr << "error: the function argument is not in the table "
+                             "of symbol"
+                          << std::endl;
+            }
+        }
+        contextManager_.newGlobalSymbol(
+            programBuilder_.currFunctionName,
+            new type::Type{
+                .kind = type::TypeKind::Function,
+                .value{
+                    .function =
+                        new type::FunctionType{
+                            .id = programBuilder_.currFunctionName,
+                            .return_type = returnType,
+                            .arguments_types = arguments_types,
+                        },
+                },
+            });
     }
 
-    void endFunctionDefintion(std::string const &name,
-                              type_system::type_t returnType,
-                              std::shared_ptr<Block> body) {
-        programBuilder_.createFunction(name, body, returnType);
+    void endFunctionDefintion(std::string const &name, node::Block *body) {
+        programBuilder_.createFunction(name, body);
         contextManager_.leaveScope();
     }
 
   public:
-    void newParameterDeclaration(std::string const &name,
-                                 type_system::type_t type) {
-        contextManager_.newSymbol(name, type, FUN_PARAM);
-        programBuilder_.pushFunctionParam(Variable(name, type));
-    }
-
-    void newArrayParameterDeclaration(std::string const &name,
-                                      type_system::type_t type, long size) {
-        // TODO: remove the size of the array. The size should be set at
-        // -1 (or any default value) in order to specify that we don't
-        // want to check the size at compile time when we treat the
-        // function
-        contextManager_.newSymbol(name, type, LOCAL_ARRAY);
-        programBuilder_.pushFunctionParam(Array(name, size, type));
+    void newParameterDeclaration(std::string const &id, type::Type *type) {
+        contextManager_.newSymbol(id, type);
+        programBuilder_.pushFunctionParam(id);
     }
 
   public:
-    void newReturnExpression(std::shared_ptr<TypedNode> expr, size_t line) {
+    // TODO: we need a function that finds the type of an node
+    void newReturnExpression(node::Node *expr, size_t line) {
         std::ostringstream oss;
-        std::optional<Symbol> sym =
-            contextManager_.lookup(programBuilder_.currFunctionName());
-        auto foundType = expr->type->getEvaluatedType();
-        auto expectedType = sym.value().getType()->getEvaluatedType();
+        Symbol *sym = contextManager_.lookup(programBuilder_.currFunctionName);
+        auto foundType = get_evaluated_type(expr);
+        auto expectedType = sym->type;
 
-        if (isNone(foundType)) {
+        if (foundType->kind == type::TypeKind::Nil) {
             std::cout << "ERROR: none type found" << std::endl;
             throw std::runtime_error("error: not implemented");
         }
 
-        if (type_system::isNil(expectedType)) { // no return allowed
+        if (expectedType->kind == type::TypeKind::Nil) { // no return allowed
             errorsManager_.addUnexpectedReturnError(
-                programBuilder_.currFileName(), line,
-                programBuilder_.currFunctionName());
-        } else if (!expectedType->compare(foundType)) {
-            if (type_system::isCastableTo(expectedType, foundType)) {
+                programBuilder_.currFileName, line,
+                programBuilder_.currFunctionName);
+        } else if (type::type_equal(foundType, expectedType)) {
+            if (type::type_is_convertible(expectedType, foundType)) {
                 errorsManager_.addReturnTypeWarning(
-                    programBuilder_.currFileName(), line,
-                    programBuilder_.currFunctionName(), foundType,
-                    sym.value().getType());
+                    programBuilder_.currFileName, line,
+                    programBuilder_.currFunctionName, foundType, sym->type);
             } else {
                 errorsManager_.addReturnTypeError(
-                    programBuilder_.currFileName(), line,
-                    programBuilder_.currFunctionName(), foundType,
-                    sym.value().getType());
+                    programBuilder_.currFileName, line,
+                    programBuilder_.currFunctionName, foundType, sym->type);
             }
         }
         // else verify the type and throw a warning
-        programBuilder_.pushBlock(std::make_shared<Return>(expr));
+        programBuilder_.pushBlock(node::create_ret_stmt(LOCATION, expr));
     }
 
   public:
-    void newShw(std::shared_ptr<TypedNode> expr, size_t line) {
-        if (type_system::isLiteralString(expr->type)) {
-            auto stringValue = std::dynamic_pointer_cast<Value>(expr);
+    void newShw(node::Node *expr, size_t line) {
+        if (expr->kind == node::NodeKind::Value &&
+            expr->value.value->kind == node::ValueKind::String) {
             // TODO: create a clean quote function
-            std::string str = stringValue->value._str;
-            programBuilder_.pushBlock(std::make_shared<Shw>(str));
-        } else if (type_system::isArrayOfChr(expr->type->getEvaluatedType()) ||
-                   type_system::isPrimitive(expr->type->getEvaluatedType())) {
-            programBuilder_.pushBlock(std::make_shared<Shw>(expr));
+            programBuilder_.pushBlock(expr);
+        } else if (get_evaluated_type(expr)->kind ==
+                   type::TypeKind::Primitive) {
+            programBuilder_.pushBlock(node::create_builtin_function(
+                LOCATION, node::BuiltinFunctionKind::Shw, expr));
         } else {
             // TODO: this is error is not very clear (note that the syntax is
             // not strong ehough on the shw function)
-            errorsManager_.addBadUsageOfShwError(programBuilder_.currFileName(),
-                    line, expr->type);
+            errorsManager_.addBadUsageOfShwError(
+                programBuilder_.currFileName, line, get_evaluated_type(expr));
         }
     }
 
   public:
-    std::shared_ptr<Variable> newVariable(std::string const &name,
-                                          size_t line) {
-        type_system::type_t type;
-        std::shared_ptr<Variable> v;
+    node::Node *newVariable(std::string const &name, size_t line) {
+        auto sym = contextManager_.lookup(name);
 
-        // TODO: this is really bad, the function isDefined will be changed !
-        if (isDefined(*this, programBuilder_.currFileName(), line, name,
-                      type)) {
-            if (isArray(type)) {
-                Symbol sym = contextManager_.lookup(name).value();
-                v = std::make_shared<Array>(name, getArraySize(sym.getType()),
-                                            type);
-            } else {
-                v = std::make_shared<Variable>(name, type);
-            }
-        } else {
-            v = std::make_shared<Variable>(
-                name, type_system::make_type<type_system::Primitive>(
-                          type_system::NIL));
+        if (!sym) {
+            errorsManager_.addUndefinedSymbolError(programBuilder_.currFileName,
+                                                   line, name);
         }
-        return v;
+        return node::create_variable_reference(LOCATION, name);
     }
 
-    std::shared_ptr<ArrayAccess>
-    newArrayVariable(std::string const &name, size_t line,
-                     std::shared_ptr<TypedNode> index) {
-        type_system::type_t type;
-        std::shared_ptr<ArrayAccess> variable;
+    node::Node *newArrayVariable(std::string const &name, size_t line,
+                                 node::Node *index) {
+        node::Node *index_expr =
+            node::create_index_expression(LOCATION, name, index);
+        auto sym = contextManager_.lookup(name);
 
-        // TODO: refactor isDefined
-        if (isDefined(*this, programBuilder_.currFileName(), line, name,
-                      type)) {
-            std::optional<Symbol> sym = contextManager_.lookup(name);
-            // error if the symbol is not an array
-            if (sym.value().getKind() != LOCAL_ARRAY || !isArray(type)) {
-                errorsManager_.addBadArrayUsageError(
-                    programBuilder_.currFileName(), line, name);
-            }
-            // TODO: refactor this
-            variable = std::make_shared<ArrayAccess>(
-                name, type_system::getElementType(type), index);
+        if (!sym) {
+            errorsManager_.addUndefinedSymbolError(programBuilder_.currFileName,
+                                                   line, name);
+        } else if (sym->type->kind != type::TypeKind::Array) {
+            errorsManager_.addBadArrayUsageError(programBuilder_.currFileName,
+                                                 line, name);
         } else {
-            // TODO: error ???
-            // TODO: verify the type of the index
-            variable = std::make_shared<ArrayAccess>(
-                name,
-                type_system::make_type<type_system::Primitive>(
-                    type_system::NIL),
-                index);
+            type::Type *index_type = get_evaluated_type(index);
+            bool index_is_int =
+                index_type->kind == type::TypeKind::Primitive &&
+                index_type->value.primitive == type::PrimitiveType::Int;
+            if (!index_is_int) {
+                // TODO: error: invalid index type
+            }
         }
-        return variable;
+        return index_expr;
     }
 
   public:
-    template <typename OperatorType>
-    std::shared_ptr<TypedNode>
-    newArithmeticOperator(std::shared_ptr<TypedNode> lhs,
-                          std::shared_ptr<TypedNode> rhs, size_t line,
-                          std::string const &operatorName) {
+    node::Node *newArithmeticOperator(node::Node *lhs, node::Node *rhs,
+                                      node::ArithmeticOperationKind kind,
+                                      size_t line,
+                                      std::string const &operatorName) {
         // TODO: if one of the operands is an undefined function (None type),
         // make the verification in post process
-        if (!isNumber(lhs->type) || !isNumber(rhs->type)) {
-            errorsManager_.addOperatorError(programBuilder_.currFileName(),
-                                            line, operatorName);
+        if (!type::is_number(get_evaluated_type(lhs)) ||
+            !type::is_number(get_evaluated_type(rhs))) {
+            errorsManager_.addOperatorError(programBuilder_.currFileName, line,
+                                            operatorName);
         }
-        return std::make_shared<OperatorType>(lhs, rhs);
+        return node::create_arithmetic_operation(LOCATION, kind, lhs, rhs);
     }
 
   public:
     // TODO: move out of the class
-    type_system::types_t getFunctionCallParametersTypes(
-        std::list<std::shared_ptr<TypedNode>> const &nodes) {
-        type_system::types_t parametersTypes = {};
-
-        std::transform(
-            nodes.cbegin(), nodes.cend(),
-            std::back_insert_iterator<type_system::types_t>(parametersTypes),
-            [](auto elt) { return elt->type; });
-        return parametersTypes;
-    }
+    // type_system::types_t
+    // getFunctionCallParametersTypes(std::list<node::TypedNode> *const &nodes)
+    // {
+    //     type_system::types_t parametersTypes = {};
+    //
+    //     std::transform(
+    //         nodes.cbegin(), nodes.cend(),
+    //         std::back_insert_iterator<type_system::types_t>(parametersTypes),
+    //         [](auto elt) { return elt->type; });
+    //     return parametersTypes;
+    // }
 
     // TODO: refactor this function
     void verifyFunctionCallType(std::string const &functionName,
-                                std::shared_ptr<FunctionCall> functionCall,
+                                node::FunctionCall *functionCall,
                                 std::string const &fileName, size_t line) {
         auto sym = contextManager_.lookup(functionName);
 
-        if (sym.has_value()) {
-            // get the found return type (types of the parameters)
-            type_system::types_t foundArgumentsTypes =
-                getFunctionCallParametersTypes(functionCall->parameters);
-            type_system::types_t expectedArgumentsTypes =
-                std::dynamic_pointer_cast<type_system::Function>(
-                    sym.value().getType())
-                    ->argumentsTypes;
+        if (sym) {
+            if (sym->type->kind != type::TypeKind::Function) {
+                std::cerr << "error: " << sym->id << " used as a function."
+                          << std::endl;
+            }
+            auto function_type = sym->type->value.function;
 
-            if (!checkParametersTypes(*this, expectedArgumentsTypes,
-                                      foundArgumentsTypes)) {
-                errorsManager_.addFuncallTypeError(fileName, line, functionName,
-                                                   expectedArgumentsTypes,
-                                                   foundArgumentsTypes);
+            if (function_type->arguments_types.size() !=
+                functionCall->arguments.size()) {
+                std::cerr << "error: wrong number of parameters." << std::endl;
+            }
+
+            auto arg = functionCall->arguments.begin();
+            auto expected_type = function_type->arguments_types.begin();
+            for (; expected_type != function_type->arguments_types.end();) {
+                if (type::type_is_convertible(get_evaluated_type(*arg++),
+                                              *expected_type++)) {
+                    // TODO: improve this error message
+                    std::cerr << "error: no matching function call to "
+                              << functionName << "." << std::endl;
+                }
             }
         } else {
             errorsManager_.addUndefinedSymbolError(fileName, line,
@@ -235,152 +233,143 @@ class S3C {
         }
     }
 
-    std::shared_ptr<TypedNode> newFunctionCall(std::string const &functionName,
-                                               size_t line) {
+    node::Node *newFunctionCall(std::string const &functionName, size_t line) {
         // TODO: we need a none type as if the function is not defined, we
         // cannot get the return type (should be verified afterward)
-        std::shared_ptr<FunctionCall> funcall;
-        if (std::optional<Symbol> symbol =
-                contextManager_.lookup(functionName)) {
-            funcall = programBuilder_.createFuncall(
-                symbol.value().getType()->getEvaluatedType());
-        } else {
-            funcall = programBuilder_.createFuncall();
-        }
+        auto *funcall = node::create_function_call(LOCATION, functionName, {});
+
         // setup type verification
-        std::string file = programBuilder_.currFileName();
+        std::string file = programBuilder_.currFileName;
         postProcessVerifications_.push_back([=]() {
-            verifyFunctionCallType(functionName, funcall, file, line);
+            verifyFunctionCallType(functionName, funcall->value.function_call,
+                                   file, line);
         });
         return funcall;
     }
 
   public:
-    void newVariableDeclaration(std::string variableName,
-                                type_system::type_t type, size_t line) {
-        // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol =
-                contextManager_.lookup(variableName)) {
-            errorsManager_.addMultipleDefinitionError(
-                programBuilder_.currFileName(), line, variableName);
-        }
-        contextManager_.newSymbol(variableName, type, LOCAL_VAR);
-        programBuilder_.pushBlock(
-            std::make_shared<Declaration>(Variable(variableName, type)));
-    }
+    void newVariableDeclaration(std::string variableName, type::Type *type,
+                                size_t line) {
+        auto symbol = contextManager_.currentScope->symbols.find(variableName);
 
-    void newArrayDeclaration(std::string variableName, type_system::type_t type,
-                             size_t size, size_t line) {
         // redefinitions are not allowed:
-        if (std::optional<Symbol> symbol =
-                contextManager_.lookup(variableName)) {
+        if (symbol != contextManager_.currentScope->symbols.end()) {
             errorsManager_.addMultipleDefinitionError(
-                programBuilder_.currFileName(), line, variableName);
+                programBuilder_.currFileName, line, variableName);
         }
-        contextManager_.newSymbol(variableName, type, size, LOCAL_ARRAY);
+        contextManager_.newSymbol(variableName, type);
         programBuilder_.pushBlock(
-            std::make_shared<ArrayDeclaration>(variableName, size, type));
+            node::create_variable_definition(LOCATION, variableName));
     }
 
   public:
-    void verifyAssignmentType(std::shared_ptr<Assignment> assignment,
-                              std::shared_ptr<FunctionCall> expr,
+    void verifyAssignmentType(node::Assignment *assignment,
+                              node::FunctionCall *expr,
                               std::string const &fileName, size_t line) {
-        if (auto functionCallSymbol =
-                contextManager_.lookup(expr->functionName)) {
-            checkType(*this, fileName, line, assignment->variable->id,
-                      assignment->variable->type,
-                      functionCallSymbol->getType()->getEvaluatedType());
+        Symbol *variable_symbol = nullptr;
+
+        if (assignment->target->kind == node::NodeKind::VariableReference) {
+            variable_symbol = contextManager_.lookup(
+                assignment->target->value.variable_reference->name);
+        } else if (assignment->target->kind ==
+                   node::NodeKind::IndexExpression) {
+            variable_symbol = contextManager_.lookup(
+                get_lvalue_identifier(assignment->target));
+            // TODO: the error message inside get_indexed_identifier should here
         } else {
-            errorsManager_.addUndefinedSymbolError(fileName, line,
-                                                   expr->functionName);
+            std::cerr << "error: try to assign invalid expression."
+                      << std::endl;
+        }
+
+        if (auto functionCallSymbol = contextManager_.lookup(expr->name)) {
+            if (!type::type_is_convertible(functionCallSymbol->type,
+                                           variable_symbol->type)) {
+                std::cerr << "error: bad assignment TODO: better message"
+                          << std::endl;
+            }
+        } else {
+            errorsManager_.addUndefinedSymbolError(fileName, line, expr->name);
         }
     }
 
-    void newAssignment(std::shared_ptr<Variable> variable,
-                       std::shared_ptr<TypedNode> expr, size_t line) {
-        auto icType = expr->type;
-        auto newAssignment = std::make_shared<Assignment>(variable, expr);
+    void newAssignment(node::Node *target, node::Node *expr,
+                       size_t line) {
+        auto icType = get_evaluated_type(expr);
+        auto newAssignment =
+            node::create_assignment(LOCATION, target, expr);
+        auto variable_name = get_lvalue_identifier(target);
+        auto symbol = contextManager_.lookup(variable_name);
 
-        if (auto functionCall = std::dynamic_pointer_cast<FunctionCall>(expr)) {
+        if (!symbol) {
+            std::cerr << "error: use of undefined variable " << variable_name
+                      << std::endl;
+            return;
+        }
+
+        if (expr->kind == node::NodeKind::FunctionCall) {
             // this is a funcall so we have to wait the end of the parsing to
             // check (this is due to the fact that a function can be used before
             // it's defined).
             postProcessVerifications_.push_back([=]() {
-                verifyAssignmentType(newAssignment, functionCall,
-                                     programBuilder_.currFileName(), line);
+                verifyAssignmentType(newAssignment->value.assignment,
+                                     expr->value.function_call,
+                                     programBuilder_.currFileName, line);
             });
-        } else {
-            checkType(*this, programBuilder_.currFileName(), line, variable->id,
-                      variable->type, icType->getEvaluatedType());
+        } else if (!type::type_is_convertible(icType, symbol->type)) {
+            std::cerr << "error: invalid assignment" << std::endl;
         }
         programBuilder_.pushBlock(newAssignment);
         // TODO: check the type for strings -> array of char
     }
 
   public:
-    std::shared_ptr<Value> newInt(long long intValue) {
-        type_system::LiteralValue value = {._int = intValue};
-        return std::make_shared<Value>(
-            value,
-            type_system::make_type<type_system::Primitive>(type_system::INT));
-    }
-
-    std::shared_ptr<Value> newFlt(double fltValue) {
-        type_system::LiteralValue value = {._flt = fltValue};
-        return std::make_shared<Value>(
-            value,
-            type_system::make_type<type_system::Primitive>(type_system::FLT));
-    }
-
-    std::shared_ptr<Value> newChr(char chrValue) {
-        type_system::LiteralValue value = {._chr = chrValue};
-        return std::make_shared<Value>(
-            value,
-            type_system::make_type<type_system::Primitive>(type_system::CHR));
-    }
-
-    std::shared_ptr<Value> newStr(std::string const &strValue, size_t line) {
-        type_system::LiteralValue value = {0};
-        if (strValue.size() > MAX_LITERAL_STRING_LENGTH) {
-            errorsManager_.addLiteralStringOverflowError(
-                programBuilder_.currFileName(), line);
-            return nullptr;
-        }
-        memcpy(value._str, strValue.c_str(), strValue.size());
-        return std::make_shared<Value>(
-            value, type_system::make_type<type_system::Primitive>(
-                       type_system::STR, strValue.size()));
-    }
-
-  public:
-    std::shared_ptr<For> newFor(std::string const &variableName,
-                                std::shared_ptr<TypedNode> begin,
-                                std::shared_ptr<TypedNode> end,
-                                std::shared_ptr<TypedNode> step,
-                                std::shared_ptr<Block> block, size_t line) {
-        Variable variable(
-            variableName,
-            type_system::make_type<type_system::Primitive>(type_system::NIL));
-        type_system::type_t type;
-
-        if (isDefined(*this, programBuilder_.currFileName(), line, variableName,
-                      type)) {
-            variable.type = type;
-            checkType(*this, programBuilder_.currFileName(), line,
-                      "RANGE_BEGIN", type, begin->type->getEvaluatedType());
-            checkType(*this, programBuilder_.currFileName(), line, "RANGE_END",
-                      type, end->type->getEvaluatedType());
-            checkType(*this, programBuilder_.currFileName(), line, "RANGE_STEP",
-                      type, step->type->getEvaluatedType());
-        }
+    node::Node *newFor(std::string const &index_id, node::Node *begin,
+                          node::Node *end, node::Node *step, node::Block *block,
+                          size_t line) {
+        std::cerr << "TODO: verify rng types" << std::endl;
+        // Variable variable(
+        //     variableName,
+        //     type_system::make_type<type_system::Primitive>(type_system::NIL));
+        // type::Type *type;
+        //
+        // if (isDefined(*this, programBuilder_.currFileName(), line,
+        // variableName,
+        //               type)) {
+        //     variable.type = type;
+        //     checkType(*this, programBuilder_.currFileName(), line,
+        //               "RANGE_BEGIN", type, begin->type->getEvaluatedType());
+        //     checkType(*this, programBuilder_.currFileName(), line,
+        //     "RANGE_END",
+        //               type, end->type->getEvaluatedType());
+        //     checkType(*this, programBuilder_.currFileName(), line,
+        //     "RANGE_STEP",
+        //               type, step->type->getEvaluatedType());
+        // }
         contextManager_.leaveScope();
-        return programBuilder_.createFor(variable, begin, end, step, block);
+        return node::create_for_stmt(LOCATION, index_id, begin, end, step,
+                                     block);
+    }
+
+    type::Type *get_evaluated_type(node::Node *node) {
+        // TODO
+        std::cerr << "TODO: implemente get_evaluated_type" << std::endl;
+        return nullptr;
+    }
+
+    std::string get_lvalue_identifier(node::Node *target) {
+        if (target->kind == node::NodeKind::VariableReference) {
+            return target->value.variable_reference->name;
+        } else if (target->kind == node::NodeKind::IndexExpression) {
+            return get_lvalue_identifier(target->value.index_expression->index);
+        } else {
+            std::cerr << "error: the target node is not an lvalue" << std::endl;
+        }
+        return "";
     }
 
   private:
     ProgramBuilder programBuilder_;
-    Symtable symtable_;
+    SymbolTable symtable_;
     ContextManager contextManager_;
     ErrorManager errorsManager_;
 
