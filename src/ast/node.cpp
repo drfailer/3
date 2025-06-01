@@ -46,12 +46,11 @@ Node *create_assignment(Location location, Node *target, Node *value) {
     return new_node(Assignment, assignment, target, value);
 }
 
-Node *create_index_expression(Location location, std::string const &id,
-                              Node *index) {
-    return new_node(IndexExpression, index_expression, id, index);
+Node *create_index_expression(Location location, Node *element, Node *index) {
+    return new_node(IndexExpression, index_expression, element, index);
 }
 
-Node *create_function_definition(Location location, std::string &name,
+Node *create_function_definition(Location location, std::string const &name,
                                  std::list<std::string> &&arguments,
                                  Block *block) {
     return new_node(FunctionDefinition, function_definition, name, arguments,

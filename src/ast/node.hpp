@@ -47,7 +47,7 @@ struct Value {
         char character;
         long integer;
         double real;
-        const char* string;
+        const char *string;
     } value;
 };
 Node *create_value(Location location, char character);
@@ -69,22 +69,20 @@ struct Assignment {
     Node *target;
     Node *value;
 };
-Node *create_assignment(Location location, Node *target,
-                        Node *value);
+Node *create_assignment(Location location, Node *target, Node *value);
 
 struct IndexExpression {
-    std::string id;
+    Node *element;
     Node *index;
 };
-Node *create_index_expression(Location location, std::string const &id,
-                              Node *index);
+Node *create_index_expression(Location location, Node *element, Node *index);
 
 struct FunctionDefinition {
     std::string name;
     std::list<std::string> arguments;
     Block *block;
 };
-Node *create_function_definition(Location location, std::string &name,
+Node *create_function_definition(Location location, std::string const &name,
                                  std::list<std::string> &&arguments,
                                  Block *block);
 
@@ -100,8 +98,8 @@ struct CndStmt {
     Block *block;
     Node *else_expression;
 };
-Node *create_cnd_stmt(Location location, Node *condition, Block *block, Node
-        *else_expression = nullptr);
+Node *create_cnd_stmt(Location location, Node *condition, Block *block,
+                      Node *else_expression = nullptr);
 
 struct WhlStmt {
     Node *condition;
