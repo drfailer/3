@@ -2,12 +2,12 @@
 
 void ContextManager::enterScope() {
     auto newScope = new SymbolTable();
-    newScope->scope = currentScope;
+    newScope->parent = currentScope;
     currentScope->childs_scopes.push_back(newScope);
     currentScope = newScope;
 }
 
-void ContextManager::leaveScope() { currentScope = currentScope->scope; }
+void ContextManager::leaveScope() { currentScope = currentScope->parent; }
 
 void ContextManager::newSymbol(std::string const &id, type::Type *type) {
     currentScope->symbols.insert({id, Symbol{

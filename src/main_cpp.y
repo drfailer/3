@@ -487,7 +487,7 @@ void compile(std::string fileName, std::string outputName) {
     // if no errors, transpile the file
     if (!s3c.errorsManager().getErrors()) {
         std::ofstream fs(outputName);
-        std::cerr << "TODO: REWRITE THE COMPILE :D" << std::endl;
+        std::cerr << "TODO: REWRITE THE COMPILER :D" << std::endl;
         makeExecutable(outputName);
     }
 

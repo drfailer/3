@@ -6,11 +6,11 @@
 #include <vector>
 
 struct SymbolTable {
-    SymbolTable *scope;
+    SymbolTable *parent;
     std::map<std::string, Symbol> symbols;
     std::vector<SymbolTable*> childs_scopes;
 };
 
-Symbol *lookup(SymbolTable const *table, std::string const &id);
+Symbol *lookup(SymbolTable *table, std::string const &id);
 
 #endif

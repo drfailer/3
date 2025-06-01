@@ -61,17 +61,8 @@ class S3C {
         }
         contextManager_.newGlobalSymbol(
             programBuilder_.currFunctionName,
-            new type::Type{
-                .kind = type::TypeKind::Function,
-                .value{
-                    .function =
-                        new type::FunctionType{
-                            .id = programBuilder_.currFunctionName,
-                            .return_type = returnType,
-                            .arguments_types = arguments_types,
-                        },
-                },
-            });
+            type::create_function_type(programBuilder_.currFunctionName,
+                                       returnType, std::move(arguments_types)));
     }
 
     void endFunctionDefintion(std::string const &name, node::Block *body) {
@@ -94,7 +85,7 @@ class S3C {
         auto expectedType = sym->type;
 
         if (foundType->kind == type::TypeKind::Nil) {
-            std::cout << "ERROR: none type found" << std::endl;
+            std::cerr << "ERROR: none type found" << std::endl;
             throw std::runtime_error("error: not implemented");
         }
 
@@ -292,11 +283,9 @@ class S3C {
         }
     }
 
-    void newAssignment(node::Node *target, node::Node *expr,
-                       size_t line) {
+    void newAssignment(node::Node *target, node::Node *expr, size_t line) {
         auto icType = get_evaluated_type(expr);
-        auto newAssignment =
-            node::create_assignment(LOCATION, target, expr);
+        auto newAssignment = node::create_assignment(LOCATION, target, expr);
         auto variable_name = get_lvalue_identifier(target);
         auto symbol = contextManager_.lookup(variable_name);
 
@@ -324,8 +313,8 @@ class S3C {
 
   public:
     node::Node *newFor(std::string const &index_id, node::Node *begin,
-                          node::Node *end, node::Node *step, node::Block *block,
-                          size_t line) {
+                       node::Node *end, node::Node *step, node::Block *block,
+                       size_t line) {
         std::cerr << "TODO: verify rng types" << std::endl;
         // Variable variable(
         //     variableName,
