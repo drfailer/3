@@ -229,7 +229,7 @@ class S3C {
             auto arg = functionCall->arguments.begin();
             auto expected_type = function_type->arguments_types.begin();
             for (; expected_type != function_type->arguments_types.end();) {
-                if (type::type_is_convertible(get_evaluated_type(*arg++, scope),
+                if (!type::type_is_convertible(get_evaluated_type(*arg++, scope),
                                               *expected_type++)) {
                     // TODO: improve this error message
                     std::cerr << "error: no matching function call to "
