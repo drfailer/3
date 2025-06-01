@@ -122,6 +122,7 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
+        std::cout << "new param type: " << type::type_to_string($t) << std::endl;
         s3c.newParameterDeclaration($2, $t);
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {

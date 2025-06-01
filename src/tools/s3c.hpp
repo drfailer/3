@@ -48,9 +48,11 @@ class S3C {
         std::list<type::Type *> arguments_types;
 
         for (auto arg_id : programBuilder_.currFunctionParameters) {
+            std::cout << arg_id << std::endl;
             auto symbol = contextManager_.lookup(arg_id);
 
             if (symbol) {
+                std::cout << type::type_to_string(symbol->type) << std::endl;
                 arguments_types.push_back(symbol->type);
             } else {
                 // this should never happen
@@ -81,7 +83,7 @@ class S3C {
     void newReturnExpression(node::Node *expr, size_t line) {
         std::ostringstream oss;
         Symbol *sym = contextManager_.lookup(programBuilder_.currFunctionName);
-        auto foundType = get_evaluated_type(expr);
+        auto foundType = get_evaluated_type(expr, contextManager_.currentScope);
         auto expectedType = sym->type;
 
         if (foundType->kind == type::TypeKind::Nil) {
@@ -114,15 +116,16 @@ class S3C {
             expr->value.value->kind == node::ValueKind::String) {
             // TODO: create a clean quote function
             programBuilder_.pushBlock(expr);
-        } else if (get_evaluated_type(expr)->kind ==
-                   type::TypeKind::Primitive) {
+        } else if (get_evaluated_type(expr, contextManager_.currentScope)
+                       ->kind == type::TypeKind::Primitive) {
             programBuilder_.pushBlock(node::create_builtin_function(
                 LOCATION, node::BuiltinFunctionKind::Shw, expr));
         } else {
             // TODO: this is error is not very clear (note that the syntax is
             // not strong ehough on the shw function)
             errorsManager_.addBadUsageOfShwError(
-                programBuilder_.currFileName, line, get_evaluated_type(expr));
+                programBuilder_.currFileName, line,
+                get_evaluated_type(expr, contextManager_.currentScope));
         }
     }
 
@@ -139,8 +142,9 @@ class S3C {
 
     node::Node *newArrayVariable(std::string const &name, size_t line,
                                  node::Node *index) {
-        node::Node *index_expr =
-            node::create_index_expression(LOCATION, name, index);
+        auto variable = node::create_variable_reference(LOCATION, name);
+        auto index_expr =
+            node::create_index_expression(LOCATION, variable, index);
         auto sym = contextManager_.lookup(name);
 
         if (!sym) {
@@ -150,7 +154,8 @@ class S3C {
             errorsManager_.addBadArrayUsageError(programBuilder_.currFileName,
                                                  line, name);
         } else {
-            type::Type *index_type = get_evaluated_type(index);
+            type::Type *index_type =
+                get_evaluated_type(index, contextManager_.currentScope);
             bool index_is_int =
                 index_type->kind == type::TypeKind::Primitive &&
                 index_type->value.primitive == type::PrimitiveType::Int;
@@ -168,8 +173,10 @@ class S3C {
                                       std::string const &operatorName) {
         // TODO: if one of the operands is an undefined function (None type),
         // make the verification in post process
-        if (!type::is_number(get_evaluated_type(lhs)) ||
-            !type::is_number(get_evaluated_type(rhs))) {
+        if (!type::is_number(
+                get_evaluated_type(lhs, contextManager_.currentScope)) ||
+            !type::is_number(
+                get_evaluated_type(rhs, contextManager_.currentScope))) {
             errorsManager_.addOperatorError(programBuilder_.currFileName, line,
                                             operatorName);
         }
@@ -193,7 +200,9 @@ class S3C {
     // TODO: refactor this function
     void verifyFunctionCallType(std::string const &functionName,
                                 node::FunctionCall *functionCall,
-                                std::string const &fileName, size_t line) {
+                                SymbolTable *scope, std::string const &fileName,
+                                size_t line) {
+        contextManager_.currentScope = scope;
         auto sym = contextManager_.lookup(functionName);
 
         if (sym) {
@@ -205,13 +214,22 @@ class S3C {
 
             if (function_type->arguments_types.size() !=
                 functionCall->arguments.size()) {
-                std::cerr << "error: wrong number of parameters." << std::endl;
+                std::cerr << "error: wrong number of arguments for '"
+                          << functionName << "'." << std::endl;
+                std::cerr << "expecte type: " << type::type_to_string(sym->type)
+                          << std::endl;
+                std::cerr << "found " << std::endl;
+                for (auto arg : functionCall->arguments) {
+                    std::cout << "arg node kind: " << (int)arg->kind
+                              << std::endl;
+                }
+                return; // TODO: we should returh a status
             }
 
             auto arg = functionCall->arguments.begin();
             auto expected_type = function_type->arguments_types.begin();
             for (; expected_type != function_type->arguments_types.end();) {
-                if (type::type_is_convertible(get_evaluated_type(*arg++),
+                if (type::type_is_convertible(get_evaluated_type(*arg++, scope),
                                               *expected_type++)) {
                     // TODO: improve this error message
                     std::cerr << "error: no matching function call to "
@@ -227,13 +245,14 @@ class S3C {
     node::Node *newFunctionCall(std::string const &functionName, size_t line) {
         // TODO: we need a none type as if the function is not defined, we
         // cannot get the return type (should be verified afterward)
-        auto *funcall = node::create_function_call(LOCATION, functionName, {});
+        auto *funcall = programBuilder_.createFuncall();
 
         // setup type verification
         std::string file = programBuilder_.currFileName;
+        auto scope = contextManager_.currentScope;
         postProcessVerifications_.push_back([=]() {
             verifyFunctionCallType(functionName, funcall->value.function_call,
-                                   file, line);
+                                   scope, file, line);
         });
         return funcall;
     }
@@ -284,7 +303,7 @@ class S3C {
     }
 
     void newAssignment(node::Node *target, node::Node *expr, size_t line) {
-        auto icType = get_evaluated_type(expr);
+        auto icType = get_evaluated_type(expr, contextManager_.currentScope);
         auto newAssignment = node::create_assignment(LOCATION, target, expr);
         auto variable_name = get_lvalue_identifier(target);
         auto symbol = contextManager_.lookup(variable_name);
@@ -339,10 +358,71 @@ class S3C {
                                      block);
     }
 
-    type::Type *get_evaluated_type(node::Node *node) {
-        // TODO
-        std::cerr << "TODO: implemente get_evaluated_type" << std::endl;
-        return nullptr;
+    type::Type *get_evaluated_type(node::Node *node, SymbolTable *scope) {
+        std::cout << (int)node->kind << std::endl;
+        switch (node->kind) {
+        case node::NodeKind::Value:
+            switch (node->value.value->kind) {
+            case node::ValueKind::Character:
+                return type::create_primitive_type(type::PrimitiveType::Chr);
+            case node::ValueKind::Integer:
+                return type::create_primitive_type(type::PrimitiveType::Int);
+            case node::ValueKind::Real:
+                return type::create_primitive_type(type::PrimitiveType::Flt);
+            case node::ValueKind::String:
+                return type::create_primitive_type(type::PrimitiveType::Str);
+            }
+            break;
+        case node::NodeKind::VariableReference: {
+            auto id = get_lvalue_identifier(node);
+            auto symbol = lookup(scope, id);
+            return symbol->type;
+        } break;
+        case node::NodeKind::IndexExpression: {
+            return get_evaluated_type(node->value.index_expression->element,
+                                      contextManager_.currentScope);
+        } break;
+        case node::NodeKind::ArithmeticOperation: {
+            auto lhs_type =
+                get_evaluated_type(node->value.arithmetic_operation->lhs,
+                                   contextManager_.currentScope);
+            auto rhs_type =
+                get_evaluated_type(node->value.arithmetic_operation->rhs,
+                                   contextManager_.currentScope);
+
+            std::cout << type::type_to_string(lhs_type) << std::endl;
+            std::cout << type::type_to_string(rhs_type) << std::endl;
+
+            if (lhs_type->kind != type::TypeKind::Primitive ||
+                rhs_type->kind != type::TypeKind::Primitive) {
+                std::cerr << "error: cannot use arithmetic operator on a non "
+                             "primitive type."
+                          << std::endl;
+                return nullptr;
+            }
+            // Flt > Int so if one operand is of type Flt, the evaluated type is
+            // Flt and not Int.
+            if (lhs_type->value.primitive == type::PrimitiveType::Flt) {
+                return lhs_type;
+            }
+            return rhs_type;
+        } break;
+        case node::NodeKind::BooleanOperation:
+            // TODO: write dedicated function for boolean operations
+            std::cerr
+                << "TODO: IMPLEMENT GET_EVALUATED_TYPE for BOOLEANOPERATION"
+                << std::endl;
+            break;
+        case node::NodeKind::FunctionCall: {
+            auto id = node->value.function_call->name;
+            auto symbol = lookup(scope, id);
+            return symbol->type->value.function->return_type;
+        } break;
+        default:
+            std::cerr << "error: the given node is not evaluable." << std::endl;
+            break;
+        }
+        return type::create_nil_type();
     }
 
     std::string get_lvalue_identifier(node::Node *target) {
