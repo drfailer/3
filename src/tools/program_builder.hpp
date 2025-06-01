@@ -21,7 +21,7 @@ struct ProgramBuilder {
 
     /* create functions *******************************************************/
 
-    node::FunctionCall *createFuncall();
+    node::Node *createFuncall();
     node::CndStmt *createCnd(node::Node *condition, node::Block *block);
     node::ForStmt *createFor(std::string const index_id, node::Node *start,
                              node::Node *end, node::Node *step,

@@ -70,14 +70,12 @@ node::WhlStmt *ProgramBuilder::createWhl(node::Node *condition,
 /*                                  funcalls                                  */
 /******************************************************************************/
 
-node::FunctionCall *ProgramBuilder::createFuncall() {
-    auto newFuncall = new node::FunctionCall{
-        .name = funcallIds.back(),
-        .arguments = functionCallsParameters.back(),
-    };
+node::Node *ProgramBuilder::createFuncall() {
+    auto args = functionCallsParameters.back();
+    auto funcall = node::create_function_call({}, funcallIds.back(), std::move(args));
     funcallIds.pop_back();
     functionCallsParameters.pop_back();
-    return newFuncall;
+    return funcall;
 }
 
 void ProgramBuilder::newFuncall(std::string const &name) {
@@ -87,17 +85,9 @@ void ProgramBuilder::newFuncall(std::string const &name) {
 
 void ProgramBuilder::createFunction(std::string const &name,
                                     node::Block *block) {
-    auto function = new node::FunctionDefinition{
-        .name = name,
-        .arguments = currFunctionParameters,
-        .block = block,
-    };
-    program.push_back(new node::Node{
-        .location = {},
-        .kind = node::NodeKind::FunctionDefinition,
-        .value = {.function_definition = function},
-    });
-    currFunctionParameters.clear();
+    program.push_back(node::create_function_definition(
+        {}, name, std::move(currFunctionParameters), block));
+    currFunctionParameters = std::list<std::string>();
 }
 
 void ProgramBuilder::pushFuncallParam(node::Node *arg) {
