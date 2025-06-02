@@ -12,7 +12,7 @@ syn keyword Loops whl for rng
 hi link Loops Repeat
 
 " types
-syn keyword Types nil int flt chr
+syn keyword Types nil int flt chr str
 hi link Types Type
 
 " operators
