@@ -65,7 +65,7 @@ void Preprocessor::process_rec(std::string fileName) {
                 outputFile << "-->" << fileName << "-" << (lineCount - 1)
                            << std::endl;
             }
-            outputFile << "# " << line << std::endl;
+            outputFile << "~~~ " << line << std::endl;
         } else {
             // put the line in the output file
             outputFile << line << std::endl;
