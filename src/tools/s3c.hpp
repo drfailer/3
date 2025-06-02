@@ -48,11 +48,9 @@ class S3C {
         std::list<type::Type *> arguments_types;
 
         for (auto arg_id : programBuilder_.currFunctionParameters) {
-            std::cout << arg_id << std::endl;
             auto symbol = contextManager_.lookup(arg_id);
 
             if (symbol) {
-                std::cout << type::type_to_string(symbol->type) << std::endl;
                 arguments_types.push_back(symbol->type);
             } else {
                 // this should never happen
@@ -219,18 +217,14 @@ class S3C {
                 std::cerr << "expecte type: " << type::type_to_string(sym->type)
                           << std::endl;
                 std::cerr << "found " << std::endl;
-                for (auto arg : functionCall->arguments) {
-                    std::cout << "arg node kind: " << (int)arg->kind
-                              << std::endl;
-                }
                 return; // TODO: we should returh a status
             }
 
             auto arg = functionCall->arguments.begin();
             auto expected_type = function_type->arguments_types.begin();
             for (; expected_type != function_type->arguments_types.end();) {
-                if (!type::type_is_convertible(get_evaluated_type(*arg++, scope),
-                                              *expected_type++)) {
+                if (!type::type_is_convertible(
+                        get_evaluated_type(*arg++, scope), *expected_type++)) {
                     // TODO: improve this error message
                     std::cerr << "error: no matching function call to "
                               << functionName << "." << std::endl;
@@ -292,8 +286,9 @@ class S3C {
         }
 
         if (auto functionCallSymbol = contextManager_.lookup(expr->name)) {
-            if (!type::type_is_convertible(functionCallSymbol->type,
-                                           variable_symbol->type)) {
+            if (!type::type_is_convertible(
+                    functionCallSymbol->type->value.function->return_type,
+                    variable_symbol->type)) {
                 std::cerr << "error: bad assignment TODO: better message"
                           << std::endl;
             }
@@ -359,7 +354,6 @@ class S3C {
     }
 
     type::Type *get_evaluated_type(node::Node *node, SymbolTable *scope) {
-        std::cout << (int)node->kind << std::endl;
         switch (node->kind) {
         case node::NodeKind::Value:
             switch (node->value.value->kind) {
@@ -389,9 +383,6 @@ class S3C {
             auto rhs_type =
                 get_evaluated_type(node->value.arithmetic_operation->rhs,
                                    contextManager_.currentScope);
-
-            std::cout << type::type_to_string(lhs_type) << std::endl;
-            std::cout << type::type_to_string(rhs_type) << std::endl;
 
             if (lhs_type->kind != type::TypeKind::Primitive ||
                 rhs_type->kind != type::TypeKind::Primitive) {

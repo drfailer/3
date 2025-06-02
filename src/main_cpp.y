@@ -53,7 +53,7 @@
 %token <double>     FLT
 %token <char>       CHR
 %token NIL
-%token INTT FLTT CHRT
+%token INTT FLTT CHRT STRT
 %token CND OTW FOR WHL
 %token COMMA OSQUAREB CSQUAREB
 %token SHW IPT ADD SUB MUL DIV RNG SET
@@ -122,7 +122,6 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        std::cout << "new param type: " << type::type_to_string($t) << std::endl;
         s3c.newParameterDeclaration($2, $t);
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
@@ -152,7 +151,9 @@ type:
     }
     | CHRT {
         $$ = type::create_primitive_type(type::PrimitiveType::Chr);
-        // TODO: Str
+    }
+    | STRT {
+        $$ =  type::create_primitive_type(type::PrimitiveType::Str);
     }
     ;
 

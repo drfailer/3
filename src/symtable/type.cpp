@@ -69,8 +69,10 @@ bool type_is_convertible(Type *from, Type *to) {
                                    to->value.array->type);
     } else if (from->kind == TypeKind::Primitive) {
         // TODO: this should require type cast
-        return from->value.primitive != PrimitiveType::Str &&
-               to->value.primitive != PrimitiveType::Str;
+        if (from->value.primitive != PrimitiveType::Str) {
+            return to->value.primitive != PrimitiveType::Str;
+        }
+        return true;
     }
     return false;
 }

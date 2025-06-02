@@ -29,6 +29,7 @@ file -->.+-{digit}+\n
 int          { DEBUG("L_nbrt"); return Parser::token::INTT; }
 flt          { DEBUG("L_fltt"); return Parser::token::FLTT; }
 chr          { DEBUG("L_chrt"); return Parser::token::CHRT; }
+str          { DEBUG("L_strt"); return Parser::token::STRT; }
 cnd          { DEBUG("L_cnd"); return Parser::token::CND; }
 otw          { DEBUG("L_otw"); return Parser::token::OTW; }
 whl          { DEBUG("L_whl"); return Parser::token::WHL; }
