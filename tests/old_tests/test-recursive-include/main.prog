@@ -17,5 +17,5 @@ fn main() {
   print("main\n");
   test_same();
   test_sub();
-  set(c, add('a', 'b'));
+  mov(c, add('a', 'b'));
 }

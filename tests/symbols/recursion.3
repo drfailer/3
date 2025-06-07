@@ -13,10 +13,10 @@ end
 nil fonc2(chr msg[100]) bgn
   int i
 
-  set(i, 0)
+  mov(i, 0)
   whl not(eql(msg[i], 0)) bgn
     shw(msg[i])
-    set(i, add(i, 1))
+    mov(i, add(i, 1))
   end
 end
 

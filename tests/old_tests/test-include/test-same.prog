@@ -11,11 +11,11 @@ fn test_same() {
   chr c;
   flt f;
 
-  set(c, 34);
-  set(f[0], 23);
+  mov(c, 34);
+  mov(f[0], 23);
   print("test_same\n");
   print(add(2, 'a'));
   test_errors_call("this should work: ", 3);
 # test_errors_call("this should work: ", '1');
-  set(f, test_errors_call("this should raise a warning: ", 3));
+  mov(f, test_errors_call("this should raise a warning: ", 3));
 }

@@ -5,7 +5,7 @@ end
 
 int foo(int a) bgn
   flt b
-  set(b, mul(1.3, a))
+  mov(b, mul(1.3, a))
   ret b ~~~ warning: wrong return type (warning because flt castable to int)
 end
 
@@ -13,10 +13,10 @@ end
 nil main_() bgn
   int a
   chr c
-  set(a, 'a') ~~~ warning: a is of type int (warning because chr castable to int)
-  set(b, 5) ~~~ error: undefined symbol b
-  set(c, foo(4)) ~~~ warning: foo returns an int and expected a char
-  set(c, foo(4, 3)) ~~~ error: wrong arguments for foo
+  mov(a, 'a') ~~~ warning: a is of type int (warning because chr castable to int)
+  mov(b, 5) ~~~ error: undefined symbol b
+  mov(c, foo(4)) ~~~ warning: foo returns an int and expected a char
+  mov(c, foo(4, 3)) ~~~ error: wrong arguments for foo
 
   fuction(a, b) ~~~ error: undefined symbol
 end

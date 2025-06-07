@@ -26,32 +26,39 @@ comment \~\~\~.*$
 file -->.+-{digit}+\n
 
 %%
-int          { DEBUG("L_nbrt"); return Parser::token::INTT; }
+int          { DEBUG("L_intt"); return Parser::token::INTT; }
 flt          { DEBUG("L_fltt"); return Parser::token::FLTT; }
 chr          { DEBUG("L_chrt"); return Parser::token::CHRT; }
 str          { DEBUG("L_strt"); return Parser::token::STRT; }
+
 cnd          { DEBUG("L_cnd"); return Parser::token::CND; }
 otw          { DEBUG("L_otw"); return Parser::token::OTW; }
 whl          { DEBUG("L_whl"); return Parser::token::WHL; }
 for          { DEBUG("L_for"); return Parser::token::FOR; }
+
 shw          { DEBUG("L_shw"); return Parser::token::SHW; }
 ipt          { DEBUG("L_ipt"); return Parser::token::IPT; }
+
 add          { DEBUG("L_add"); return Parser::token::ADD; }
 sub          { DEBUG("L_sub"); return Parser::token::SUB; }
 mul          { DEBUG("L_mul"); return Parser::token::MUL; }
 div          { DEBUG("L_div"); return Parser::token::DIV; }
+
 eql          { DEBUG("L_eql"); return Parser::token::EQL; }
 sup          { DEBUG("L_sup"); return Parser::token::SUP; }
 inf          { DEBUG("L_inf"); return Parser::token::INF; }
 seq          { DEBUG("L_seq"); return Parser::token::SEQ; }
 ieq          { DEBUG("L_ieq"); return Parser::token::IEQ; }
+
 and          { DEBUG("L_and"); return Parser::token::AND; }
 lor          { DEBUG("L_lor"); return Parser::token::LOR; }
 xor          { DEBUG("L_xor"); return Parser::token::XOR; }
 not          { DEBUG("L_not"); return Parser::token::NOT; }
-set          { DEBUG("L_set"); return Parser::token::SET; }
+
 rng          { DEBUG("L_rng"); return Parser::token::RNG; }
+mov          { DEBUG("L_mov"); return Parser::token::MOV; }
 ret          { DEBUG("L_ret"); return Parser::token::RET; }
+
 bgn          { DEBUG("L_bng"); return Parser::token::BGN; }
 end          { DEBUG("L_bng"); return Parser::token::END; }
 "["          { DEBUG("L_osquareb"); return Parser::token::OSQUAREB; }

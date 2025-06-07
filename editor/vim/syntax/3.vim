@@ -16,7 +16,7 @@ syn keyword Types nil int flt chr str
 hi link Types Type
 
 " operators
-syn keyword Operators set add mns tms div lor xor and eql ieq seq sup inf
+syn keyword Operators mov add mns tms div lor xor and eql ieq seq sup inf
 hi link Operators Operator
 
 " string

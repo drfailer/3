@@ -106,7 +106,7 @@ test_arrays() {
 #                                   builtins                                   #
 ################################################################################
 
-test_set() {
+test_mov() {
     echo "running test on set"
 
     $S3C ./builtins/set.3

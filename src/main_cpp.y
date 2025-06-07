@@ -56,7 +56,7 @@
 %token INTT FLTT CHRT STRT
 %token CND OTW FOR WHL
 %token COMMA OSQUAREB CSQUAREB
-%token SHW IPT ADD SUB MUL DIV RNG SET
+%token SHW IPT ADD SUB MUL DIV RNG MOV
 %token EQL SUP INF SEQ IEQ AND LOR XOR NOT
 %token <std::string> IDENTIFIER
 %token <std::string> STRING
@@ -103,6 +103,7 @@ returnTypeSpecifier:
 
 functionDefinition:
     returnTypeSpecifier[rt] IDENTIFIER[name] {
+        // TODO: function declaration
         if (!s3c.newFunctionDefinition($name, @name.begin.line)) {
             return 1;
         }
@@ -326,7 +327,7 @@ variableDeclaration:
     ;
 
 assignment:
-    SET'('variable[var] COMMA expression[expr]')' {
+    MOV'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
         s3c.newAssignment($var, $expr, @var.begin.line);
         // TODO: free var memory

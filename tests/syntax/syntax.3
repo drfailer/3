@@ -10,7 +10,7 @@ end
 nil test_2(int a, flt b, chr c) bgn
   shw(c);
   ipt(a);
-  set(b, test_1(a));
+  mov(b, test_1(a));
 end
 
 int test_3(int a) bgn
@@ -24,14 +24,14 @@ end
 ~~~ fonction main
 nil main(int p1, flt p2, chr p3) bgn
   int a;
-  set(a, 4);
+  mov(a, 4);
   myFun(a, b, 5, 'a');
   flt b;
-  set(b, 4.0);
-  set(b, add(add(2,2), 4));
-  set(b, add(2, add(5,6)));
-  set(b, add(sub(3, mul(3, fonction(a))), add(5,6)));
-  set(b, myfun(sub(3, mul(3, fonction(sub(4,6)))), add(5,6)));
+  mov(b, 4.0);
+  mov(b, add(add(2,2), 4));
+  mov(b, add(2, add(5,6)));
+  mov(b, add(sub(3, mul(3, fonction(a))), add(5,6)));
+  mov(b, myfun(sub(3, mul(3, fonction(sub(4,6)))), add(5,6)));
 
   myFun(a, b, fonction(a, b), 4);
   myFun(a, b, fonction(a, add(3,4)), mul(2,2));
@@ -40,25 +40,25 @@ nil main(int p1, flt p2, chr p3) bgn
 
   cnd and(sup(a, b), or(eql(a, 0), ieq(add(a, b), 4))) bgn
     chr c;
-    set(c, 'a');
+    mov(c, 'a');
   end
 
   cnd and(eql(a, b), or(eql(a, 0), seq(add(a, b), 4))) bgn
     ~~~ comment in cnd
     chr c;
-    set(c, 'a');
+    mov(c, 'a');
   end
   otw bgn
     flt f;
-    set(f, div(3,4));
+    mov(f, div(3,4));
   end
 
   whl (and(eql(a, 4), eql(fonc(a, 5), 5))) bgn
-    set(f, div(3,4));
+    mov(f, div(3,4));
   end
 
   for a rng(1, 10, fonc(a)) bgn
-    set(a, add(a, 1));
+    mov(a, add(a, 1));
   end
 
   ~~~ affichage

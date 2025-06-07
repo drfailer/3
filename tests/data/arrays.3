@@ -12,7 +12,7 @@ nil main() bgn
   chr c
 
   ~~~ test assignment to string
-  set(string, "hello")
+  mov(string, "hello")
 
   shw(string)
   shw("\n")
@@ -20,12 +20,12 @@ nil main() bgn
   test("hello")
 
   for b rng(0, 5, 1) bgn
-    set(a[b], b)
+    mov(a[b], b)
   end
-  set(a[4], 97)
+  mov(a[4], 97)
 
   ~~~ test assignment to c
-  set(c, a[4])
+  mov(c, a[4])
   shw(c)
   shw("\n")
   for b rng(0, 5, 1) bgn

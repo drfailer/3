@@ -7,17 +7,17 @@ nil main() bgn
   flt b
   int c
 
-  set(a, add(1, 2.2))
-  set(b, sub(13, 5.2))
+  mov(a, add(1, 2.2))
+  mov(b, sub(13, 5.2))
   shw("a: ")
   shw(a)
   shw("\nb: ")
   shw(b)
-  set(c, b)
-  set(a, add3(a, c, 9))
+  mov(c, b)
+  mov(a, add3(a, c, 9))
   shw("\na: ")
   shw(a)
-  set(a, add3(-4 , sub(c, add(div(c, 4), 9)), mul(3, div(3, 3))))
+  mov(a, add3(-4 , sub(c, add(div(c, 4), 9)), mul(3, div(3, 3))))
   shw("\na: ")
   shw(a)
   shw("\n")
