@@ -6,6 +6,7 @@
 #include "symtable/type.hpp"
 #include "tools/errors_manager.hpp"
 #include "tools/program_builder.hpp"
+#include "type_utilities.hpp"
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -14,6 +15,7 @@
 
 class S3C {
   public:
+    // TODO: create a global state that will replace these classes
     ProgramBuilder &programBuilder() { return programBuilder_; }
     SymbolTable &symtable() { return symtable_; }
     ContextManager &contextManager() { return contextManager_; }
@@ -77,31 +79,32 @@ class S3C {
     }
 
   public:
-    // TODO: we need a function that finds the type of an node
     void newReturnExpression(node::Node *expr, size_t line) {
         std::ostringstream oss;
         Symbol *sym = contextManager_.lookup(programBuilder_.currFunctionName);
-        auto foundType = get_evaluated_type(expr, contextManager_.currentScope);
+        auto foundType = get_eval_type(expr, contextManager_.currentScope);
         auto expectedType = sym->type;
 
-        if (foundType->kind == type::TypeKind::Nil) {
-            std::cerr << "ERROR: none type found" << std::endl;
-            throw std::runtime_error("error: not implemented");
+        if (foundType.status != eval_type_r::Success) {
+            // TODO: print error
+            return;
         }
 
         if (expectedType->kind == type::TypeKind::Nil) { // no return allowed
             errorsManager_.addUnexpectedReturnError(
                 programBuilder_.currFileName, line,
                 programBuilder_.currFunctionName);
-        } else if (type::type_equal(foundType, expectedType)) {
-            if (type::type_is_convertible(expectedType, foundType)) {
+        } else if (type::type_equal(foundType.type, expectedType)) {
+            if (type::type_is_convertible(expectedType, foundType.type)) {
                 errorsManager_.addReturnTypeWarning(
                     programBuilder_.currFileName, line,
-                    programBuilder_.currFunctionName, foundType, sym->type);
+                    programBuilder_.currFunctionName, foundType.type,
+                    sym->type);
             } else {
                 errorsManager_.addReturnTypeError(
                     programBuilder_.currFileName, line,
-                    programBuilder_.currFunctionName, foundType, sym->type);
+                    programBuilder_.currFunctionName, foundType.type,
+                    sym->type);
             }
         }
         // else verify the type and throw a warning
@@ -110,12 +113,13 @@ class S3C {
 
   public:
     void newShw(node::Node *expr, size_t line) {
+        // TODO: check get_eval_type status
         if (expr->kind == node::NodeKind::Value &&
             expr->value.value->kind == node::ValueKind::String) {
             // TODO: create a clean quote function
             programBuilder_.pushBlock(expr);
-        } else if (get_evaluated_type(expr, contextManager_.currentScope)
-                       ->kind == type::TypeKind::Primitive) {
+        } else if (get_eval_type(expr, contextManager_.currentScope)
+                       .type->kind == type::TypeKind::Primitive) {
             programBuilder_.pushBlock(node::create_builtin_function(
                 LOCATION, node::BuiltinFunctionKind::Shw, expr));
         } else {
@@ -123,7 +127,7 @@ class S3C {
             // not strong ehough on the shw function)
             errorsManager_.addBadUsageOfShwError(
                 programBuilder_.currFileName, line,
-                get_evaluated_type(expr, contextManager_.currentScope));
+                get_eval_type(expr, contextManager_.currentScope).type);
         }
     }
 
@@ -152,8 +156,9 @@ class S3C {
             errorsManager_.addBadArrayUsageError(programBuilder_.currFileName,
                                                  line, name);
         } else {
+            // TODO: check get_eval_type status
             type::Type *index_type =
-                get_evaluated_type(index, contextManager_.currentScope);
+                get_eval_type(index, contextManager_.currentScope).type;
             bool index_is_int =
                 index_type->kind == type::TypeKind::Primitive &&
                 index_type->value.primitive == type::PrimitiveType::Int;
@@ -172,9 +177,9 @@ class S3C {
         // TODO: if one of the operands is an undefined function (None type),
         // make the verification in post process
         if (!type::is_number(
-                get_evaluated_type(lhs, contextManager_.currentScope)) ||
+                get_eval_type(lhs, contextManager_.currentScope).type) ||
             !type::is_number(
-                get_evaluated_type(rhs, contextManager_.currentScope))) {
+                get_eval_type(rhs, contextManager_.currentScope).type)) {
             errorsManager_.addOperatorError(programBuilder_.currFileName, line,
                                             operatorName);
         }
@@ -182,19 +187,6 @@ class S3C {
     }
 
   public:
-    // TODO: move out of the class
-    // type_system::types_t
-    // getFunctionCallParametersTypes(std::list<node::TypedNode> *const &nodes)
-    // {
-    //     type_system::types_t parametersTypes = {};
-    //
-    //     std::transform(
-    //         nodes.cbegin(), nodes.cend(),
-    //         std::back_insert_iterator<type_system::types_t>(parametersTypes),
-    //         [](auto elt) { return elt->type; });
-    //     return parametersTypes;
-    // }
-
     // TODO: refactor this function
     void verifyFunctionCallType(std::string const &functionName,
                                 node::FunctionCall *functionCall,
@@ -224,7 +216,7 @@ class S3C {
             auto expected_type = function_type->arguments_types.begin();
             for (; expected_type != function_type->arguments_types.end();) {
                 if (!type::type_is_convertible(
-                        get_evaluated_type(*arg++, scope), *expected_type++)) {
+                        get_eval_type(*arg++, scope).type, *expected_type++)) {
                     // TODO: improve this error message
                     std::cerr << "error: no matching function call to "
                               << functionName << "." << std::endl;
@@ -298,7 +290,7 @@ class S3C {
     }
 
     void newAssignment(node::Node *target, node::Node *expr, size_t line) {
-        auto icType = get_evaluated_type(expr, contextManager_.currentScope);
+        auto icType = get_eval_type(expr, contextManager_.currentScope);
         auto newAssignment = node::create_assignment(LOCATION, target, expr);
         auto variable_name = get_lvalue_identifier(target);
         auto symbol = contextManager_.lookup(variable_name);
@@ -318,7 +310,7 @@ class S3C {
                                      expr->value.function_call,
                                      programBuilder_.currFileName, line);
             });
-        } else if (!type::type_is_convertible(icType, symbol->type)) {
+        } else if (!type::type_is_convertible(icType.type, symbol->type)) {
             std::cerr << "error: invalid assignment" << std::endl;
         }
         programBuilder_.pushBlock(newAssignment);
@@ -330,101 +322,37 @@ class S3C {
                        node::Node *end, node::Node *step, node::Block *block,
                        size_t line) {
         std::cerr << "TODO: verify rng types" << std::endl;
-        // Variable variable(
-        //     variableName,
-        //     type_system::make_type<type_system::Primitive>(type_system::NIL));
-        // type::Type *type;
-        //
-        // if (isDefined(*this, programBuilder_.currFileName(), line,
-        // variableName,
-        //               type)) {
-        //     variable.type = type;
-        //     checkType(*this, programBuilder_.currFileName(), line,
-        //               "RANGE_BEGIN", type, begin->type->getEvaluatedType());
-        //     checkType(*this, programBuilder_.currFileName(), line,
-        //     "RANGE_END",
-        //               type, end->type->getEvaluatedType());
-        //     checkType(*this, programBuilder_.currFileName(), line,
-        //     "RANGE_STEP",
-        //               type, step->type->getEvaluatedType());
-        // }
+        auto begin_type = get_eval_type(begin, contextManager_.currentScope);
+        auto end_type = get_eval_type(end, contextManager_.currentScope);
+        auto step_type = get_eval_type(step, contextManager_.currentScope);
+        type::Type *index_type = nullptr;
+
+        if (begin_type.status != eval_type_r::Success ||
+            !type::is_number(begin_type.type)) {
+            // TODO: print error
+            return nullptr;
+        }
+        index_type = begin_type.type;
+
+        if (end_type.status != eval_type_r::Success ||
+            type::is_number(end_type.type)) {
+            // TODO: print error
+            return nullptr;
+        } else if (end_type.type->value.primitive == type::PrimitiveType::Flt) {
+            index_type = end_type.type;
+        }
+
+        if (step_type.status != eval_type_r::Success ||
+            type::is_number(step_type.type)) {
+            // TODO: print error
+            return nullptr;
+        } else if (end_type.type->value.primitive == type::PrimitiveType::Flt) {
+            index_type = step_type.type;
+        }
+        contextManager_.newGlobalSymbol(index_id, index_type);
         contextManager_.leaveScope();
         return node::create_for_stmt(LOCATION, index_id, begin, end, step,
                                      block);
-    }
-
-    type::Type *get_evaluated_type(node::Node *node, SymbolTable *scope) {
-        switch (node->kind) {
-        case node::NodeKind::Value:
-            switch (node->value.value->kind) {
-            case node::ValueKind::Character:
-                return type::create_primitive_type(type::PrimitiveType::Chr);
-            case node::ValueKind::Integer:
-                return type::create_primitive_type(type::PrimitiveType::Int);
-            case node::ValueKind::Real:
-                return type::create_primitive_type(type::PrimitiveType::Flt);
-            case node::ValueKind::String:
-                return type::create_primitive_type(type::PrimitiveType::Str);
-            }
-            break;
-        case node::NodeKind::VariableReference: {
-            auto id = get_lvalue_identifier(node);
-            auto symbol = lookup(scope, id);
-            return symbol->type;
-        } break;
-        case node::NodeKind::IndexExpression: {
-            return get_evaluated_type(node->value.index_expression->element,
-                                      contextManager_.currentScope);
-        } break;
-        case node::NodeKind::ArithmeticOperation: {
-            auto lhs_type =
-                get_evaluated_type(node->value.arithmetic_operation->lhs,
-                                   contextManager_.currentScope);
-            auto rhs_type =
-                get_evaluated_type(node->value.arithmetic_operation->rhs,
-                                   contextManager_.currentScope);
-
-            if (lhs_type->kind != type::TypeKind::Primitive ||
-                rhs_type->kind != type::TypeKind::Primitive) {
-                std::cerr << "error: cannot use arithmetic operator on a non "
-                             "primitive type."
-                          << std::endl;
-                return nullptr;
-            }
-            // Flt > Int so if one operand is of type Flt, the evaluated type is
-            // Flt and not Int.
-            if (lhs_type->value.primitive == type::PrimitiveType::Flt) {
-                return lhs_type;
-            }
-            return rhs_type;
-        } break;
-        case node::NodeKind::BooleanOperation:
-            // TODO: write dedicated function for boolean operations
-            std::cerr
-                << "TODO: IMPLEMENT GET_EVALUATED_TYPE for BOOLEANOPERATION"
-                << std::endl;
-            break;
-        case node::NodeKind::FunctionCall: {
-            auto id = node->value.function_call->name;
-            auto symbol = lookup(scope, id);
-            return symbol->type->value.function->return_type;
-        } break;
-        default:
-            std::cerr << "error: the given node is not evaluable." << std::endl;
-            break;
-        }
-        return type::create_nil_type();
-    }
-
-    std::string get_lvalue_identifier(node::Node *target) {
-        if (target->kind == node::NodeKind::VariableReference) {
-            return target->value.variable_reference->name;
-        } else if (target->kind == node::NodeKind::IndexExpression) {
-            return get_lvalue_identifier(target->value.index_expression->index);
-        } else {
-            std::cerr << "error: the target node is not an lvalue" << std::endl;
-        }
-        return "";
     }
 
   private:

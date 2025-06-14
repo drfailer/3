@@ -31,6 +31,7 @@ set(files
     src/tools/context_manager.cpp
     src/tools/errors_manager.cpp
     src/tools/program_builder.cpp
+    src/tools/type_utilities.cpp
     src/symtable/symbol_table.cpp
     src/symtable/type.cpp
 )
