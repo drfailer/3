@@ -8,9 +8,10 @@
 struct SymbolTable {
     SymbolTable *parent;
     std::map<std::string, Symbol> symbols;
-    std::vector<SymbolTable*> childs_scopes;
+    std::vector<SymbolTable *> childs_scopes;
 };
 
+void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type);
 Symbol *lookup(SymbolTable *table, std::string const &id);
 
 #endif
