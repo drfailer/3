@@ -1,9 +1,9 @@
 #ifndef TOOLS_S3C_H
 #define TOOLS_S3C_H
-#include "ast/node.hpp"
-#include "symtable/symbol_table.hpp"
-#include "symtable/type.hpp"
-#include "type_utilities.hpp"
+#include "tree/node.hpp"
+#include "symbol_table.hpp"
+#include "type/type.hpp"
+#include "tools/type_utilities.hpp"
 #include <cstring>
 #include <functional>
 #include <iostream>

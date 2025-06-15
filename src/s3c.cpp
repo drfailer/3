@@ -1,5 +1,5 @@
 #include "s3c.hpp"
-#include "symtable/symbol_table.hpp"
+#include "symbol_table.hpp"
 
 namespace s3c {
 

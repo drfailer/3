@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <sstream>
 #include "tools/messages.hpp"
-#include "tools/s3c.hpp"
+#include "s3c.hpp"
 #include "preprocessor/preprocessor.hpp"
 #define YYLOCATION_PRINT   location_print
 #define YYDEBUG 1
@@ -33,8 +33,8 @@
 
 %code requires
 {
-    #include "ast/node.hpp"
-    #include "tools/s3c.hpp"
+    #include "tree/node.hpp"
+    #include "s3c.hpp"
     namespace interpreter {
         class Scanner;
     }

@@ -1,8 +1,8 @@
 #ifndef TOOLS_TYPE_UTILITIES
 #define TOOLS_TYPE_UTILITIES
-#include "../ast/node.hpp"
-#include "../symtable/symbol_table.hpp"
-#include "../symtable/type.hpp"
+#include "../tree/node.hpp"
+#include "../symbol_table.hpp"
+#include "../type/type.hpp"
 
 std::string get_lvalue_identifier(node::Node *target);
 
