@@ -6,8 +6,8 @@
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
-#include "tools/program_builder.hpp"
-#include "tools/errors_manager.hpp"
+#include <sstream>
+#include "tools/messages.hpp"
 #include "tools/s3c.hpp"
 #include "preprocessor/preprocessor.hpp"
 #define YYLOCATION_PRINT   location_print
@@ -29,7 +29,7 @@
 %define api.namespace {interpreter}
 %define api.value.type variant
 %locations
-%parse-param {Scanner* scanner} {S3C &s3c}
+%parse-param {Scanner* scanner} {s3c::State *state}
 
 %code requires
 {
@@ -68,6 +68,7 @@
 
 %nterm <type::Type*> type
 %nterm <type::Type*> returnTypeSpecifier
+%nterm <node::Node*> parameterDeclaration
 %nterm <node::Node*> value
 %nterm <node::Node*> expression
 %nterm <node::Node*> variable
@@ -89,7 +90,7 @@ program: %empty | programUnit program ;
 
 programUnit:
     functionDefinition { DEBUG("create new function" ); }
-    | PREPROCESSOR_LOCATION { s3c.programBuilder().setCurrFileName($1); }
+    | PREPROCESSOR_LOCATION { s3c::enter_file(state, $1); }
     ;
 
 returnTypeSpecifier:
@@ -104,13 +105,13 @@ returnTypeSpecifier:
 functionDefinition:
     returnTypeSpecifier[rt] IDENTIFIER[name] {
         // TODO: function declaration
-        if (!s3c.newFunctionDefinition($name, @name.begin.line)) {
+        if (!s3c::new_function_definition(state, $name, @name.begin.line)) {
             return 1;
         }
     } '('parameterDeclarationList')' {
-        s3c.setFunctionType($rt);
-    } block[ops] {
-        s3c.endFunctionDefintion($name, $ops);
+        s3c::set_curr_function_type(state, $rt);
+    } block[body] {
+        s3c::add_function_definition(state, $name, $body, @name.begin.line);
     }
     ;
 
@@ -123,11 +124,12 @@ parameterDeclarationList:
 parameterDeclaration:
     type[t] IDENTIFIER {
         DEBUG("new param: " << $2);
-        s3c.newParameterDeclaration($2, $t);
+        $$ = s3c::new_argument_declaration(state, $2, $t, @2.begin.line);
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
         DEBUG("new param: " << $2);
-        s3c.newParameterDeclaration($2, type::create_static_array_type($t, $size));
+        $$ = s3c::new_argument_declaration(state, $2,
+            type::create_static_array_type($t, $size), @2.begin.line);
     }
     ;
 
@@ -139,7 +141,7 @@ parameterList:
 
 parameter:
     expression {
-        s3c.programBuilder().pushFuncallParam($1);
+        s3c::save_function_call_argument(state, $1);
     }
     ;
 
@@ -160,10 +162,10 @@ type:
 
 block:
     BGN {
-        s3c.programBuilder().beginBlock();
+        s3c::begin_block(state);
     } code END {
         DEBUG("new block");
-        $$ = s3c.programBuilder().endBlock();
+        $$ = s3c::end_block(state);
     }
     ;
 
@@ -172,7 +174,7 @@ code:
     | statement code
     | instruction code
     | RET expression[rs] {
-        s3c.newReturnExpression($rs, @1.begin.line);
+        s3c::new_return_expr(state, $rs, @1.begin.line);
     }
     ;
 
@@ -181,15 +183,15 @@ instruction:
     | ipt
     | variableDeclaration
     | assignment
-    | functionCall { s3c.programBuilder().pushBlock($1); }
+    | functionCall { s3c::add_instruction(state, $1); }
     ;
 
 ipt:
     IPT'('variable[c]')' {
         DEBUG("ipt var");
-        s3c.programBuilder().pushBlock(
+        s3c::add_instruction(state,
             node::create_builtin_function(
-                create_location(s3c.programBuilder().currFileName, @c.begin.line),
+                create_location(state->curr_filename, @c.begin.line),
                 node::BuiltinFunctionKind::Ipt, $c));
     }
     ;
@@ -197,7 +199,7 @@ ipt:
 shw:
     SHW'('expression[ic]')' {
         DEBUG("shw var");
-        s3c.newShw($ic, @ic.begin.line);
+        s3c::new_shw(state, $ic, @ic.begin.line);
     }
     ;
 
@@ -211,33 +213,33 @@ expression:
 variable:
     IDENTIFIER {
         DEBUG("new param variable");
-        $$ = s3c.newVariable($1, @1.begin.line);
+        $$ = s3c::new_variable(state, $1, @1.begin.line);
     }
     | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
         DEBUG("using an array");
-        $$ = s3c.newArrayVariable($1, @1.begin.line, $index);
+        $$ = s3c::new_index_expr(state, $1, @1.begin.line, $index);
     }
     ;
 
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
-        $$ = s3c.newArithmeticOperator($left, $right,
+        $$ = s3c::new_arithmetic_operation(state, $left, $right,
             node::ArithmeticOperationKind::Add, @1.begin.line, "add");
     }
     | SUB'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
-        $$ = s3c.newArithmeticOperator($left, $right,
+        $$ = s3c::new_arithmetic_operation(state, $left, $right,
             node::ArithmeticOperationKind::Sub, @1.begin.line, "sub");
     }
     | MUL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
-        $$ = s3c.newArithmeticOperator($left, $right,
+        $$ = s3c::new_arithmetic_operation(state, $left, $right,
             node::ArithmeticOperationKind::Mul, @1.begin.line, "mul");
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
-        $$ = s3c.newArithmeticOperator($left, $right,
+        $$ = s3c::new_arithmetic_operation(state, $left, $right,
             node::ArithmeticOperationKind::Div, @1.begin.line, "div");
     }
     ;
@@ -247,81 +249,81 @@ booleanOperation:
         DEBUG("EqlOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Eql, $lhs, $rhs);
     }
     | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SupOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Sup, $lhs, $rhs);
     }
     | INF'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("InfOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Inf, $lhs, $rhs);
     }
     | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SeqOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Seq, $lhs, $rhs);
     }
     | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("IeqOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Ieq, $lhs, $rhs);
     }
     | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("AndOP");
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::And, $lhs, $rhs);
     }
     | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("LorOP");
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Lor, $lhs, $rhs);
     }
     | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("XorOP");
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Xor, $lhs, $rhs);
     }
     | NOT'('booleanOperation[op]')' {
         DEBUG("NotOP");
         $$ = node::create_boolean_operation(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Not, $op, nullptr);
     }
     ;
 
 functionCall:
     IDENTIFIER'(' {
-        s3c.programBuilder().newFuncall($1);
+        s3c::begin_new_funcall(state, $1);
     }
     parameterList')' {
         DEBUG("new funcall: " << $1);
-        $$ = s3c.newFunctionCall($1, @1.begin.line);
+        $$ = s3c::new_function_call(state, $1, @1.begin.line);
     }
     ;
 
 variableDeclaration:
     type[t] IDENTIFIER[name] {
         DEBUG("new declaration: " << $name);
-        s3c.newVariableDeclaration($name, $t, @name.begin.line);
+        s3c::new_variable_declaration(state, $name, $t, @name.begin.line);
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
-        s3c.newVariableDeclaration($name,
+        s3c::new_variable_declaration(state, $name,
             type::create_static_array_type($t, $size), @name.begin.line);
     }
     ;
@@ -329,7 +331,7 @@ variableDeclaration:
 assignment:
     MOV'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
-        s3c.newAssignment($var, $expr, @var.begin.line);
+        s3c::new_assignment(state, $var, $expr, @var.begin.line);
         // TODO: free var memory
     }
     ;
@@ -338,25 +340,25 @@ value:
     INT {
         DEBUG("new int: " << $1);
         $$ = node::create_value(
-            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            create_location(state->curr_function.name, @1.begin.line),
             (long)$1);
     }
     | FLT {
         DEBUG("new double: " << $1);
         $$ = node::create_value(
-            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            create_location(state->curr_function.name, @1.begin.line),
             $1);
     }
     | CHR {
         DEBUG("new char: " << $1);
         $$ = node::create_value(
-            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            create_location(state->curr_function.name, @1.begin.line),
             $1);
     }
     | STRING {
         DEBUG("new str: " << $1);
         $$ = node::create_value(
-            create_location(s3c.programBuilder().currFunctionName, @1.begin.line),
+            create_location(state->curr_function.name, @1.begin.line),
             $1);
     }
     ;
@@ -364,15 +366,15 @@ value:
 statement:
     cnd {
         DEBUG("new if");
-        s3c.programBuilder().pushBlock($1);
+        s3c::add_instruction(state, $1);
     }
     | for {
         DEBUG("new for");
-        s3c.programBuilder().pushBlock($1);
+        s3c::add_instruction(state, $1);
     }
     | whl {
         DEBUG("new whl");
-        s3c.programBuilder().pushBlock($1);
+        s3c::add_instruction(state, $1);
     }
     ;
 
@@ -382,68 +384,68 @@ cnd:
     }
     | cndBase[cndb] OTW {
         DEBUG("els");
-        s3c.contextManager().enterScope();
+        s3c::enter_scope(state);
     } block[ops] {
         auto ifstmt = $cndb;
         // adding else block
         ifstmt->value.cnd_stmt->else_expression = node::create_block(
             ifstmt->location, $ops);
         $$ = ifstmt;
-        s3c.contextManager().leaveScope();
+        s3c::leave_scope(state);
     }
     ;
 
 cndBase:
     CND booleanOperation[cond] {
-        s3c.contextManager().enterScope();
+        s3c::enter_scope(state);
     } block[ops] {
         DEBUG("if");
         $$ = node::create_cnd_stmt(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             $cond, $ops);
-        s3c.contextManager().leaveScope();
+        s3c::leave_scope(state);
     }
     ;
 
 for:
     FOR IDENTIFIER[v] RNG'('expression[b] COMMA expression[e] COMMA expression[s]')' {
-        s3c.contextManager().enterScope();
+        s3c::enter_scope(state);
     } block[ops] {
         DEBUG("in for");
-        $$ = s3c.newFor($v, $b, $e, $s, $ops, @v.begin.line);
+        $$ = s3c::new_for(state, $v, $b, $e, $s, $ops, @v.begin.line);
     }
     ;
 
 whl:
     WHL booleanOperation[cond] {
-        s3c.contextManager().enterScope();
+        s3c::enter_scope(state);
     } block[ops] {
         DEBUG("in whl");
         $$ = node::create_whl_stmt(
-            create_location(s3c.programBuilder().currFileName, @1.begin.line),
+            create_location(state->curr_filename, @1.begin.line),
             $cond, $ops);
-        s3c.contextManager().leaveScope();
+        s3c::leave_scope(state);
     }
     ;
 %%
 
 void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
-    oss << s3c.programBuilder().currFileName << ":" << loc.begin.line << ": " << msg << "." << std::endl;
-    s3c.errorsManager().addError(oss.str());
+    oss << state->curr_filename << ":" << loc.begin.line << ": " << msg << "." << std::endl;
+    msg::error(oss.str());
 }
 
 /* Run interactive parser. It was used during the beginning of the project. */
 void cli() {
-    S3C s3c;
+    s3c::State state;
     interpreter::Scanner scanner{ std::cin, std::cerr };
-    interpreter::Parser parser{ &scanner, s3c };
-    s3c.contextManager().enterScope();
+    interpreter::Parser parser{ &scanner, &state };
+    s3c::enter_scope(&state);
     parser.parse();
-    s3c.errorsManager().report();
-    if (!s3c.errorsManager().getErrors()) {
-        s3c.programBuilder().display();
-    }
+    // TODO s3c.errorsManager().report();
+    // if (!s3c.errorsManager().getErrors()) {
+    //     TODO s3c.programBuilder().display();
+    // }
 }
 
 /* add execution rights to the result file */
@@ -455,44 +457,44 @@ void makeExecutable(std::string file) {
             std::filesystem::perm_options::add);
 }
 
-void compile(std::string fileName, std::string outputName) {
+void compile(std::string filename, std::string outputName) {
     int parserOutput;
     int preprocessorErrorStatus = 0;
 
-    S3C s3c;
+    s3c::State state;
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
-    s3c.programBuilder().setCurrFileName(fileName);
-    s3c.contextManager().enterScope(); // update the scope
+    s3c::enter_file(&state, filename);
+    s3c::enter_scope(&state);
 
     try {
-        pp.process(fileName); // launch the preprocessor
+        pp.process(filename); // launch the preprocessor
     } catch (std::logic_error& e) {
-        s3c.errorsManager().addError(e.what());
+        msg::error(e.what());
         preprocessorErrorStatus = 1;
     }
 
     // open and parse the file
     std::ifstream is(PREPROCESSOR_OUTPUT_FILE, std::ios::in); // parse the preprocessed file
     interpreter::Scanner scanner{ is , std::cerr };
-    interpreter::Parser parser{ &scanner, s3c };
+    interpreter::Parser parser{ &scanner, &state };
     parserOutput = parser.parse();
-    s3c.runPostProcessVerifications();
+    s3c::post_process(&state);
 
     // look for main
-    auto sym = s3c.contextManager().lookup("main");
+    auto sym = lookup(state.scopes.global, "main");
     if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym) {
-        s3c.errorsManager().addNoEntryPointError();
+        // TODO s3c.errorsManager().addNoEntryPointError();
     }
     // report errors and warnings
-    s3c.errorsManager().report();
+    // TODO s3c.errorsManager().report();
 
     // if no errors, transpile the file
-    if (!s3c.errorsManager().getErrors()) {
+    // if (!s3c.errorsManager().getErrors()) {
         std::ofstream fs(outputName);
         std::cerr << "TODO: REWRITE THE COMPILER :D" << std::endl;
         makeExecutable(outputName);
-    }
+    // }
 
     // remove the preprocessor output file
     if (REMOVE_PREPROCESSOR_FILE) {
