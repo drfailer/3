@@ -51,14 +51,14 @@ Node *create_index_expression(Location location, Node *element, Node *index) {
 }
 
 Node *create_function_definition(Location location, std::string const &name,
-                                 std::list<std::string> &&arguments,
-                                 Block *block) {
+                                 std::list<Node *> const &arguments,
+                                 Block *body) {
     return new_node(FunctionDefinition, function_definition, name, arguments,
-                    block);
+                    body);
 }
 
 Node *create_function_call(Location location, std::string const &name,
-                           std::list<Node *> &&arguments) {
+                           std::list<Node *> const &arguments) {
     return new_node(FunctionCall, function_call, name, arguments);
 }
 
@@ -71,9 +71,9 @@ Node *create_whl_stmt(Location location, Node *condition, Block *block) {
     return new_node(WhlStmt, whl_stmt, condition, block);
 }
 
-Node *create_for_stmt(Location location, std::string const &id, Node *start,
-                      Node *end, Node *step, Block *block) {
-    return new_node(ForStmt, for_stmt, id, start, end, step, block);
+Node *create_for_stmt(Location location, Node *index, Node *start, Node *end,
+                      Node *step, Block *block) {
+    return new_node(ForStmt, for_stmt, index, start, end, step, block);
 }
 
 Node *create_ret_stmt(Location location, Node *expression) {

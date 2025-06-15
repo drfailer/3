@@ -79,19 +79,19 @@ Node *create_index_expression(Location location, Node *element, Node *index);
 
 struct FunctionDefinition {
     std::string name;
-    std::list<std::string> arguments;
-    Block *block;
+    std::list<Node *> arguments;
+    Block *body;
 };
 Node *create_function_definition(Location location, std::string const &name,
-                                 std::list<std::string> &&arguments,
-                                 Block *block);
+                                 std::list<Node *> const &arguments,
+                                 Block *body);
 
 struct FunctionCall {
     std::string name;
     std::list<Node *> arguments;
 };
 Node *create_function_call(Location location, std::string const &name,
-                           std::list<Node *> &&arguments);
+                           std::list<Node *> const &arguments);
 
 struct CndStmt {
     Node *condition;
@@ -108,14 +108,14 @@ struct WhlStmt {
 Node *create_whl_stmt(Location location, Node *condition, Block *block);
 
 struct ForStmt {
-    std::string index_id;
+    Node *index;
     Node *start;
     Node *end;
     Node *step;
     Block *block;
 };
-Node *create_for_stmt(Location location, std::string const &id, Node *start,
-                      Node *end, Node *step, Block *block);
+Node *create_for_stmt(Location location, Node *index, Node *start, Node *end,
+                      Node *step, Block *block);
 
 struct RetStmt {
     Node *expression;
