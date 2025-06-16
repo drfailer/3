@@ -20,6 +20,7 @@ struct SymbolTable {
     std::vector<SymbolTable *> childs_scopes;
 };
 
+SymbolTable *symbol_table_create(SymbolTable *parent);
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type);
 Symbol *lookup(SymbolTable *table, std::string const &id);
 

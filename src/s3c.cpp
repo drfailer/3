@@ -3,6 +3,14 @@
 
 namespace s3c {
 
+State *state_create() {
+    auto *state = new State();
+    auto *scope = symbol_table_create(nullptr);
+    state->scopes.global = scope;
+    state->scopes.curr = scope;
+    return state;
+}
+
 void post_process(State *state) {
     for (auto callback : state->post_process_callbacks) {
         callback();
@@ -33,8 +41,7 @@ void enter_function(State *state, std::string const &function_name) {
 }
 
 void enter_scope(State *state) {
-    auto scope = new SymbolTable();
-    scope->parent = state->scopes.curr;
+    auto scope = symbol_table_create(state->scopes.curr);
     state->scopes.curr->childs_scopes.push_back(scope);
     state->scopes.curr = scope;
 }

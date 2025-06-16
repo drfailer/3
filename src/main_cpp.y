@@ -436,15 +436,16 @@ void parser::Parser::error(const location_type& loc, const std::string& msg) {
 
 /* Run interactive parser. It was used during the beginning of the project. */
 void cli() {
-    s3c::State state;
+    s3c::State *state = s3c::state_create();
     parser::Scanner scanner{ std::cin, std::cerr };
-    parser::Parser parser{ &scanner, &state };
-    s3c::enter_scope(&state);
+    parser::Parser parser{ &scanner, state };
+    s3c::enter_scope(state);
     parser.parse();
     // TODO s3c.errorsManager().report();
     // if (!s3c.errorsManager().getErrors()) {
     //     TODO s3c.programBuilder().display();
     // }
+    delete state;
 }
 
 /* add execution rights to the result file */
@@ -460,11 +461,11 @@ void compile(std::string filename, std::string outputName) {
     int parserOutput;
     int preprocessorErrorStatus = 0;
 
-    s3c::State state;
+    s3c::State *state = s3c::state_create();
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
-    s3c::enter_file(&state, filename);
-    s3c::enter_scope(&state);
+    s3c::enter_file(state, filename);
+    s3c::enter_scope(state);
 
     try {
         pp.process(filename); // launch the preprocessor
@@ -476,12 +477,12 @@ void compile(std::string filename, std::string outputName) {
     // open and parse the file
     std::ifstream is(PREPROCESSOR_OUTPUT_FILE, std::ios::in); // parse the preprocessed file
     parser::Scanner scanner{ is , std::cerr };
-    parser::Parser parser{ &scanner, &state };
+    parser::Parser parser{ &scanner, state };
     parserOutput = parser.parse();
-    s3c::post_process(&state);
+    s3c::post_process(state);
 
     // look for main
-    auto sym = lookup(state.scopes.global, "main");
+    auto sym = lookup(state->scopes.global, "main");
     if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym) {
         // TODO s3c.errorsManager().addNoEntryPointError();
     }
@@ -499,6 +500,7 @@ void compile(std::string filename, std::string outputName) {
     if (REMOVE_PREPROCESSOR_FILE) {
         std::filesystem::remove(PREPROCESSOR_OUTPUT_FILE);
     }
+    delete state;
 }
 
 int main(int argc, char **argv) {

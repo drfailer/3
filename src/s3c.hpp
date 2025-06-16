@@ -33,6 +33,8 @@ struct State {
     std::list<std::string> funcall_ids;
 };
 
+State *state_create();
+
 void post_process(State *state);
 
 void reset_curr_function(State *state);

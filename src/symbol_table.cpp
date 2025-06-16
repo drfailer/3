@@ -1,5 +1,11 @@
 #include "symbol_table.hpp"
 
+SymbolTable *symbol_table_create(SymbolTable *parent) {
+    auto *table = new SymbolTable();
+    table->parent = parent;
+    return table;
+}
+
 void insert_symbol(SymbolTable *table, std::string const &id,
                    type::Type *type) {
     table->symbols.insert({id, Symbol{
