@@ -26,7 +26,7 @@
 %output "parser.cpp"
 
 %define api.parser.class {Parser}
-%define api.namespace {interpreter}
+%define api.namespace {parser}
 %define api.value.type variant
 %locations
 %parse-param {Scanner* scanner} {s3c::State *state}
@@ -35,7 +35,7 @@
 {
     #include "tree/node.hpp"
     #include "s3c.hpp"
-    namespace interpreter {
+    namespace parser {
         class Scanner;
     }
 }
@@ -332,7 +332,6 @@ assignment:
     MOV'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
         s3c::new_assignment(state, $var, $expr, @var.begin.line);
-        // TODO: free var memory
     }
     ;
 
@@ -340,26 +339,26 @@ value:
     INT {
         DEBUG("new int: " << $1);
         $$ = node::create_value(
-            create_location(state->curr_function.name, @1.begin.line),
-            (long)$1);
+                create_location(state->curr_function.name, @1.begin.line),
+                (long)$1);
     }
     | FLT {
         DEBUG("new double: " << $1);
         $$ = node::create_value(
-            create_location(state->curr_function.name, @1.begin.line),
-            $1);
+                create_location(state->curr_function.name, @1.begin.line),
+                $1);
     }
     | CHR {
         DEBUG("new char: " << $1);
         $$ = node::create_value(
-            create_location(state->curr_function.name, @1.begin.line),
-            $1);
+                create_location(state->curr_function.name, @1.begin.line),
+                $1);
     }
     | STRING {
         DEBUG("new str: " << $1);
         $$ = node::create_value(
-            create_location(state->curr_function.name, @1.begin.line),
-            $1);
+                create_location(state->curr_function.name, @1.begin.line),
+                $1);
     }
     ;
 
@@ -429,7 +428,7 @@ whl:
     ;
 %%
 
-void interpreter::Parser::error(const location_type& loc, const std::string& msg) {
+void parser::Parser::error(const location_type& loc, const std::string& msg) {
     std::ostringstream oss;
     oss << state->curr_filename << ":" << loc.begin.line << ": " << msg << "." << std::endl;
     msg::error(oss.str());
@@ -438,8 +437,8 @@ void interpreter::Parser::error(const location_type& loc, const std::string& msg
 /* Run interactive parser. It was used during the beginning of the project. */
 void cli() {
     s3c::State state;
-    interpreter::Scanner scanner{ std::cin, std::cerr };
-    interpreter::Parser parser{ &scanner, &state };
+    parser::Scanner scanner{ std::cin, std::cerr };
+    parser::Parser parser{ &scanner, &state };
     s3c::enter_scope(&state);
     parser.parse();
     // TODO s3c.errorsManager().report();
@@ -476,8 +475,8 @@ void compile(std::string filename, std::string outputName) {
 
     // open and parse the file
     std::ifstream is(PREPROCESSOR_OUTPUT_FILE, std::ios::in); // parse the preprocessed file
-    interpreter::Scanner scanner{ is , std::cerr };
-    interpreter::Parser parser{ &scanner, &state };
+    parser::Scanner scanner{ is , std::cerr };
+    parser::Parser parser{ &scanner, &state };
     parserOutput = parser.parse();
     s3c::post_process(&state);
 

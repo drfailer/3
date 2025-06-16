@@ -2,7 +2,7 @@
 #include <string>
 #include "parser.hpp"
 #include "lexer.hpp"
-#define YY_DECL int interpreter::Scanner::lex(Parser::semantic_type *yylval, Parser::location_type *yylloc)
+#define YY_DECL int parser::Scanner::lex(Parser::semantic_type *yylval, Parser::location_type *yylloc)
 #define DBG_LEX 0
 #if DBG_LEX == 1
 #define DEBUG(A) std::cout << A << std::endl

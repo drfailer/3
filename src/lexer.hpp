@@ -2,7 +2,7 @@
 #define LEXER_HPP
 #include <string>
 
-namespace interpreter {
+namespace parser {
   class Scanner : public yyFlexLexer {
     public:
       Scanner(std::istream& arg_yyin, std::ostream& arg_yyout)
