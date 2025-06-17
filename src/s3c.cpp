@@ -1,5 +1,9 @@
 #include "s3c.hpp"
 #include "symbol_table.hpp"
+#include "tools/messages.hpp"
+#include "tools/type_utilities.hpp"
+#include <iostream>
+#include <sstream>
 
 namespace s3c {
 
@@ -50,12 +54,14 @@ void leave_scope(State *state) {
     state->scopes.curr = state->scopes.curr->parent;
 }
 
-void add_symbol(State *state, std::string const &id, type::Type *type) {
-    insert_symbol(state->scopes.curr, id, type);
+void add_symbol(State *state, std::string const &id, type::Type *type,
+                Location const &location) {
+    insert_symbol(state->scopes.curr, id, type, location);
 }
 
-void add_global_symbol(State *state, std::string const &id, type::Type *type) {
-    insert_symbol(state->scopes.global, id, type);
+void add_global_symbol(State *state, std::string const &id, type::Type *type,
+                       Location location) {
+    insert_symbol(state->scopes.global, id, type, location);
 }
 
 node::Node *new_argument_declaration(State *state, std::string const id,
@@ -70,12 +76,9 @@ node::Node *new_argument_declaration(State *state, std::string const id,
 int new_function_definition(State *state, std::string const &id, size_t line) {
     state->curr_function.name = id;
     Symbol *sym = lookup(state->scopes.global, id);
-    // error on function redefinition
+
     if (sym) {
-        // TODO: print the previous definition location
-        // TODO: print error message
-        // errorsManager_.addMultipleDefinitionError(
-        // programBuilder_.currFileName, line, functionName);
+        MULTIPLE_DEFINITION_ERROR(id, sym->location);
         return 1;
     }
     enter_scope(state);
@@ -241,7 +244,7 @@ void new_variable_declaration(State *state, std::string id, type::Type *type,
         // errorsManager_.addMultipleDefinitionError(programBuilder_.currFileName,
         //                                           line, variableName);
     }
-    insert_symbol(state->scopes.curr, id, type);
+    insert_symbol(state->scopes.curr, id, type, LOCATION);
     add_instruction(state, node::create_variable_definition(LOCATION, id));
 }
 

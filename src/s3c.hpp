@@ -3,14 +3,11 @@
 #include "tree/node.hpp"
 #include "symbol_table.hpp"
 #include "type/type.hpp"
-#include "tools/type_utilities.hpp"
 #include <cstring>
 #include <functional>
-#include <iostream>
-#include <sstream>
 #include <stack>
 
-#define LOCATION create_location(state->curr_filename, line)
+#define LOCATION location_create(state->curr_filename, line)
 
 namespace s3c {
 
