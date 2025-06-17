@@ -1,9 +1,10 @@
 #ifndef SYMTABLE_SYMBOL_TABLE_H
 #define SYMTABLE_SYMBOL_TABLE_H
+#include "tree/location.hpp"
+#include "type/type.hpp"
 #include <map>
 #include <string>
 #include <vector>
-#include "type/type.hpp"
 
 struct SymbolTable;
 struct Symbol {
@@ -11,7 +12,7 @@ struct Symbol {
                     // char const*
     type::Type *type;
     SymbolTable *scope;
-    // TODO: add location
+    Location location;
 };
 
 struct SymbolTable {
@@ -21,7 +22,8 @@ struct SymbolTable {
 };
 
 SymbolTable *symbol_table_create(SymbolTable *parent);
-void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type);
+void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
+                   Location const &location);
 Symbol *lookup(SymbolTable *table, std::string const &id);
 
 #endif

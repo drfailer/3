@@ -10,7 +10,7 @@ struct Location {
     std::string filename;
 };
 
-Location create_location(std::string const &filename, size_t row,
+Location location_create(std::string const &filename, size_t row,
                          size_t col = 0);
 std::ostream &operator<<(std::ostream &os, Location const &location);
 
