@@ -97,6 +97,11 @@ eval_type_r get_function_call_eval_type(node::FunctionCall *node,
 }
 
 eval_type_r get_eval_type(node::Node *node, SymbolTable *scope) {
+    if (!node) {
+        std::cerr << "warn[get_eval_type]: nullptr received." << std::endl;
+        return {type::create_nil_type(), eval_type_r::Success};
+    }
+
     switch (node->kind) {
     case node::NodeKind::Value:
         return {get_value_eval_type(node->value.value), eval_type_r::Success};
