@@ -1,7 +1,7 @@
 #ifndef TOOLS_S3C_H
 #define TOOLS_S3C_H
-#include "tree/node.hpp"
 #include "symbol_table.hpp"
+#include "tree/node.hpp"
 #include "type/type.hpp"
 #include <cstring>
 #include <functional>
@@ -41,13 +41,15 @@ void enter_function(State *state, std::string const &function_name);
 
 void enter_scope(State *state);
 void leave_scope(State *state);
-void add_symbol(State *state, std::string const &id, type::Type *type);
-void add_global_symbol(State *state, std::string const &id, type::Type *type);
+void add_symbol(State *state, std::string const &id, type::Type *type,
+                Location const &location);
+void add_global_symbol(State *state, std::string const &id, type::Type *type,
+                       Location const &location);
 
-node::Node *new_argument_declaration(State *state, std::string const id,
+node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line);
 int new_function_definition(State *state, std::string const &id, size_t line);
-void set_curr_function_type(State *state, type::Type *return_type);
+void set_curr_function_type(State *state, type::Type *return_type, size_t line);
 void add_function_definition(State *state, std::string const &name,
                              node::Block *body, size_t line);
 

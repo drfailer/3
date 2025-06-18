@@ -2,8 +2,11 @@
 #include "symbol_table.hpp"
 #include "tools/messages.hpp"
 #include "tools/type_utilities.hpp"
+#include "type/predicates.hpp"
 #include <iostream>
 #include <sstream>
+
+// TODO: add an error status in the state
 
 namespace s3c {
 
@@ -60,14 +63,15 @@ void add_symbol(State *state, std::string const &id, type::Type *type,
 }
 
 void add_global_symbol(State *state, std::string const &id, type::Type *type,
-                       Location location) {
+                       Location const &location) {
     insert_symbol(state->scopes.global, id, type, location);
 }
 
-node::Node *new_argument_declaration(State *state, std::string const id,
+node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line) {
-    auto node = node::create_variable_reference(LOCATION, id);
-    add_symbol(state, id, type);
+    auto location = LOCATION;
+    auto node = node::create_variable_reference(location, id);
+    add_symbol(state, id, type, location);
     state->curr_function.arguments.push_back(node);
     state->curr_function.arguments_types.push_back(type);
     return node;
@@ -78,18 +82,20 @@ int new_function_definition(State *state, std::string const &id, size_t line) {
     Symbol *sym = lookup(state->scopes.global, id);
 
     if (sym) {
-        MULTIPLE_DEFINITION_ERROR(id, sym->location);
+        MULTIPLE_DEFINITION_ERROR(LOCATION, id, sym->location);
         return 1;
     }
     enter_scope(state);
     return 0;
 }
 
-void set_curr_function_type(State *state, type::Type *return_type) {
+void set_curr_function_type(State *state, type::Type *return_type,
+                            size_t line) {
     add_global_symbol(state, state->curr_function.name,
                       type::create_function_type(
                           state->curr_function.name, return_type,
-                          std::move(state->curr_function.arguments_types)));
+                          std::move(state->curr_function.arguments_types)),
+                      LOCATION);
 }
 
 void add_function_definition(State *state, std::string const &name,
@@ -117,32 +123,34 @@ void add_instruction(State *state, node::Node *node) {
 void new_return_expr(State *state, node::Node *expr, size_t line) {
     std::ostringstream oss;
     Symbol *sym = lookup(state->scopes.curr, state->curr_function.name);
-    auto foundType = get_eval_type(expr, state->scopes.curr);
-    auto expectedType = sym->type;
+    auto expr_type = get_eval_type(expr, state->scopes.curr);
+    auto expected_type = sym->type;
 
-    if (foundType.status != eval_type_r::Success) {
+    if (sym->type->value.function->return_type->kind == type::TypeKind::Nil &&
+        expr != nullptr) {
+        if (expr_type.status != eval_type_r::Success) {
+            // TODO: print expr_type error if status not suc
+            std::cerr << "TODO :" << __LINE__ << std::endl;
+        } else {
+            INVALID_RETURN_TYPE_ERROR(LOCATION, sym->id, sym->type,
+                                      expr_type.type);
+        }
+        return;
+    }
+
+    if (expr_type.status != eval_type_r::Success) {
+        // TODO: test if the type is post processable
         // TODO: print error
         return;
     }
 
-    if (expectedType->kind == type::TypeKind::Nil) { // no return allowed
-        // TODO
-        // errorsManager_.addUnexpectedReturnError(
-        //     programBuilder_.currFileName, line,
-        //     programBuilder_.currFunctionName);
-    } else if (type::type_equal(foundType.type, expectedType)) {
-        if (type::type_is_convertible(expectedType, foundType.type)) {
-            // TODO
-            // errorsManager_.addReturnTypeWarning(
-            //     programBuilder_.currFileName, line,
-            //     programBuilder_.currFunctionName, foundType.type,
-            //     sym->type);
+    if (!type::equal(expr_type.type, expected_type)) {
+        if (type::is_convertible(expected_type, expr_type.type)) {
+            IMPLICIT_CONVERTION_WARNING(LOCATION, state->curr_function.name,
+                                        expr_type.type, expected_type);
         } else {
-            // TODO
-            // errorsManager_.addReturnTypeError(
-            //     programBuilder_.currFileName, line,
-            //     programBuilder_.currFunctionName, foundType.type,
-            //     sym->type);
+            INVALID_RETURN_TYPE_ERROR(LOCATION, state->curr_function.name,
+                                      expr_type.type, expected_type)
         }
     }
     // else verify the type and throw a warning
@@ -153,24 +161,28 @@ node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
                                      node::Node *rhs,
                                      node::ArithmeticOperationKind kind,
                                      size_t line,
-                                     std::string const &operatorName) {
+                                     std::string const &operator_name) {
+    auto lhs_type = get_eval_type(lhs, state->scopes.curr);
+    auto rhs_type = get_eval_type(rhs, state->scopes.curr);
     // TODO: there are plenty of cases that are not handled here
     // TODO: if one of the operands is an undefined function (None type),
     // make the verification in post process
-    if (!type::is_number(get_eval_type(lhs, state->scopes.curr).type) ||
-        !type::is_number(get_eval_type(rhs, state->scopes.curr).type)) {
-        // TODO
-        // errorsManager_.addOperatorError(programBuilder_.currFileName, line,
-        //                                 operatorName);
+    if (!type::supports_arithmetic(lhs_type.type) ||
+        !type::supports_arithmetic(rhs_type.type)) {
+        ARITHMETIC_OPERATOR_ERROR(LOCATION, operator_name)
     }
     return node::create_arithmetic_operation(LOCATION, kind, lhs, rhs);
 }
 
-void very_function_call_type(std::string const &functionName,
+/*
+ * Note: this function is called during the post process, so all the symbol
+ *       should be defined.
+ */
+void very_function_call_type(std::string const &function_id,
                              node::FunctionCall *functionCall,
-                             SymbolTable *scope, std::string const &fileName,
+                             SymbolTable *scope, std::string const &filename,
                              size_t line) {
-    auto sym = lookup(scope, functionName);
+    auto sym = lookup(scope, function_id);
 
     if (sym) {
         if (sym->type->kind != type::TypeKind::Function) {
@@ -181,8 +193,9 @@ void very_function_call_type(std::string const &functionName,
 
         if (function_type->arguments_types.size() !=
             functionCall->arguments.size()) {
-            std::cerr << "error: wrong number of arguments for '"
-                      << functionName << "'." << std::endl;
+            // TODO: error message
+            std::cerr << "error: wrong number of arguments for '" << function_id
+                      << "'." << std::endl;
             std::cerr << "expecte type: " << type::type_to_string(sym->type)
                       << std::endl;
             std::cerr << "found " << std::endl;
@@ -192,16 +205,16 @@ void very_function_call_type(std::string const &functionName,
         auto arg = functionCall->arguments.begin();
         auto expected_type = function_type->arguments_types.begin();
         for (; expected_type != function_type->arguments_types.end();) {
-            if (!type::type_is_convertible(get_eval_type(*arg++, scope).type,
-                                           *expected_type++)) {
+            if (!type::is_convertible(get_eval_type(*arg++, scope).type,
+                                      *expected_type++)) {
                 // TODO: improve this error message
                 std::cerr << "error: no matching function call to "
-                          << functionName << "." << std::endl;
+                          << function_id << "." << std::endl;
+                return;
             }
         }
     } else {
-        // TODO
-        // errorsManager_.addUndefinedSymbolError(fileName, line, functionName);
+        UNDEFINED_SYMBOL_ERROR(location_create(filename, line), function_id);
     }
 }
 
@@ -240,9 +253,7 @@ void new_variable_declaration(State *state, std::string id, type::Type *type,
 
     // redefinitions are not allowed:
     if (symbol != state->scopes.curr->symbols.end()) {
-        // TODO
-        // errorsManager_.addMultipleDefinitionError(programBuilder_.currFileName,
-        //                                           line, variableName);
+        MULTIPLE_DEFINITION_ERROR(LOCATION, id, symbol->second.location)
     }
     insert_symbol(state->scopes.curr, id, type, LOCATION);
     add_instruction(state, node::create_variable_definition(LOCATION, id));
@@ -252,9 +263,7 @@ node::Node *new_variable(State *state, std::string const &name, size_t line) {
     auto sym = lookup(state->scopes.curr, name);
 
     if (!sym) {
-        // TODO
-        // errorsManager_.addUndefinedSymbolError(programBuilder_.currFileName,
-        //                                        line, name);
+        UNDEFINED_SYMBOL_ERROR(LOCATION, name)
     }
     return node::create_variable_reference(LOCATION, name);
 }
@@ -267,13 +276,9 @@ node::Node *new_index_expr(State *state, std::string const &name, size_t line,
     auto sym = lookup(state->scopes.curr, name);
 
     if (!sym) {
-        // TODO
-        // errorsManager_.addUndefinedSymbolError(programBuilder_.currFileName,
-        //                                        line, name);
+        UNDEFINED_SYMBOL_ERROR(LOCATION, name)
     } else if (sym->type->kind != type::TypeKind::Array) {
-        // TODO
-        // errorsManager_.addBadArrayUsageError(programBuilder_.currFileName,
-        //                                      line, name);
+        INDEX_NON_ARRAY_TYPE_ERROR(LOCATION, name);
     } else {
         // TODO: check get_eval_type status
         type::Type *index_type =
@@ -282,39 +287,39 @@ node::Node *new_index_expr(State *state, std::string const &name, size_t line,
             index_type->kind == type::TypeKind::Primitive &&
             index_type->value.primitive == type::PrimitiveType::Int;
         if (!index_is_int) {
-            // TODO: error: invalid index type
+            INVALID_INDEX_TYPE_ERROR(LOCATION, index_type);
         }
     }
     return index_expr;
 }
 
-void very_assignement_type(State *state, node::Assignment *assignment,
-                           node::FunctionCall *expr, std::string const &file,
-                           size_t line) {
+void very_assignement_type(node::Assignment *assignment,
+                           node::FunctionCall *expr, SymbolTable *scope,
+                           std::string const &filename, size_t line) {
     Symbol *variable_symbol = nullptr;
 
     if (assignment->target->kind == node::NodeKind::VariableReference) {
         variable_symbol =
-            lookup(state->scopes.curr,
-                   assignment->target->value.variable_reference->name);
+            lookup(scope, assignment->target->value.variable_reference->name);
     } else if (assignment->target->kind == node::NodeKind::IndexExpression) {
-        variable_symbol = lookup(state->scopes.curr,
-                                 get_lvalue_identifier(assignment->target));
+        variable_symbol =
+            lookup(scope, get_lvalue_identifier(assignment->target));
         // TODO: the error message inside get_indexed_identifier should here
     } else {
         std::cerr << "error: try to assign invalid expression." << std::endl;
     }
 
-    if (auto functionCallSymbol = lookup(state->scopes.curr, expr->name)) {
-        if (!type::type_is_convertible(
+    if (auto functionCallSymbol = lookup(scope, expr->name)) {
+        if (!type::is_convertible(
                 functionCallSymbol->type->value.function->return_type,
                 variable_symbol->type)) {
             std::cerr << "error: bad assignment TODO: better message"
                       << std::endl;
         }
     } else {
-        // TODO
-        // errorsManager_.addUndefinedSymbolError(file, line, expr->name);
+        UNDEFINED_SYMBOL_ERROR(
+            location_create(filename, line),
+            assignment->target->value.variable_reference->name)
     }
 }
 
@@ -326,9 +331,7 @@ void new_assignment(State *state, node::Node *target, node::Node *expr,
     auto symbol = lookup(state->scopes.curr, variable_name);
 
     if (!symbol) {
-        // TODO
-        std::cerr << "error: use of undefined variable " << variable_name
-                  << std::endl;
+        UNDEFINED_SYMBOL_ERROR(LOCATION, variable_name);
         return;
     }
 
@@ -337,11 +340,11 @@ void new_assignment(State *state, node::Node *target, node::Node *expr,
         // check (this is due to the fact that a function can be used before
         // it's defined).
         state->post_process_callbacks.push_back([=]() {
-            very_assignement_type(state, node->value.assignment,
-                                  expr->value.function_call,
+            very_assignement_type(node->value.assignment,
+                                  expr->value.function_call, state->scopes.curr,
                                   state->curr_filename, line);
         });
-    } else if (!type::type_is_convertible(icType.type, symbol->type)) {
+    } else if (!type::is_convertible(icType.type, symbol->type)) {
         std::cerr << "error: invalid assignment" << std::endl;
     }
     add_instruction(state, node);
@@ -379,7 +382,7 @@ node::Node *new_for(State *state, std::string const &index_id,
     } else if (end_type.type->value.primitive == type::PrimitiveType::Flt) {
         index_type = step_type.type;
     }
-    add_global_symbol(state, index_id, index_type);
+    add_global_symbol(state, index_id, index_type, LOCATION);
     leave_scope(state);
     return node::create_for_stmt(
         LOCATION, node::create_variable_definition(LOCATION, index_id), begin,
