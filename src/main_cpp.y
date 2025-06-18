@@ -109,7 +109,7 @@ functionDefinition:
             return 1;
         }
     } '('parameterDeclarationList')' {
-        s3c::set_curr_function_type(state, $rt);
+        s3c::set_curr_function_type(state, $rt, @rt.begin.line);
     } block[body] {
         s3c::add_function_definition(state, $name, $body, @name.begin.line);
     }
@@ -176,6 +176,10 @@ code:
     | RET expression[rs] {
         s3c::new_return_expr(state, $rs, @1.begin.line);
     }
+    |
+    RET {
+        s3c::new_return_expr(state, nullptr, @1.begin.line);
+    }
     ;
 
 instruction:
@@ -191,7 +195,7 @@ ipt:
         DEBUG("ipt var");
         s3c::add_instruction(state,
             node::create_builtin_function(
-                create_location(state->curr_filename, @c.begin.line),
+                location_create(state->curr_filename, @c.begin.line),
                 node::BuiltinFunctionKind::Ipt, $c));
     }
     ;
@@ -249,59 +253,59 @@ booleanOperation:
         DEBUG("EqlOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Eql, $lhs, $rhs);
     }
     | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SupOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Sup, $lhs, $rhs);
     }
     | INF'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("InfOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Inf, $lhs, $rhs);
     }
     | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SeqOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Seq, $lhs, $rhs);
     }
     | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("IeqOP");
         // TODO: type check
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Ieq, $lhs, $rhs);
     }
     | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("AndOP");
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::And, $lhs, $rhs);
     }
     | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("LorOP");
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Lor, $lhs, $rhs);
     }
     | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("XorOP");
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Xor, $lhs, $rhs);
     }
     | NOT'('booleanOperation[op]')' {
         DEBUG("NotOP");
         $$ = node::create_boolean_operation(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             node::BooleanOperationKind::Not, $op, nullptr);
     }
     ;
@@ -339,25 +343,25 @@ value:
     INT {
         DEBUG("new int: " << $1);
         $$ = node::create_value(
-                create_location(state->curr_function.name, @1.begin.line),
+                location_create(state->curr_function.name, @1.begin.line),
                 (long)$1);
     }
     | FLT {
         DEBUG("new double: " << $1);
         $$ = node::create_value(
-                create_location(state->curr_function.name, @1.begin.line),
+                location_create(state->curr_function.name, @1.begin.line),
                 $1);
     }
     | CHR {
         DEBUG("new char: " << $1);
         $$ = node::create_value(
-                create_location(state->curr_function.name, @1.begin.line),
+                location_create(state->curr_function.name, @1.begin.line),
                 $1);
     }
     | STRING {
         DEBUG("new str: " << $1);
         $$ = node::create_value(
-                create_location(state->curr_function.name, @1.begin.line),
+                location_create(state->curr_function.name, @1.begin.line),
                 $1);
     }
     ;
@@ -400,7 +404,7 @@ cndBase:
     } block[ops] {
         DEBUG("if");
         $$ = node::create_cnd_stmt(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             $cond, $ops);
         s3c::leave_scope(state);
     }
@@ -421,7 +425,7 @@ whl:
     } block[ops] {
         DEBUG("in whl");
         $$ = node::create_whl_stmt(
-            create_location(state->curr_filename, @1.begin.line),
+            location_create(state->curr_filename, @1.begin.line),
             $cond, $ops);
         s3c::leave_scope(state);
     }
