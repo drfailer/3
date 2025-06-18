@@ -23,16 +23,17 @@ add_custom_target(lexer ALL flex main_cpp.l
                   COMMENT "building lexer")
 
 set(files
-    src/s3c.cpp
-    src/tools/messages.cpp
-    src/tree/node.cpp
-    src/tree/location.cpp
+    src/symbol_table.cpp
     src/parser.cpp
     src/lexer.cpp
+    src/s3c.cpp
     src/preprocessor/preprocessor.cpp
-    src/tools/type_utilities.cpp
-    src/symbol_table.cpp
+    src/type/predicates.cpp
     src/type/type.cpp
+    src/tree/node.cpp
+    src/tree/location.cpp
+    src/tools/type_utilities.cpp
+    src/tools/messages.cpp
 )
 
 add_executable(s3c src/parser.cpp src/lexer.cpp ${files})

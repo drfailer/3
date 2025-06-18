@@ -60,11 +60,6 @@ struct Type {
     } value;
 };
 
-bool type_equal(Type *t1, Type *t2);
-bool type_is_convertible(Type *from, Type *to);
-
-bool is_number(Type *type);
-
 // TODO
 std::string type_to_string(Type *type);
 
