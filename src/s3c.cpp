@@ -3,6 +3,7 @@
 #include "tools/messages.hpp"
 #include "tools/type_utilities.hpp"
 #include "type/predicates.hpp"
+#include "type/type.hpp"
 #include <iostream>
 #include <sstream>
 
@@ -77,16 +78,16 @@ node::Node *new_argument_declaration(State *state, std::string const &id,
     return node;
 }
 
-int new_function_definition(State *state, std::string const &id, size_t line) {
+bool new_function_definition(State *state, std::string const &id, size_t line) {
     state->curr_function.name = id;
     Symbol *sym = lookup(state->scopes.global, id);
 
     if (sym) {
         MULTIPLE_DEFINITION_ERROR(LOCATION, id, sym->location);
-        return 1;
+        return false;
     }
     enter_scope(state);
-    return 0;
+    return true;
 }
 
 void set_curr_function_type(State *state, type::Type *return_type,
@@ -124,7 +125,7 @@ void new_return_expr(State *state, node::Node *expr, size_t line) {
     std::ostringstream oss;
     Symbol *sym = lookup(state->scopes.curr, state->curr_function.name);
     auto expr_type = get_eval_type(expr, state->scopes.curr);
-    auto expected_type = sym->type;
+    auto expected_type = sym->type->value.function->return_type;
 
     if (sym->type->value.function->return_type->kind == type::TypeKind::Nil &&
         expr != nullptr) {
@@ -132,7 +133,8 @@ void new_return_expr(State *state, node::Node *expr, size_t line) {
             // TODO: print expr_type error if status not suc
             std::cerr << "TODO :" << __LINE__ << std::endl;
         } else {
-            INVALID_RETURN_TYPE_ERROR(LOCATION, sym->id, sym->type,
+            INVALID_RETURN_TYPE_ERROR(LOCATION, sym->id,
+                                      sym->type->value.function->return_type,
                                       expr_type.type);
         }
         return;
@@ -393,8 +395,9 @@ void new_shw(State *state, node::Node *expr, size_t line) {
     // TODO: check get_eval_type status
     if (expr->kind == node::NodeKind::Value &&
         expr->value.value->kind == node::ValueKind::String) {
-        // TODO: create a clean quote function
-        add_instruction(state, expr);
+        add_instruction(state,
+                        node::create_builtin_function(
+                            LOCATION, node::BuiltinFunctionKind::Shw, expr));
     } else if (get_eval_type(expr, state->scopes.curr).type->kind ==
                type::TypeKind::Primitive) {
         add_instruction(state,
@@ -408,6 +411,26 @@ void new_shw(State *state, node::Node *expr, size_t line) {
         //     programBuilder_.currFileName, line,
         //     get_eval_type(expr, contextManager_.currentScope).type);
     }
+}
+
+bool try_verify_main_type(State *state) {
+    auto sym = lookup(state->scopes.global, "main");
+
+    if (!sym) {
+        return true; // when compiling libraries or object files
+    }
+
+    if (sym->type->kind != type::TypeKind::Function) {
+        // TODO: main should be a function
+        return false;
+    }
+
+    if (!type::is_int(sym->type->value.function->return_type)) {
+        // TODO: unexpected return type for main
+        return false;
+    }
+
+    return true;
 }
 
 } // end namespace s3c

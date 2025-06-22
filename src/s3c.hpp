@@ -48,7 +48,7 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
 
 node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line);
-int new_function_definition(State *state, std::string const &id, size_t line);
+bool new_function_definition(State *state, std::string const &id, size_t line);
 void set_curr_function_type(State *state, type::Type *return_type, size_t line);
 void add_function_definition(State *state, std::string const &name,
                              node::Block *body, size_t line);
@@ -92,6 +92,8 @@ node::Node *new_for(State *state, std::string const &index_id,
                     node::Block *block, size_t line);
 
 void new_shw(State *state, node::Node *expr, size_t line);
+
+bool try_verify_main_type(State *state);
 
 } // end namespace s3c
 
