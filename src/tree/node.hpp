@@ -86,6 +86,14 @@ Node *create_function_definition(Location location, std::string const &name,
                                  std::list<Node *> const &arguments,
                                  Block *body);
 
+// TODO: do we want to use this type in FunctionDefinition as well?
+struct FunctionDeclaration {
+    std::string name;
+    std::list<Node *> arguments;
+};
+Node *create_function_declaration(Location location, std::string const &name,
+                                  std::list<Node *> const &arguments);
+
 struct FunctionCall {
     std::string name;
     std::list<Node *> arguments;
@@ -185,6 +193,7 @@ struct Node {
         Assignment *assignment;
         IndexExpression *index_expression;
         FunctionDefinition *function_definition;
+        FunctionDeclaration *function_declaration;
         FunctionCall *function_call;
         CndStmt *cnd_stmt;
         WhlStmt *whl_stmt;

@@ -57,6 +57,12 @@ Node *create_function_definition(Location location, std::string const &name,
                     body);
 }
 
+Node *create_function_declaration(Location location, std::string const &name,
+                                  std::list<Node *> const &arguments) {
+    return new_node(FunctionDeclaration, function_declaration, name, arguments);
+}
+
+
 Node *create_function_call(Location location, std::string const &name,
                            std::list<Node *> const &arguments) {
     return new_node(FunctionCall, function_call, name, arguments);
