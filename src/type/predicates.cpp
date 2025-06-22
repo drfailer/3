@@ -48,6 +48,10 @@ bool is_primitive(Type const *type) {
     return type->kind == TypeKind::Primitive;
 }
 
+bool is_int(Type const *type) {
+    return is_primitive(type) && type->value.primitive == PrimitiveType::Int;
+}
+
 bool is_number(Type const *type) {
     if (is_primitive(type)) {
         return type->value.primitive == PrimitiveType::Int ||
