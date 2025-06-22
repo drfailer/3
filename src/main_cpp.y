@@ -10,9 +10,10 @@
 #include "tools/messages.hpp"
 #include "s3c.hpp"
 #include "preprocessor/preprocessor.hpp"
+#include "compiler/compiler.hpp"
 #define YYLOCATION_PRINT   location_print
 #define YYDEBUG 1
-#define DBG_PARS 0
+#define DBG_PARS 1
 #if DBG_PARS == 1
 #define DEBUG(A) std::cout << A << std::endl
 #else
@@ -468,8 +469,8 @@ void compile(std::string filename, std::string outputName) {
     s3c::State *state = s3c::state_create();
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
-    s3c::enter_file(state, filename);
-    s3c::enter_scope(state);
+    // s3c::enter_file(state, filename);
+    // s3c::enter_scope(state);
 
     try {
         pp.process(filename); // launch the preprocessor
@@ -486,18 +487,19 @@ void compile(std::string filename, std::string outputName) {
     s3c::post_process(state);
 
     // look for main
-    auto sym = lookup(state->scopes.global, "main");
-    if (0 == parserOutput && 0 == preprocessorErrorStatus && !sym) {
-        // TODO s3c.errorsManager().addNoEntryPointError();
+    if (!try_verify_main_type(state)) {
+        std::cout << "wrong main type" << std::endl;
     }
-    // report errors and warnings
-    // TODO s3c.errorsManager().report();
 
     // if no errors, transpile the file
+    // TODO: use the status from the state
     // if (!s3c.errorsManager().getErrors()) {
-        std::ofstream fs(outputName);
-        std::cerr << "TODO: REWRITE THE COMPILER :D" << std::endl;
-        makeExecutable(outputName);
+        compiler::compile(filename, compiler::Arch::X86_64,
+                          compiler::Platform::GNULinux,
+                          Program{state->program, state->scopes.global});
+        // TODO: check compile status before running ld
+        std::string ld_cmd = "ld -o " + outputName + " " + compiler::object_filename(filename);
+        system(ld_cmd.c_str());
     // }
 
     // remove the preprocessor output file
@@ -509,7 +511,7 @@ void compile(std::string filename, std::string outputName) {
 
 int main(int argc, char **argv) {
     if (argc == 2) {
-        compile(argv[1], "a.out"); // TODO: add an option to choose the name of the created script
+        compile(argv[1], "bin"); // TODO: add an option to choose the name of the created script
     } else { // launch the interpreter for debugging
         cli();
     }

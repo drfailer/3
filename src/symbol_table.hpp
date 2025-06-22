@@ -10,7 +10,8 @@ struct SymbolTable;
 struct Symbol {
     std::string id; // TODO: create an identifier pool and store the id in a
                     // char const*
-    type::Type *type;
+    type::Type *type; // TODO: a symbol can be a custom type -> we should have a
+                      // kind here
     SymbolTable *scope;
     Location location;
 };
