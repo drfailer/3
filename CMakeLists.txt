@@ -24,6 +24,7 @@ add_custom_target(lexer ALL flex main_cpp.l
 
 set(files
     src/compiler/compiler.cpp
+    src/compiler/tools.cpp
     src/compiler/x86_64_gnu_linux.cpp
     src/lexer.cpp
     src/parser.cpp

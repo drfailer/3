@@ -1,5 +1,6 @@
 #include "x86_64_gnu_linux.hpp"
 #include "compiler/compiler.hpp"
+#include "compiler/tools.hpp"
 #include <iostream>
 
 /*
@@ -91,9 +92,9 @@ void compile_builtin_function(CompilerState *state, node::BuiltinFunction *node,
         // TODO: for now we only support text
         std::string msg_id = asm_create_data_id(state->code, "shw_msg");
         std::string msg = node->argument->value.value->value.string;
-        std::string msg_len = std::to_string(msg.size());
+        std::string msg_len = std::to_string(get_compiled_string_size(msg));
 
-        asm_add_data(state->code, msg_id, ".string", msg);
+        asm_add_data(state->code, msg_id, ".string", "\"" + msg + "\"");
         // save registers?
         asm_add_instruction(state->code, "mov", "rax", "1");
         asm_add_instruction(state->code, "mov", "rdi", "1");

@@ -363,7 +363,7 @@ value:
         DEBUG("new str: " << $1);
         $$ = node::create_value(
                 location_create(state->curr_function.name, @1.begin.line),
-                $1);
+                $1.substr(1, $1.size() - 2));
     }
     ;
 
