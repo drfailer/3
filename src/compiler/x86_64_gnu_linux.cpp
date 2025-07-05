@@ -1,7 +1,9 @@
 #include "x86_64_gnu_linux.hpp"
 #include "compiler/compiler.hpp"
 #include "compiler/tools.hpp"
+#include "type/type.hpp"
 #include <iostream>
+#include <sstream>
 
 /*
  * Convetions:
@@ -11,6 +13,24 @@
 namespace compiler {
 
 namespace x86_64 {
+
+std::string stack_address_str(StackAddress const &addr) {
+    std::ostringstream oss;
+
+    switch (addr.base) {
+    case StackAddress::StackPointer:
+        oss << "rsp";
+        break;
+    case StackAddress::BasePointer:
+        oss << "rbp";
+        break;
+    }
+    if (addr.offset >= 0) {
+        oss << "+";
+    }
+    oss << addr.offset;
+    return oss.str();
+}
 
 namespace gnu_linux {
 
@@ -45,30 +65,36 @@ void compile_value(CompilerState *state, node::Value *node) {
 void compile_variable_definition(CompilerState *state,
                                  node::VariableDefinition *node,
                                  SymbolTable *scope) {
-    // TODO
+    auto type = lookup(scope, node->name)->type;
+    auto size = type::get_type_size(type);
+
+    allocate_stack_variable(state, node->name, size);
+    asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
 }
 
 void compile_assignement(CompilerState *state, node::Assignment *node,
                          SymbolTable *scope) {
-    // TODO: we need to get the addess of the target, however, it could be an
-    // index expression. Idea: add a compile_variable_reference function and
-    // make this function and compile_index_expression save the index (resp rbp)
-    // in the state
-    // TODO: we should have a way to know the size of the last value!
-    compile_node(state, node->target,
-                 scope); // rsp-2*8 (variable offset resp rbp)
-    compile_node(state, node->value, scope); // rsp-8 (value)
+    compile_node(state, node->target, scope);
+    asm_add_instruction(state->code, "mov", "rdx", "rax");
+    compile_node(state, node->value, scope);
+    asm_add_instruction(state->code, "mov", "[rdx]", "rax");
 }
 
 void compile_index_expression(CompilerState *state, node::IndexExpression *node,
                               SymbolTable *scope) {
-    // TODO: save the offset in the state
+    auto addr =
+        get_stack_address(state, node->element->value.variable_reference->name);
+    compile_node(state, node->index, scope); // result on rax
+    asm_add_instruction(state->code, "add", "rax", "rbp");
+    asm_add_instruction(state->code, "add", "rax", std::to_string(addr.offset));
 }
 
 void compile_variable_reference(CompilerState *state,
                                 node::VariableReference *node,
                                 SymbolTable *scope) {
-    // TODO: save the offset in the state
+    auto addr = get_stack_address(state, node->name);
+    asm_add_instruction(state->code, "mov", "rax", "rbp");
+    asm_add_instruction(state->code, "add", "rax", std::to_string(addr.offset));
 }
 
 void compile_arithmetic_operation(CompilerState *state,
@@ -131,6 +157,9 @@ void compile_whl_stmt(CompilerState *state, node::WhlStmt *node,
 void compile_ret_stmt(CompilerState *state, node::RetStmt *node,
                       SymbolTable *scope) {
     compile_node(state, node->expression, scope);
+    if (node->expression->kind != node::NodeKind::Value) {
+        asm_add_instruction(state->code, "mov", "rax", "[rax]");
+    }
     // TODO: this is not required if the return is at the end of the block
     asm_add_instruction(state->code, "jmp",
                         "epilogue_" + state->curr_function_id);
@@ -146,6 +175,7 @@ void compile_block(CompilerState *state, node::Block *node,
 void compile_function_definition(CompilerState *state,
                                  node::FunctionDefinition *node,
                                  SymbolTable *scope) {
+    SymbolTable *function_scope = scope->symbols[node->name].scope;
     state->curr_function_id = node->name;
 
     asm_add_label(state->code, node->name);
@@ -155,7 +185,7 @@ void compile_function_definition(CompilerState *state,
     // TODO: add argument locations
 
     // TODO: we want to go down the scope
-    compile_block(state, node->body, scope);
+    compile_block(state, node->body, function_scope);
 
     asm_add_label(state->code, "epilogue_" + node->name);
     asm_add_instruction(state->code, "mov", "rsp", "rbp");
