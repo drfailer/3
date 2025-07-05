@@ -1,9 +1,10 @@
 #include "compiler.hpp"
 #include "x86_64_gnu_linux.hpp"
 #include <cstdlib>
-#include <fstream>
-#include <sstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 namespace compiler {
 
@@ -17,8 +18,8 @@ std::string object_filename(std::string const &filename) {
     return base_name + ".o";
 }
 
-void compile_x86_64(std::string const &filename, CompilerState *state, Platform platform,
-                    Program const &program) {
+void compile_x86_64(std::string const &filename, CompilerState *state,
+                    Platform platform, Program const &program) {
     switch (platform) {
     case Platform::GNULinux:
         x86_64::gnu_linux::compile(state, program);
@@ -36,7 +37,12 @@ void compile_x86_64(std::string const &filename, CompilerState *state, Platform 
 
 void compile(std::string const &filename, Arch arch, Platform platform,
              Program const &program) {
-    CompilerState state;
+    CompilerState state{
+        .code = {},
+        .curr_function_id = "",
+        .variables_addresses = {},
+        .stack_offset = 0,
+    };
     switch (arch) {
     case Arch::X86_64:
         compile_x86_64(filename, &state, platform, program);
@@ -103,6 +109,28 @@ std::string asm_create_data_id(Asm const &code, std::string const &name) {
     std::ostringstream oss;
     oss << name << code.data.size();
     return oss.str();
+}
+
+void allocate_stack_variable(CompilerState *state, std::string const &id,
+                             size_t size) {
+    auto it = state->variables_addresses.find(id);
+
+    if (it == state->variables_addresses.end()) {
+        state->variables_addresses[id] = {};
+    }
+    state->variables_addresses[id].push(
+        StackAddress{state->stack_offset, StackAddress::BasePointer});
+    state->stack_offset += size;
+}
+
+StackAddress get_stack_address(CompilerState *state, std::string const &id) {
+    auto it = state->variables_addresses.find(id);
+
+    if (it == state->variables_addresses.end()) {
+        std::cerr << "error: unkown variable" << std::endl;
+        return {};
+    }
+    return it->second.top();
 }
 
 } // end namespace compiler
