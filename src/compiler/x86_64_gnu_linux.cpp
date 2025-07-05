@@ -84,17 +84,18 @@ void compile_index_expression(CompilerState *state, node::IndexExpression *node,
                               SymbolTable *scope) {
     auto addr =
         get_stack_address(state, node->element->value.variable_reference->name);
+    auto dest = stack_address_str(addr);
     compile_node(state, node->index, scope); // result on rax
-    asm_add_instruction(state->code, "add", "rax", "rbp");
-    asm_add_instruction(state->code, "add", "rax", std::to_string(addr.offset));
+    asm_add_instruction(state->code, "lea", "rdx", "[" + dest + "]");
+    asm_add_instruction(state->code, "add", "rax", "rdx");
 }
 
 void compile_variable_reference(CompilerState *state,
                                 node::VariableReference *node,
                                 SymbolTable *scope) {
     auto addr = get_stack_address(state, node->name);
-    asm_add_instruction(state->code, "mov", "rax", "rbp");
-    asm_add_instruction(state->code, "add", "rax", std::to_string(addr.offset));
+    auto dest = stack_address_str(addr);
+    asm_add_instruction(state->code, "lea", "rax", "[" + dest + "]");
 }
 
 void compile_arithmetic_operation(CompilerState *state,
