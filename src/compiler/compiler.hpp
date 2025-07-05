@@ -9,7 +9,7 @@
 namespace compiler {
 
 struct StackAddress {
-    size_t offset;
+    signed int offset;
     enum {
         StackPointer,
         BasePointer,
@@ -37,7 +37,8 @@ struct Asm {
 struct CompilerState {
     Asm code;
     std::string curr_function_id;
-    std::stack<std::map<std::string, std::string>> variables_addresses;
+    std::map<std::string, std::stack<StackAddress>> variables_addresses;
+    signed int stack_offset;
 };
 
 enum class Arch {
@@ -63,6 +64,10 @@ void asm_add_instruction(Asm &code, std::string const &instruction,
 void asm_add_data(Asm &code, std::string const &name, std::string const &type,
                   std::string const &value);
 std::string asm_create_data_id(Asm const &code, std::string const &name);
+
+void allocate_stack_variable(CompilerState *state, std::string const &id,
+                             size_t size);
+StackAddress get_stack_address(CompilerState *state, std::string const &id);
 
 } // end namespace compiler
 
