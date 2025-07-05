@@ -7,11 +7,12 @@ SymbolTable *symbol_table_create(SymbolTable *parent) {
 }
 
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
-                   Location const &location) {
+                   SymbolTable *scope, Location const &location) {
     table->symbols.insert({id, Symbol{
                                    .id = id,
                                    .type = type,
-                                   .scope = table,
+                                   .parent_scope = table,
+                                   .scope = scope,
                                    .location = location,
                                }});
 }

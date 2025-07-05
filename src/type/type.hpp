@@ -60,8 +60,9 @@ struct Type {
     } value;
 };
 
-// TODO
 std::string type_to_string(Type *type);
+
+size_t get_type_size(Type *type);
 
 } // end namespace type
 

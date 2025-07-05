@@ -12,6 +12,7 @@ struct Symbol {
                     // char const*
     type::Type *type; // TODO: a symbol can be a custom type -> we should have a
                       // kind here
+    SymbolTable *parent_scope;
     SymbolTable *scope;
     Location location;
 };
@@ -24,7 +25,7 @@ struct SymbolTable {
 
 SymbolTable *symbol_table_create(SymbolTable *parent);
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
-                   Location const &location);
+                   SymbolTable *scope, Location const &location);
 Symbol *lookup(SymbolTable *table, std::string const &id);
 
 #endif

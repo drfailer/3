@@ -1,4 +1,5 @@
 #include "type.hpp"
+#include <numeric>
 #include <sstream>
 
 #define new_type(type, value_name, ...)                                        \
@@ -84,6 +85,38 @@ std::string type_to_string(Type *type) {
         break;
     }
     return oss.str();
+}
+
+size_t get_type_size(Type *type) {
+    switch (type->kind) {
+    case TypeKind::Nil:
+        return 0;
+    case TypeKind::Primitive:
+        if (type->value.primitive == PrimitiveType::Str) {
+            return 16; // ptr + size
+        } else {
+            return 8; // all primitive types are on 8B for now
+        }
+        break;
+    case TypeKind::Array:
+        if (type->value.array->dynamic) {
+            return 16; // ptr + size
+        } else {
+            return type->value.array->size *
+                   get_type_size(type->value.array->type);
+        }
+        break;
+    case TypeKind::Obj: {
+        auto fields = type->value.obj->fields;
+        return std::accumulate(fields.begin(), fields.end(), 0,
+                               [](size_t acc, auto field) {
+                                   return acc + get_type_size(field.second);
+                               });
+    } break;
+    case TypeKind::Function:
+        return 8; // ptr size
+    }
+    return 8; // all types are on 8B for now
 }
 
 } // end namespace type

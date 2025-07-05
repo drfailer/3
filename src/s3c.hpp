@@ -44,7 +44,7 @@ void leave_scope(State *state);
 void add_symbol(State *state, std::string const &id, type::Type *type,
                 Location const &location);
 void add_global_symbol(State *state, std::string const &id, type::Type *type,
-                       Location const &location);
+                       SymbolTable *scope, Location const &location);
 
 node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line);

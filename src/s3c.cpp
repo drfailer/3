@@ -60,12 +60,12 @@ void leave_scope(State *state) {
 
 void add_symbol(State *state, std::string const &id, type::Type *type,
                 Location const &location) {
-    insert_symbol(state->scopes.curr, id, type, location);
+    insert_symbol(state->scopes.curr, id, type, nullptr, location);
 }
 
 void add_global_symbol(State *state, std::string const &id, type::Type *type,
-                       Location const &location) {
-    insert_symbol(state->scopes.global, id, type, location);
+                       SymbolTable *scope, Location const &location) {
+    insert_symbol(state->scopes.global, id, type, scope, location);
 }
 
 node::Node *new_argument_declaration(State *state, std::string const &id,
@@ -96,7 +96,7 @@ void set_curr_function_type(State *state, type::Type *return_type,
                       type::create_function_type(
                           state->curr_function.name, return_type,
                           std::move(state->curr_function.arguments_types)),
-                      LOCATION);
+                      state->scopes.curr, LOCATION);
 }
 
 void add_function_definition(State *state, std::string const &name,
@@ -257,7 +257,7 @@ void new_variable_declaration(State *state, std::string id, type::Type *type,
     if (symbol != state->scopes.curr->symbols.end()) {
         MULTIPLE_DEFINITION_ERROR(LOCATION, id, symbol->second.location)
     }
-    insert_symbol(state->scopes.curr, id, type, LOCATION);
+    insert_symbol(state->scopes.curr, id, type, nullptr, LOCATION);
     add_instruction(state, node::create_variable_definition(LOCATION, id));
 }
 
@@ -384,7 +384,7 @@ node::Node *new_for(State *state, std::string const &index_id,
     } else if (end_type.type->value.primitive == type::PrimitiveType::Flt) {
         index_type = step_type.type;
     }
-    add_global_symbol(state, index_id, index_type, LOCATION);
+    add_symbol(state, index_id, index_type, LOCATION);
     leave_scope(state);
     return node::create_for_stmt(
         LOCATION, node::create_variable_definition(LOCATION, index_id), begin,
