@@ -13,7 +13,7 @@
 #include "compiler/compiler.hpp"
 #define YYLOCATION_PRINT   location_print
 #define YYDEBUG 1
-#define DBG_PARS 1
+#define DBG_PARS 0
 #if DBG_PARS == 1
 #define DEBUG(A) std::cout << A << std::endl
 #else

@@ -75,8 +75,9 @@ void compile_variable_definition(CompilerState *state,
 void compile_assignement(CompilerState *state, node::Assignment *node,
                          SymbolTable *scope) {
     compile_node(state, node->target, scope);
-    asm_add_instruction(state->code, "mov", "rdx", "rax");
+    asm_add_instruction(state->code, "push", "rax");
     compile_node(state, node->value, scope);
+    asm_add_instruction(state->code, "pop", "rdx");
     asm_add_instruction(state->code, "mov", "[rdx]", "rax");
 }
 
@@ -101,13 +102,132 @@ void compile_variable_reference(CompilerState *state,
 void compile_arithmetic_operation(CompilerState *state,
                                   node::ArithmeticOperation *node,
                                   SymbolTable *scope) {
-    // TODO
+    // TODO: compile function should return a result that will contain where the
+    // result of the instruction/operations is store (rax, address on stack, ...)
+    // TODO: compile functions should have configuration to specidiy where the
+    // result should go.
+    // TODO: use xmm registers add addsd, ... for floats
+    // TODO: know when registers contain addresses or immediate values
+    // (dereference or not dereference?)
+    switch (node->kind) {
+    case node::ArithmeticOperationKind::Add:
+        compile_node(state, node->rhs, scope);
+        asm_add_instruction(state->code, "push", "rax");
+        compile_node(state, node->lhs, scope);
+        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "add", "rax", "rdx");
+        break;
+    case node::ArithmeticOperationKind::Sub:
+        compile_node(state, node->rhs, scope);
+        asm_add_instruction(state->code, "push", "rax");
+        compile_node(state, node->lhs, scope);
+        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "sub", "rax", "rdx");
+        break;
+    case node::ArithmeticOperationKind::Mul:
+        compile_node(state, node->rhs, scope);
+        asm_add_instruction(state->code, "push", "rax");
+        compile_node(state, node->lhs, scope);
+        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "imul", "rax", "rdx");
+        break;
+    case node::ArithmeticOperationKind::Div:
+        throw std::logic_error("div doesn't work");
+        compile_node(state, node->rhs, scope);
+        asm_add_instruction(state->code, "push", "rax");
+        compile_node(state, node->lhs, scope);
+        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "idiv", "rdx");
+        break;
+    }
+}
+
+#define LABEL(node, suffix) ptr_to_string(node) + suffix
+#define TRUE_LABEL(node) LABEL(node, "_true")
+#define FALSE_LABEL(node) LABEL(node, "_false")
+
+void compile_cmp(CompilerState *state, node::BooleanOperation *node,
+                 SymbolTable *scope, std::string const &jmp) {
+    compile_node(state, node->lhs, scope);
+    asm_add_instruction(state->code, "push", "rax");
+    compile_node(state, node->rhs, scope);
+    asm_add_instruction(state->code, "pop", "rdx");
+    asm_add_instruction(state->code, "cmp", "rax", "rdx");
+    asm_add_instruction(state->code, jmp, TRUE_LABEL(node));
+    asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
 }
 
 void compile_boolean_operation(CompilerState *state,
                                node::BooleanOperation *node,
                                SymbolTable *scope) {
-    // TODO
+    switch (node->kind) {
+    case node::BooleanOperationKind::And:
+        compile_node(state, node->lhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(node->lhs));
+        compile_node(state, node->rhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(node->rhs));
+        asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
+        asm_add_label(state->code, FALSE_LABEL(node->lhs));
+        asm_add_label(state->code, FALSE_LABEL(node->rhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+        break;
+    case node::BooleanOperationKind::Lor:
+        compile_node(state, node->lhs, scope);
+        asm_add_label(state->code, FALSE_LABEL(node->lhs));
+        compile_node(state, node->rhs, scope);
+        asm_add_label(state->code, FALSE_LABEL(node->rhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+        asm_add_label(state->code, TRUE_LABEL(node->lhs));
+        asm_add_label(state->code, TRUE_LABEL(node->rhs));
+        asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
+        break;
+    case node::BooleanOperationKind::Xor:
+        // evaluate lhs
+        compile_node(state, node->lhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(node->lhs));
+        asm_add_instruction(state->code, "push", "1");
+        asm_add_instruction(state->code, "jmp", LABEL(node, "_rhs"));
+        asm_add_label(state->code, FALSE_LABEL(node->lhs));
+        asm_add_instruction(state->code, "push", "0");
+        // evaluate rhs
+        asm_add_label(state->code, LABEL(node, "_rhs"));
+        compile_node(state, node->rhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(node->rhs));
+        asm_add_instruction(state->code, "mov", "rax", "1");
+        asm_add_instruction(state->code, "jmp", LABEL(node, "_xor"));
+        asm_add_label(state->code, FALSE_LABEL(node->rhs));
+        asm_add_instruction(state->code, "mov", "rax", "0");
+        // xor
+        asm_add_label(state->code, LABEL(node, "_xor"));
+        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "xor", "rax", "rdx");
+        asm_add_instruction(state->code, "jnz", TRUE_LABEL(node));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+        break;
+    case node::BooleanOperationKind::Not:
+        compile_node(state, node->lhs, scope);
+        asm_add_label(state->code, FALSE_LABEL(node->lhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+        asm_add_label(state->code, TRUE_LABEL(node->lhs));
+        asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
+        break;
+        // TODO: be carefull with unsigned in the future
+    case node::BooleanOperationKind::Eql:
+        compile_cmp(state, node, scope, "je");
+        break;
+    case node::BooleanOperationKind::Inf:
+        compile_cmp(state, node, scope, "ji");
+        break;
+    case node::BooleanOperationKind::Sup:
+        compile_cmp(state, node, scope, "js");
+        break;
+    case node::BooleanOperationKind::Ieq:
+        compile_cmp(state, node, scope, "jie");
+        break;
+    case node::BooleanOperationKind::Seq:
+        compile_cmp(state, node, scope, "jse");
+        break;
+    }
 }
 
 // TODO: builtin function should not be compiled but linked !

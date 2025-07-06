@@ -28,7 +28,7 @@ void compile_x86_64(std::string const &filename, CompilerState *state,
     asm_dump(state->code, filename);
     // TODO: run the following command:
     // TODO: read as manual to change the output name
-    std::string as_cmd = "as -msyntax=intel " + asm_filename(filename) +
+    std::string as_cmd = "as -g -msyntax=intel " + asm_filename(filename) +
                          " -o " + object_filename(filename);
     system(as_cmd.c_str());
     // ld -o output_name a.out
