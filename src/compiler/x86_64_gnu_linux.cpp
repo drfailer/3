@@ -42,22 +42,26 @@ void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
 void compile_value(CompilerState *state, node::Value *node) {
     switch (node->kind) {
     case node::ValueKind::Character:
-        asm_add_instruction(state->code, "mov", "rax",
+        asm_add_instruction(state->code, "mov", "al",
                             std::to_string(node->value.character));
+        state->result_location = "al";
         break;
     case node::ValueKind::Integer:
         asm_add_instruction(state->code, "mov", "rax",
                             std::to_string(node->value.integer));
+        state->result_location = "rax";
         break;
     case node::ValueKind::Real:
         // TODO: learn how to use floats properly :D
         asm_add_instruction(state->code, "mov", "rax",
                             std::to_string(node->value.real));
+        state->result_location = "rax";
         break;
     case node::ValueKind::String: {
         std::string label = asm_create_data_id(state->code, "value_");
         asm_add_data(state->code, label, ".string", node->value.string);
         asm_add_instruction(state->code, "lea", "rax", label);
+        state->result_location = "rax";
     } break;
     }
 }
@@ -70,15 +74,27 @@ void compile_variable_definition(CompilerState *state,
 
     allocate_stack_variable(state, node->name, size);
     asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
+    asm_comment_last_instruction(state->code, node->name);
 }
 
 void compile_assignement(CompilerState *state, node::Assignment *node,
                          SymbolTable *scope) {
+    std::string dest;
+
     compile_node(state, node->target, scope);
-    asm_add_instruction(state->code, "push", "rax");
-    compile_node(state, node->value, scope);
-    asm_add_instruction(state->code, "pop", "rdx");
-    asm_add_instruction(state->code, "mov", "[rdx]", "rax");
+    // TODO: we shoud actually check that the address is in a register and not
+    // relative to rbp
+    dest = state->result_location;
+    std::cout << dest << std::endl;
+    if (dest == "[rax]") {
+        asm_add_instruction(state->code, "push", "rax");
+        compile_node(state, node->value, scope);
+        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "mov", "[rdx]", "rax");
+    } else {
+        compile_node(state, node->value, scope);
+        asm_add_instruction(state->code, "mov", dest, "rax");
+    }
 }
 
 void compile_index_expression(CompilerState *state, node::IndexExpression *node,
@@ -89,6 +105,7 @@ void compile_index_expression(CompilerState *state, node::IndexExpression *node,
     compile_node(state, node->index, scope); // result on rax
     asm_add_instruction(state->code, "lea", "rdx", "[" + dest + "]");
     asm_add_instruction(state->code, "add", "rax", "rdx");
+    state->result_location = "[rax]";
 }
 
 void compile_variable_reference(CompilerState *state,
@@ -96,14 +113,16 @@ void compile_variable_reference(CompilerState *state,
                                 SymbolTable *scope) {
     auto addr = get_stack_address(state, node->name);
     auto dest = stack_address_str(addr);
-    asm_add_instruction(state->code, "lea", "rax", "[" + dest + "]");
+    // asm_add_instruction(state->code, "lea", "rax", "[" + dest + "]");
+    state->result_location = "[" + dest + "]";
 }
 
 void compile_arithmetic_operation(CompilerState *state,
                                   node::ArithmeticOperation *node,
                                   SymbolTable *scope) {
     // TODO: compile function should return a result that will contain where the
-    // result of the instruction/operations is store (rax, address on stack, ...)
+    // result of the instruction/operations is store (rax, address on stack,
+    // ...)
     // TODO: compile functions should have configuration to specidiy where the
     // result should go.
     // TODO: use xmm registers add addsd, ... for floats
@@ -112,34 +131,56 @@ void compile_arithmetic_operation(CompilerState *state,
     switch (node->kind) {
     case node::ArithmeticOperationKind::Add:
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", "rax");
+        asm_add_instruction(state->code, "push", state->result_location);
         compile_node(state, node->lhs, scope);
+        if (state->result_location != "rax") {
+            asm_add_instruction(state->code, "mov", "rax",
+                                state->result_location);
+        }
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "add", "rax", "rdx");
         break;
     case node::ArithmeticOperationKind::Sub:
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", "rax");
+        asm_add_instruction(state->code, "push", state->result_location);
         compile_node(state, node->lhs, scope);
+        if (state->result_location != "rax") {
+            asm_add_instruction(state->code, "mov", "rax",
+                                state->result_location);
+        }
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "sub", "rax", "rdx");
         break;
     case node::ArithmeticOperationKind::Mul:
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", "rax");
+        asm_add_instruction(state->code, "push", state->result_location);
         compile_node(state, node->lhs, scope);
         asm_add_instruction(state->code, "pop", "rdx");
-        asm_add_instruction(state->code, "imul", "rax", "rdx");
+        // note: in 64 bits mode imul's 2 operands should be 32 bits long, and
+        // the result is 64 bits.
+        if (state->result_location != "rax") {
+            asm_add_instruction(state->code, "mov", "rax",
+                                state->result_location);
+            asm_add_instruction(state->code, "imul", "eax", "edx");
+        } else {
+            asm_add_instruction(state->code, "imul", "eax", "edx");
+        }
         break;
     case node::ArithmeticOperationKind::Div:
         throw std::logic_error("div doesn't work");
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", "rax");
+        asm_add_instruction(state->code, "push", state->result_location);
         compile_node(state, node->lhs, scope);
+        asm_add_instruction(state->code, "pop", "rdx");
+        if (state->result_location != "rax") {
+            asm_add_instruction(state->code, "mov", "rax",
+                                state->result_location);
+        }
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "idiv", "rdx");
         break;
     }
+    state->result_location = "rax";
 }
 
 #define LABEL(node, suffix) ptr_to_string(node) + suffix
@@ -279,7 +320,7 @@ void compile_ret_stmt(CompilerState *state, node::RetStmt *node,
                       SymbolTable *scope) {
     compile_node(state, node->expression, scope);
     if (node->expression->kind != node::NodeKind::Value) {
-        asm_add_instruction(state->code, "mov", "rax", "[rax]");
+        asm_add_instruction(state->code, "mov", "rax", state->result_location);
     }
     // TODO: this is not required if the return is at the end of the block
     asm_add_instruction(state->code, "jmp",
@@ -312,6 +353,7 @@ void compile_function_definition(CompilerState *state,
     asm_add_instruction(state->code, "mov", "rsp", "rbp");
     asm_add_instruction(state->code, "pop", "rbp");
     asm_add_instruction(state->code, "ret");
+    state->frame_offset = 0;
 }
 
 void compile_function_declaration(CompilerState *state,
