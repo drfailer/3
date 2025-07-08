@@ -41,7 +41,8 @@ void compile(std::string const &filename, Arch arch, Platform platform,
         .code = {},
         .curr_function_id = "",
         .variables_addresses = {},
-        .stack_offset = 0,
+        .frame_offset = 0,
+        .result_location = "",
     };
     switch (arch) {
     case Arch::X86_64:
@@ -64,6 +65,9 @@ void asm_dump_instructions(Asm const &code, std::ofstream &fs) {
         }
         if (!instruction.arg2.empty()) {
             fs << ", " << instruction.arg2;
+        }
+        if (!instruction.comment.empty()) {
+            fs << " # " << instruction.comment;
         }
         fs << std::endl;
     }
@@ -97,7 +101,11 @@ void asm_add_label(Asm &code, std::string const &label) {
 
 void asm_add_instruction(Asm &code, std::string const &instruction,
                          std::string const &arg1, std::string const &arg2) {
-    code.instructions.push_back(Instruction{instruction, arg1, arg2});
+    code.instructions.push_back(Instruction{instruction, arg1, arg2, ""});
+}
+
+void asm_comment_last_instruction(Asm &code, std::string const &comment) {
+    code.instructions.back().comment = comment;
 }
 
 void asm_add_data(Asm &code, std::string const &name, std::string const &type,
@@ -119,8 +127,8 @@ void allocate_stack_variable(CompilerState *state, std::string const &id,
         state->variables_addresses[id] = {};
     }
     state->variables_addresses[id].push(
-        StackAddress{state->stack_offset, StackAddress::BasePointer});
-    state->stack_offset += size;
+        StackAddress{-state->frame_offset, StackAddress::BasePointer});
+    state->frame_offset += size;
 }
 
 StackAddress get_stack_address(CompilerState *state, std::string const &id) {

@@ -20,6 +20,7 @@ struct Instruction {
     std::string instruction;
     std::string arg1;
     std::string arg2;
+    std::string comment;
 };
 
 struct Data {
@@ -38,7 +39,8 @@ struct CompilerState {
     Asm code;
     std::string curr_function_id;
     std::map<std::string, std::stack<StackAddress>> variables_addresses;
-    signed int stack_offset;
+    signed int frame_offset;
+    std::string result_location; // TODO: create a real data structure for this
 };
 
 enum class Arch {
@@ -61,6 +63,7 @@ void asm_add_label(Asm &code, std::string const &label);
 void asm_add_instruction(Asm &code, std::string const &instruction,
                          std::string const &arg1 = "",
                          std::string const &arg2 = "");
+void asm_comment_last_instruction(Asm &code, std::string const &comment);
 void asm_add_data(Asm &code, std::string const &name, std::string const &type,
                   std::string const &value);
 std::string asm_create_data_id(Asm const &code, std::string const &name);
