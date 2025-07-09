@@ -8,6 +8,56 @@
 
 namespace compiler {
 
+std::string asm_addr(ExpressionAddr const &result) {
+    switch (result.addressing_mode) {
+    case AddressingMode::ImmediateValue:
+        return result.immediate_value;
+        break;
+    case AddressingMode::Register:
+        return result.register_name;
+        break;
+    case AddressingMode::RegisterIndirect:
+        return "[" + result.register_name + "]";
+        break;
+    case AddressingMode::Index:
+        std::cerr << "unimplemented " << __FILE__ << " " << __LINE__
+                  << std::endl;
+        break;
+    case AddressingMode::Based:
+        if (result.offset < 0) {
+            return "[" + result.register_name + std::to_string(result.offset) +
+                   "]";
+        } else {
+            return "[" + result.register_name + "+" +
+                   std::to_string(result.offset) + "]";
+        }
+        break;
+    }
+    return result.register_name;
+}
+
+void asm_addr_immediate_value(CompilerState *state, std::string value) {
+    state->addr.addressing_mode = AddressingMode::ImmediateValue;
+    state->addr.immediate_value = value;
+}
+
+void asm_addr_register(CompilerState *state, std::string register_name) {
+    state->addr.addressing_mode = AddressingMode::Register;
+    state->addr.register_name = register_name;
+}
+
+void asm_addr_register_indirect(CompilerState *state,
+                                  std::string register_name) {
+    state->addr.addressing_mode = AddressingMode::RegisterIndirect;
+    state->addr.register_name = register_name;
+}
+
+void asm_addr_based(CompilerState *state, std::string base_name, int offset) {
+    state->addr.addressing_mode = AddressingMode::Based;
+    state->addr.register_name = base_name;
+    state->addr.offset = offset;
+}
+
 std::string asm_filename(std::string const &filename) {
     std::string base_name = std::filesystem::path(filename).filename();
     return base_name + ".asm";
@@ -42,7 +92,7 @@ void compile(std::string const &filename, Arch arch, Platform platform,
         .curr_function_id = "",
         .variables_addresses = {},
         .frame_offset = 0,
-        .result_location = "",
+        .addr = {},
     };
     switch (arch) {
     case Arch::X86_64:
@@ -127,7 +177,7 @@ void allocate_stack_variable(CompilerState *state, std::string const &id,
         state->variables_addresses[id] = {};
     }
     state->variables_addresses[id].push(
-        StackAddress{-state->frame_offset, StackAddress::BasePointer});
+        StackAddress{-state->frame_offset, size});
     state->frame_offset += size;
 }
 

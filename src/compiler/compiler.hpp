@@ -1,19 +1,16 @@
 #ifndef COMPILER_COMPILER
 #define COMPILER_COMPILER
+#include "program.hpp"
 #include <map>
 #include <stack>
 #include <string>
 #include <vector>
-#include "program.hpp"
 
 namespace compiler {
 
 struct StackAddress {
     signed int offset;
-    enum {
-        StackPointer,
-        BasePointer,
-    } base;
+    size_t size;
 };
 
 struct Instruction {
@@ -35,12 +32,28 @@ struct Asm {
     std::vector<Data> data;
 };
 
+enum class AddressingMode {
+    ImmediateValue,
+    Register,
+    RegisterIndirect,
+    Index,
+    Based,
+};
+
+struct ExpressionAddr {
+    std::string immediate_value;
+    std::string register_name;
+    int offset;
+    // size & type ?
+    AddressingMode addressing_mode;
+};
+
 struct CompilerState {
     Asm code;
     std::string curr_function_id;
     std::map<std::string, std::stack<StackAddress>> variables_addresses;
     signed int frame_offset;
-    std::string result_location; // TODO: create a real data structure for this
+    ExpressionAddr addr; // result of the last expression
 };
 
 enum class Arch {
@@ -56,6 +69,13 @@ std::string asm_filename(std::string const &filename);
 
 void compile(std::string const &filename, Arch arch, Platform platform,
              Program const &program);
+
+std::string asm_addr(ExpressionAddr const &result);
+void asm_addr_immediate_value(CompilerState *state, std::string value);
+void asm_addr_register(CompilerState *state, std::string register_name);
+void asm_addr_register_indirect(CompilerState *state,
+                                  std::string register_name);
+void asm_addr_based(CompilerState *state, std::string base_name, int offset);
 
 void asm_dump(Asm const &code, std::string const &filename);
 void asm_add_global_symbol(Asm &code, std::string const &name);

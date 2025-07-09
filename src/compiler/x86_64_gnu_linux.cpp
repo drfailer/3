@@ -14,24 +14,6 @@ namespace compiler {
 
 namespace x86_64 {
 
-std::string stack_address_str(StackAddress const &addr) {
-    std::ostringstream oss;
-
-    switch (addr.base) {
-    case StackAddress::StackPointer:
-        oss << "rsp";
-        break;
-    case StackAddress::BasePointer:
-        oss << "rbp";
-        break;
-    }
-    if (addr.offset >= 0) {
-        oss << "+";
-    }
-    oss << addr.offset;
-    return oss.str();
-}
-
 namespace gnu_linux {
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
@@ -44,24 +26,24 @@ void compile_value(CompilerState *state, node::Value *node) {
     case node::ValueKind::Character:
         asm_add_instruction(state->code, "mov", "al",
                             std::to_string(node->value.character));
-        state->result_location = "al";
+        asm_addr_register(state, "al");
         break;
     case node::ValueKind::Integer:
         asm_add_instruction(state->code, "mov", "rax",
                             std::to_string(node->value.integer));
-        state->result_location = "rax";
+        asm_addr_register(state, "rax");
         break;
     case node::ValueKind::Real:
         // TODO: learn how to use floats properly :D
         asm_add_instruction(state->code, "mov", "rax",
                             std::to_string(node->value.real));
-        state->result_location = "rax";
+        asm_addr_register(state, "rax");
         break;
     case node::ValueKind::String: {
         std::string label = asm_create_data_id(state->code, "value_");
         asm_add_data(state->code, label, ".string", node->value.string);
         asm_add_instruction(state->code, "lea", "rax", label);
-        state->result_location = "rax";
+        asm_addr_register(state, "rax");
     } break;
     }
 }
@@ -79,42 +61,41 @@ void compile_variable_definition(CompilerState *state,
 
 void compile_assignement(CompilerState *state, node::Assignment *node,
                          SymbolTable *scope) {
-    std::string dest;
+    ExpressionAddr target;
 
     compile_node(state, node->target, scope);
-    // TODO: we shoud actually check that the address is in a register and not
-    // relative to rbp
-    dest = state->result_location;
-    std::cout << dest << std::endl;
-    if (dest == "[rax]") {
-        asm_add_instruction(state->code, "push", "rax");
+    target = state->addr;
+
+    if (target.addressing_mode == AddressingMode::RegisterIndirect) {
+        asm_add_instruction(state->code, "push", target.register_name);
         compile_node(state, node->value, scope);
         asm_add_instruction(state->code, "pop", "rdx");
-        asm_add_instruction(state->code, "mov", "[rdx]", "rax");
-    } else {
+        asm_add_instruction(state->code, "mov", "[rdx]", asm_addr(state->addr));
+    } else if (target.addressing_mode == AddressingMode::Based) {
         compile_node(state, node->value, scope);
-        asm_add_instruction(state->code, "mov", dest, "rax");
+        asm_add_instruction(state->code, "mov", asm_addr(target), "rax");
+    } else {
+        std::cerr << "error: invalide target." << std::endl;
     }
 }
 
 void compile_index_expression(CompilerState *state, node::IndexExpression *node,
                               SymbolTable *scope) {
-    auto addr =
-        get_stack_address(state, node->element->value.variable_reference->name);
-    auto dest = stack_address_str(addr);
+    // TODO: handle float cases
     compile_node(state, node->index, scope); // result on rax
-    asm_add_instruction(state->code, "lea", "rdx", "[" + dest + "]");
+    // TODO: does gas supports the fancy intel syntax?
+    asm_add_instruction(state->code, "lea", "rdx", asm_addr(state->addr));
     asm_add_instruction(state->code, "add", "rax", "rdx");
-    state->result_location = "[rax]";
+    asm_addr_register_indirect(state, "rax");
 }
 
 void compile_variable_reference(CompilerState *state,
                                 node::VariableReference *node,
                                 SymbolTable *scope) {
+    // auto type = lookup(scope, node->name)->type;
     auto addr = get_stack_address(state, node->name);
-    auto dest = stack_address_str(addr);
+    asm_addr_based(state, "rbp", addr.offset);
     // asm_add_instruction(state->code, "lea", "rax", "[" + dest + "]");
-    state->result_location = "[" + dest + "]";
 }
 
 void compile_arithmetic_operation(CompilerState *state,
@@ -131,56 +112,58 @@ void compile_arithmetic_operation(CompilerState *state,
     switch (node->kind) {
     case node::ArithmeticOperationKind::Add:
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", state->result_location);
+        asm_add_instruction(state->code, "push", asm_addr(state->addr));
         compile_node(state, node->lhs, scope);
-        if (state->result_location != "rax") {
+        if (!(state->addr.addressing_mode == AddressingMode::Register &&
+              state->addr.register_name == "rax")) {
             asm_add_instruction(state->code, "mov", "rax",
-                                state->result_location);
+                                asm_addr(state->addr));
         }
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "add", "rax", "rdx");
         break;
     case node::ArithmeticOperationKind::Sub:
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", state->result_location);
+        asm_add_instruction(state->code, "push", asm_addr(state->addr));
         compile_node(state, node->lhs, scope);
-        if (state->result_location != "rax") {
+        if (!(state->addr.addressing_mode == AddressingMode::Register &&
+              state->addr.register_name == "rax")) {
             asm_add_instruction(state->code, "mov", "rax",
-                                state->result_location);
+                                asm_addr(state->addr));
         }
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "sub", "rax", "rdx");
         break;
     case node::ArithmeticOperationKind::Mul:
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", state->result_location);
+        asm_add_instruction(state->code, "push", asm_addr(state->addr));
         compile_node(state, node->lhs, scope);
         asm_add_instruction(state->code, "pop", "rdx");
         // note: in 64 bits mode imul's 2 operands should be 32 bits long, and
         // the result is 64 bits.
-        if (state->result_location != "rax") {
+        if (!(state->addr.addressing_mode == AddressingMode::Register &&
+              state->addr.register_name == "rax")) {
             asm_add_instruction(state->code, "mov", "rax",
-                                state->result_location);
-            asm_add_instruction(state->code, "imul", "eax", "edx");
-        } else {
-            asm_add_instruction(state->code, "imul", "eax", "edx");
+                                asm_addr(state->addr));
         }
+        asm_add_instruction(state->code, "imul", "eax", "edx");
         break;
     case node::ArithmeticOperationKind::Div:
         throw std::logic_error("div doesn't work");
         compile_node(state, node->rhs, scope);
-        asm_add_instruction(state->code, "push", state->result_location);
+        asm_add_instruction(state->code, "push", asm_addr(state->addr));
         compile_node(state, node->lhs, scope);
         asm_add_instruction(state->code, "pop", "rdx");
-        if (state->result_location != "rax") {
+        if (!(state->addr.addressing_mode == AddressingMode::Register &&
+              state->addr.register_name == "rax")) {
             asm_add_instruction(state->code, "mov", "rax",
-                                state->result_location);
+                                asm_addr(state->addr));
         }
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "idiv", "rdx");
         break;
     }
-    state->result_location = "rax";
+    asm_addr_register(state, "rax");
 }
 
 #define LABEL(node, suffix) ptr_to_string(node) + suffix
@@ -320,7 +303,7 @@ void compile_ret_stmt(CompilerState *state, node::RetStmt *node,
                       SymbolTable *scope) {
     compile_node(state, node->expression, scope);
     if (node->expression->kind != node::NodeKind::Value) {
-        asm_add_instruction(state->code, "mov", "rax", state->result_location);
+        asm_add_instruction(state->code, "mov", "rax", asm_addr(state->addr));
     }
     // TODO: this is not required if the return is at the end of the block
     asm_add_instruction(state->code, "jmp",
