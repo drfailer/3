@@ -101,12 +101,13 @@ void compile_variable_reference(CompilerState *state,
 void compile_arithmetic_operation(CompilerState *state,
                                   node::ArithmeticOperation *node,
                                   SymbolTable *scope) {
+    // TODO: use different operations depending on the operand type
+    //       use xmm registers add addsd, ... for floats
     // TODO: compile function should return a result that will contain where the
     // result of the instruction/operations is store (rax, address on stack,
     // ...)
     // TODO: compile functions should have configuration to specidiy where the
     // result should go.
-    // TODO: use xmm registers add addsd, ... for floats
     // TODO: know when registers contain addresses or immediate values
     // (dereference or not dereference?)
     switch (node->kind) {
@@ -149,18 +150,19 @@ void compile_arithmetic_operation(CompilerState *state,
         asm_add_instruction(state->code, "imul", "eax", "edx");
         break;
     case node::ArithmeticOperationKind::Div:
-        throw std::logic_error("div doesn't work");
+        // throw std::logic_error("div doesn't work");
         compile_node(state, node->rhs, scope);
         asm_add_instruction(state->code, "push", asm_addr(state->addr));
         compile_node(state, node->lhs, scope);
-        asm_add_instruction(state->code, "pop", "rdx");
+        asm_add_instruction(state->code, "pop", "rdi");
         if (!(state->addr.addressing_mode == AddressingMode::Register &&
               state->addr.register_name == "rax")) {
             asm_add_instruction(state->code, "mov", "rax",
                                 asm_addr(state->addr));
         }
-        asm_add_instruction(state->code, "pop", "rdx");
-        asm_add_instruction(state->code, "idiv", "rdx");
+        // set rdx to 0 before calling idiv !
+        asm_add_instruction(state->code, "xor", "rdx", "rdx");
+        asm_add_instruction(state->code, "idiv", "rdi");
         break;
     }
     asm_addr_register(state, "rax");
