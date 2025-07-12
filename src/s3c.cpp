@@ -71,7 +71,7 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
 node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line) {
     auto location = LOCATION;
-    auto node = node::create_variable_reference(location, id);
+    auto node = node::create_variable_definition(location, id);
     add_symbol(state, id, type, location);
     state->curr_function.arguments.push_back(node);
     state->curr_function.arguments_types.push_back(type);
