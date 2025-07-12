@@ -52,6 +52,14 @@ bool is_int(Type const *type) {
     return is_primitive(type) && type->value.primitive == PrimitiveType::Int;
 }
 
+bool is_chr(Type const *type) {
+    return is_primitive(type) && type->value.primitive == PrimitiveType::Chr;
+}
+
+bool is_flt(Type const *type) {
+    return is_primitive(type) && type->value.primitive == PrimitiveType::Flt;
+}
+
 bool is_number(Type const *type) {
     if (is_primitive(type)) {
         return type->value.primitive == PrimitiveType::Int ||

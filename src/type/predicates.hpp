@@ -9,6 +9,8 @@ bool is_convertible(Type const *from, Type const *to);
 
 bool is_primitive(Type const *type);
 bool is_int(Type const *type);
+bool is_chr(Type const *type);
+bool is_flt(Type const *type);
 
 bool is_number(Type const *type);
 bool supports_arithmetic(Type *type);
