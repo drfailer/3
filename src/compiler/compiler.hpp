@@ -91,7 +91,8 @@ void asm_add_data(Asm &code, std::string const &name, std::string const &type,
 std::string asm_create_data_id(Asm const &code, std::string const &name);
 
 void allocate_stack_variable(CompilerState *state, std::string const &id,
-                             size_t size, type::Type *type);
+                             size_t size, type::Type *type,
+                             std::string const &base_name);
 Address get_address(CompilerState *state, std::string const &id);
 
 } // end namespace compiler

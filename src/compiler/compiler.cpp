@@ -181,7 +181,8 @@ std::string asm_create_data_id(Asm const &code, std::string const &name) {
 }
 
 void allocate_stack_variable(CompilerState *state, std::string const &id,
-                             size_t size, type::Type *type) {
+                             size_t size, type::Type *type,
+                             std::string const &base_name) {
     auto it = state->variables_addresses.find(id);
 
     if (it == state->variables_addresses.end()) {
@@ -192,6 +193,7 @@ void allocate_stack_variable(CompilerState *state, std::string const &id,
     addr.offset = -state->frame_offset;
     addr.size = size;
     addr.type = type;
+    addr.register_name = base_name;
     state->variables_addresses[id].push(addr);
     state->frame_offset += size;
 }
