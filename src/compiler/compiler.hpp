@@ -8,11 +8,6 @@
 
 namespace compiler {
 
-struct StackAddress {
-    signed int offset;
-    size_t size;
-};
-
 struct Instruction {
     std::string instruction;
     std::string arg1;
@@ -40,20 +35,24 @@ enum class AddressingMode {
     Based,
 };
 
-struct ExpressionAddr {
+struct Address {
+    // TODO: could be a label in the data section as well
+    // TODO: an enum would be greate
+    AddressingMode addressing_mode;
     std::string immediate_value;
     std::string register_name;
-    int offset;
-    // size & type ?
-    AddressingMode addressing_mode;
+    std::string index;
+    signed int offset;
+    size_t size;
+    type::Type *type;
 };
 
 struct CompilerState {
     Asm code;
     std::string curr_function_id;
-    std::map<std::string, std::stack<StackAddress>> variables_addresses;
+    std::map<std::string, std::stack<Address>> variables_addresses;
     signed int frame_offset;
-    ExpressionAddr addr; // result of the last expression
+    Address last_expr_addr;
 };
 
 enum class Arch {
@@ -70,12 +69,15 @@ std::string asm_filename(std::string const &filename);
 void compile(std::string const &filename, Arch arch, Platform platform,
              Program const &program);
 
-std::string asm_addr(ExpressionAddr const &result);
-void asm_addr_immediate_value(CompilerState *state, std::string value);
-void asm_addr_register(CompilerState *state, std::string register_name);
-void asm_addr_register_indirect(CompilerState *state,
-                                  std::string register_name);
-void asm_addr_based(CompilerState *state, std::string base_name, int offset);
+std::string asm_addr(Address const &result);
+void asm_addr_immediate_value(CompilerState *state, std::string value,
+                              type::Type *type);
+void asm_addr_register(CompilerState *state, std::string register_name,
+                       type::Type *type);
+void asm_addr_register_indirect(CompilerState *state, std::string register_name,
+                                type::Type *type);
+void asm_addr_based(CompilerState *state, std::string base_name, int offset,
+                    type::Type *type);
 
 void asm_dump(Asm const &code, std::string const &filename);
 void asm_add_global_symbol(Asm &code, std::string const &name);
@@ -89,8 +91,8 @@ void asm_add_data(Asm &code, std::string const &name, std::string const &type,
 std::string asm_create_data_id(Asm const &code, std::string const &name);
 
 void allocate_stack_variable(CompilerState *state, std::string const &id,
-                             size_t size);
-StackAddress get_stack_address(CompilerState *state, std::string const &id);
+                             size_t size, type::Type *type);
+Address get_address(CompilerState *state, std::string const &id);
 
 } // end namespace compiler
 

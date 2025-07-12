@@ -8,7 +8,7 @@
 
 namespace compiler {
 
-std::string asm_addr(ExpressionAddr const &result) {
+std::string asm_addr(Address const &result) {
     switch (result.addressing_mode) {
     case AddressingMode::ImmediateValue:
         return result.immediate_value;
@@ -36,26 +36,37 @@ std::string asm_addr(ExpressionAddr const &result) {
     return result.register_name;
 }
 
-void asm_addr_immediate_value(CompilerState *state, std::string value) {
-    state->addr.addressing_mode = AddressingMode::ImmediateValue;
-    state->addr.immediate_value = value;
+void asm_addr_immediate_value(CompilerState *state, std::string value,
+                              type::Type *type) {
+    // TODO: size?
+    state->last_expr_addr.addressing_mode = AddressingMode::ImmediateValue;
+    state->last_expr_addr.immediate_value = value;
+    state->last_expr_addr.type = type;
 }
 
-void asm_addr_register(CompilerState *state, std::string register_name) {
-    state->addr.addressing_mode = AddressingMode::Register;
-    state->addr.register_name = register_name;
+void asm_addr_register(CompilerState *state, std::string register_name,
+                       type::Type *type) {
+    // TODO: size?
+    state->last_expr_addr.addressing_mode = AddressingMode::Register;
+    state->last_expr_addr.register_name = register_name;
+    state->last_expr_addr.type = type;
 }
 
-void asm_addr_register_indirect(CompilerState *state,
-                                  std::string register_name) {
-    state->addr.addressing_mode = AddressingMode::RegisterIndirect;
-    state->addr.register_name = register_name;
+void asm_addr_register_indirect(CompilerState *state, std::string register_name,
+                                type::Type *type) {
+    // TODO: size?
+    state->last_expr_addr.addressing_mode = AddressingMode::RegisterIndirect;
+    state->last_expr_addr.register_name = register_name;
+    state->last_expr_addr.type = type;
 }
 
-void asm_addr_based(CompilerState *state, std::string base_name, int offset) {
-    state->addr.addressing_mode = AddressingMode::Based;
-    state->addr.register_name = base_name;
-    state->addr.offset = offset;
+void asm_addr_based(CompilerState *state, std::string base_name, int offset,
+                    type::Type *type) {
+    // TODO: size?
+    state->last_expr_addr.addressing_mode = AddressingMode::Based;
+    state->last_expr_addr.register_name = base_name;
+    state->last_expr_addr.offset = offset;
+    state->last_expr_addr.type = type;
 }
 
 std::string asm_filename(std::string const &filename) {
@@ -92,7 +103,7 @@ void compile(std::string const &filename, Arch arch, Platform platform,
         .curr_function_id = "",
         .variables_addresses = {},
         .frame_offset = 0,
-        .addr = {},
+        .last_expr_addr = {},
     };
     switch (arch) {
     case Arch::X86_64:
@@ -170,18 +181,22 @@ std::string asm_create_data_id(Asm const &code, std::string const &name) {
 }
 
 void allocate_stack_variable(CompilerState *state, std::string const &id,
-                             size_t size) {
+                             size_t size, type::Type *type) {
     auto it = state->variables_addresses.find(id);
 
     if (it == state->variables_addresses.end()) {
         state->variables_addresses[id] = {};
     }
-    state->variables_addresses[id].push(
-        StackAddress{-state->frame_offset, size});
+    Address addr;
+    addr.addressing_mode = AddressingMode::Based;
+    addr.offset = -state->frame_offset;
+    addr.size = size;
+    addr.type = type;
+    state->variables_addresses[id].push(addr);
     state->frame_offset += size;
 }
 
-StackAddress get_stack_address(CompilerState *state, std::string const &id) {
+Address get_address(CompilerState *state, std::string const &id) {
     auto it = state->variables_addresses.find(id);
 
     if (it == state->variables_addresses.end()) {
