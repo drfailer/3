@@ -1,6 +1,7 @@
 #ifndef SYMTABLE_SYMBOL_TABLE_H
 #define SYMTABLE_SYMBOL_TABLE_H
 #include "tree/location.hpp"
+#include "tree/node.hpp"
 #include "type/type.hpp"
 #include <map>
 #include <string>
@@ -21,6 +22,7 @@ struct SymbolTable {
     SymbolTable *parent;
     std::map<std::string, Symbol> symbols;
     std::vector<SymbolTable *> childs_scopes;
+    std::map<node::Node*, type::Type*> node_types; // TODO: populate in s3c
 };
 
 SymbolTable *symbol_table_create(SymbolTable *parent);

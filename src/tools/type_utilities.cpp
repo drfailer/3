@@ -23,6 +23,7 @@ type::Type *get_value_eval_type(node::Value *value_node) {
     case node::ValueKind::String:
         return type::create_primitive_type(type::PrimitiveType::Str);
     }
+    return nullptr;
 }
 
 eval_type_r get_variable_eval_type(node::VariableReference *node,
@@ -85,6 +86,7 @@ eval_type_r get_boolean_operation_eval_type(node::BooleanOperation *node,
     // TODO: the type is always bool but we need a function that checks the type
     // of the operands
     std::cerr << "TODO: implement get_boolean_operation_eval_type" << std::endl;
+    return {};
 }
 
 eval_type_r get_function_call_eval_type(node::FunctionCall *node,
@@ -97,30 +99,44 @@ eval_type_r get_function_call_eval_type(node::FunctionCall *node,
 }
 
 eval_type_r get_eval_type(node::Node *node, SymbolTable *scope) {
+    eval_type_r result;
+
     if (!node) {
         std::cerr << "warn[get_eval_type]: nullptr received." << std::endl;
         return {type::create_nil_type(), eval_type_r::Success};
     }
 
+    // TODO: register node type
+
     switch (node->kind) {
     case node::NodeKind::Value:
-        return {get_value_eval_type(node->value.value), eval_type_r::Success};
+        result = {get_value_eval_type(node->value.value), eval_type_r::Success};
+        break;
     case node::NodeKind::VariableReference:
-        return get_variable_eval_type(node->value.variable_reference, scope);
+        result =  get_variable_eval_type(node->value.variable_reference, scope);
+        break;
     case node::NodeKind::IndexExpression:
-        return get_index_expression_eval_type(node->value.index_expression,
+        result =  get_index_expression_eval_type(node->value.index_expression,
                                               scope);
+        break;
     case node::NodeKind::ArithmeticOperation:
-        return get_arithmetic_operation_eval_type(
+        result =  get_arithmetic_operation_eval_type(
             node->value.arithmetic_operation, scope);
+        break;
     case node::NodeKind::BooleanOperation:
-        return get_boolean_operation_eval_type(node->value.boolean_operation,
+        result = get_boolean_operation_eval_type(node->value.boolean_operation,
                 scope);
+        break;
     case node::NodeKind::FunctionCall:
-        return get_function_call_eval_type(node->value.function_call, scope);
+        result = get_function_call_eval_type(node->value.function_call, scope);
+        break;
     default:
         std::cerr << "error: the given node is not evaluable." << std::endl;
+        return {nullptr, eval_type_r::NonEvaluableNodeFound};
         break;
     }
-    return {nullptr, eval_type_r::NonEvaluableNodeFound};
+    if (result.status == eval_type_r::Success) {
+        scope->node_types[node] = result.type;
+    }
+    return result;
 }
