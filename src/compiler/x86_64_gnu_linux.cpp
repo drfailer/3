@@ -2,7 +2,9 @@
 #include "compiler/compiler.hpp"
 #include "compiler/tools.hpp"
 #include "tools/type_utilities.hpp"
+#include "type/predicates.hpp"
 #include "type/type.hpp"
+#include <array>
 #include <iostream>
 #include <sstream>
 
@@ -16,6 +18,12 @@ namespace compiler {
 namespace x86_64 {
 
 namespace gnu_linux {
+
+const std::array<std::string, 6> ARG_REGISTERS_INTEGER = {"rdi", "rsi", "rdx",
+                                                          "rcx", "r8",  "r9"};
+
+const std::array<std::string, 8> ARG_REGISTERS_FLOAT = {
+    "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
 
@@ -59,7 +67,7 @@ void compile_variable_definition(CompilerState *state, node::Node *node,
     auto type = lookup(scope, var_node->name)->type;
     auto size = type::get_type_size(type);
 
-    allocate_stack_variable(state, var_node->name, size, type);
+    allocate_stack_variable(state, var_node->name, size, type, "rbp");
     asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
     asm_comment_last_instruction(state->code, var_node->name);
 }
@@ -279,7 +287,6 @@ void compile_boolean_operation(CompilerState *state, node::Node *node,
 void compile_builtin_function(CompilerState *state, node::Node *node,
                               SymbolTable *scope) {
     node::BuiltinFunction *fun_node = node->value.builtin_function;
-    std::cout << "comiple builtin function" << std::endl;
     switch (fun_node->kind) {
     case node::BuiltinFunctionKind::Shw: {
         // TODO: for now we only support text
@@ -303,7 +310,54 @@ void compile_builtin_function(CompilerState *state, node::Node *node,
 
 void compile_function_call(CompilerState *state, node::Node *node,
                            SymbolTable *scope) {
-    // TODO
+    // TODO: implement a system that avoid pushing arguments on the stack
+    // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
+    type::Type *function_type =
+        lookup(scope, node->value.function_call->name)->type;
+    auto args = node->value.function_call->arguments.begin();
+    auto args_type = function_type->value.function->arguments_types.begin();
+    size_t int_idx = 0;
+    size_t flt_idx = 0;
+    std::stack<std::string> args_addr;
+    for (; args != node->value.function_call->arguments.end(); args++) {
+        // TODO: check the rules for structs
+        auto type = *args_type++;
+        std::string reg = "";
+
+        // compile the argument node
+        compile_node(state, *args, scope);
+        std::string arg_addr = asm_addr(state->last_expr_addr);
+
+        if (type::is_int(type) || type::is_chr(type)) {
+            if (int_idx < ARG_REGISTERS_INTEGER.size()) {
+                reg = ARG_REGISTERS_INTEGER[int_idx];
+                asm_add_instruction(state->code, "mov", reg, arg_addr);
+            } else {
+                args_addr.push(arg_addr);
+            }
+            int_idx++;
+        } else if (type::is_flt(type)) {
+            if (int_idx < ARG_REGISTERS_FLOAT.size()) {
+                reg = ARG_REGISTERS_FLOAT[flt_idx];
+                asm_add_instruction(state->code, "mov", reg, arg_addr);
+            } else {
+                args_addr.push(arg_addr);
+            }
+            flt_idx++;
+        } else {
+            std::cerr << "error: not implemented" << std::endl;
+        }
+    }
+    // push the remaining argument on the stack in the reverse order
+    while (!args_addr.empty()) {
+        asm_add_instruction(state->code, "push", args_addr.top());
+        args_addr.pop();
+    }
+    // call the function
+    asm_add_instruction(state->code, "call", node->value.function_call->name);
+    // make sure the compiler know that the result will be store in rax (if
+    // the function returns a result).
+    asm_addr_register(state, "rax", function_type->value.function->return_type);
 }
 
 void compile_cnd_stmt(CompilerState *state, node::Node *node,
@@ -342,17 +396,69 @@ void compile_block(CompilerState *state, node::Block *node,
     }
 }
 
+/*
+ * For now, the arguments are systematically saved on the stack event though we
+ * use the C calling convetion (to faciliate C FFI). Later, a better system
+ * should be implemented in the state to avoid systematically using the statck
+ * for local variables when it's not necessary.
+ */
+void allocate_arguments(CompilerState *state, node::Node *node,
+                        SymbolTable *scope) {
+    // TODO: implement a system that avoid pushing arguments on the stack
+    // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
+    auto args = node->value.function_definition->arguments.begin();
+    size_t int_idx = 0;
+    size_t flt_idx = 0;
+    for (; args != node->value.function_definition->arguments.end(); args++) {
+        // TODO: check the rules for structs
+        node::VariableDefinition *var_node = (*args)->value.variable_definition;
+        auto type = lookup(scope, var_node->name)->type;
+        std::string reg = "";
+
+        if (type::is_int(type) || type::is_chr(type)) {
+            if (int_idx < ARG_REGISTERS_INTEGER.size()) {
+                reg = ARG_REGISTERS_INTEGER[int_idx];
+            } else {
+                reg = "[rbp+" +
+                      std::to_string(
+                          8 + 8 +
+                          8 * (int_idx - ARG_REGISTERS_INTEGER.size() + 1)) +
+                      "]";
+            }
+            int_idx++;
+        } else if (type::is_flt(type)) {
+            if (int_idx < ARG_REGISTERS_FLOAT.size()) {
+                reg = ARG_REGISTERS_FLOAT[flt_idx];
+            } else {
+                reg = "[rbp+" +
+                      std::to_string(
+                          8 + 8 +
+                          8 * (flt_idx - ARG_REGISTERS_FLOAT.size() + 1)) +
+                      "]";
+            }
+            flt_idx++;
+        } else {
+            std::cerr << "error: not implemented" << std::endl;
+        }
+        compile_variable_definition(state, *args, scope);
+        asm_add_instruction(state->code, "mov",
+                            asm_addr(get_address(state, var_node->name)), reg);
+    }
+}
+
 void compile_function_definition(CompilerState *state, node::Node *node,
                                  SymbolTable *scope) {
     node::FunctionDefinition *fund_def_node = node->value.function_definition;
     SymbolTable *function_scope = scope->symbols[fund_def_node->name].scope;
     state->curr_function_id = fund_def_node->name;
+    state->frame_offset = 8;
 
     asm_add_label(state->code, fund_def_node->name);
     asm_add_instruction(state->code, "push", "rbp");
     asm_add_instruction(state->code, "mov", "rbp", "rsp");
 
-    // TODO: add argument locations
+    // TODO: optimize this
+    allocate_arguments(state, node, function_scope);
 
     // TODO: we want to go down the scope
     compile_block(state, fund_def_node->body, function_scope);
@@ -361,7 +467,6 @@ void compile_function_definition(CompilerState *state, node::Node *node,
     asm_add_instruction(state->code, "mov", "rsp", "rbp");
     asm_add_instruction(state->code, "pop", "rbp");
     asm_add_instruction(state->code, "ret");
-    state->frame_offset = 0;
 }
 
 void compile_function_declaration(CompilerState *state, node::Node *node,
