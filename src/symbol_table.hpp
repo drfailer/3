@@ -22,7 +22,8 @@ struct SymbolTable {
     SymbolTable *parent;
     std::map<std::string, Symbol> symbols;
     std::vector<SymbolTable *> childs_scopes;
-    std::map<node::Node*, type::Type*> node_types; // TODO: populate in s3c
+    std::map<node::Node*, type::Type*> node_types; // evaluated type of
+                                                   // expression nodes
 };
 
 SymbolTable *symbol_table_create(SymbolTable *parent);
