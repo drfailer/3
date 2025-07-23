@@ -202,7 +202,7 @@ void compile_cmp(CompilerState *state, node::BooleanOperation *node,
     compile_node(state, node->rhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "pop", "rdx");
-    asm_add_instruction(state->code, "cmp", "rax", "rdx");
+    asm_add_instruction(state->code, "cmp", "rdx", "rax");
     asm_add_instruction(state->code, jmp, TRUE_LABEL(node));
     asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
 }
@@ -266,16 +266,16 @@ void compile_boolean_operation(CompilerState *state, node::Node *node,
         compile_cmp(state, op_node, scope, "je");
         break;
     case node::BooleanOperationKind::Inf:
-        compile_cmp(state, op_node, scope, "ji");
+        compile_cmp(state, op_node, scope, "jl");
         break;
     case node::BooleanOperationKind::Sup:
-        compile_cmp(state, op_node, scope, "js");
+        compile_cmp(state, op_node, scope, "jg");
         break;
     case node::BooleanOperationKind::Ieq:
-        compile_cmp(state, op_node, scope, "jie");
+        compile_cmp(state, op_node, scope, "jle");
         break;
     case node::BooleanOperationKind::Seq:
-        compile_cmp(state, op_node, scope, "jse");
+        compile_cmp(state, op_node, scope, "jge");
         break;
     }
 }
