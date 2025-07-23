@@ -54,8 +54,10 @@ void enter_scope(State *state) {
     state->scopes.curr = scope;
 }
 
-void leave_scope(State *state) {
+void leave_scope(State *state, node::Block *block) {
+    auto scope = state->scopes.curr;
     state->scopes.curr = state->scopes.curr->parent;
+    state->scopes.curr->block_scopes[block] = scope;
 }
 
 void add_symbol(State *state, std::string const &id, type::Type *type,
@@ -103,7 +105,7 @@ void add_function_definition(State *state, std::string const &name,
                              node::Block *body, size_t line) {
     state->program.push_back(node::create_function_definition(
         LOCATION, name, state->curr_function.arguments, body));
-    leave_scope(state);
+    leave_scope(state, body);
     reset_curr_function(state);
 }
 
@@ -385,7 +387,7 @@ node::Node *new_for(State *state, std::string const &index_id,
         index_type = step_type.type;
     }
     add_symbol(state, index_id, index_type, LOCATION);
-    leave_scope(state);
+    leave_scope(state, block);
     return node::create_for_stmt(
         LOCATION, node::create_variable_definition(LOCATION, index_id), begin,
         end, step, block);

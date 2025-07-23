@@ -40,7 +40,7 @@ void enter_file(State *state, std::string const &filename);
 void enter_function(State *state, std::string const &function_name);
 
 void enter_scope(State *state);
-void leave_scope(State *state);
+void leave_scope(State *state, node::Block *block);
 void add_symbol(State *state, std::string const &id, type::Type *type,
                 Location const &location);
 void add_global_symbol(State *state, std::string const &id, type::Type *type,

@@ -392,10 +392,9 @@ cnd:
     } block[ops] {
         auto ifstmt = $cndb;
         // adding else block
-        ifstmt->value.cnd_stmt->else_expression = node::create_block(
-            ifstmt->location, $ops);
+        ifstmt->value.cnd_stmt->otw_block = $ops;
         $$ = ifstmt;
-        s3c::leave_scope(state);
+        s3c::leave_scope(state, $ops);
     }
     ;
 
@@ -407,7 +406,7 @@ cndBase:
         $$ = node::create_cnd_stmt(
             location_create(state->curr_filename, @1.begin.line),
             $cond, $ops);
-        s3c::leave_scope(state);
+        s3c::leave_scope(state, $ops);
     }
     ;
 
@@ -428,7 +427,7 @@ whl:
         $$ = node::create_whl_stmt(
             location_create(state->curr_filename, @1.begin.line),
             $cond, $ops);
-        s3c::leave_scope(state);
+        s3c::leave_scope(state, $ops);
     }
     ;
 %%

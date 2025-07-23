@@ -22,6 +22,7 @@ struct SymbolTable {
     SymbolTable *parent;
     std::map<std::string, Symbol> symbols;
     std::vector<SymbolTable *> childs_scopes;
+    std::map<node::Block*, SymbolTable*> block_scopes;
     std::map<node::Node*, type::Type*> node_types; // evaluated type of
                                                    // expression nodes
 };
