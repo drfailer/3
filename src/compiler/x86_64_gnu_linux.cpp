@@ -25,6 +25,16 @@ const std::array<std::string, 6> ARG_REGISTERS_INTEGER = {"rdi", "rsi", "rdx",
 const std::array<std::string, 8> ARG_REGISTERS_FLOAT = {
     "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
+void mov_result(CompilerState *state, std::string const &register_name) {
+    if (!(state->last_expr_addr.addressing_mode == AddressingMode::Register &&
+          state->last_expr_addr.register_name == register_name)) {
+        asm_add_instruction(state->code, "mov", register_name,
+                            asm_addr(state->last_expr_addr));
+    }
+}
+
+void compile_block(CompilerState *state, node::Block *node, SymbolTable *scope);
+
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
 
 /*
@@ -109,7 +119,7 @@ void compile_index_expression(CompilerState *state, node::Node *node,
 }
 
 void compile_variable_reference(CompilerState *state, node::Node *node,
-                                SymbolTable *scope) {
+                                SymbolTable *) {
     node::VariableReference *var_ref_node = node->value.variable_reference;
     // TODO: the addressing mode might not be based all the time
     auto addr = get_address(state, var_ref_node->name);
@@ -195,15 +205,22 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
     asm_addr_register(state, "rax", nullptr);
 }
 
-#define LABEL(node, suffix) ptr_to_string(node) + suffix
+#define LABEL(node, suffix) "label_" + ptr_to_string(node) + suffix
 #define TRUE_LABEL(node) LABEL(node, "_true")
 #define FALSE_LABEL(node) LABEL(node, "_false")
+#define BEGIN_LABEL(node) LABEL(node, "_begin")
+#define END_LABEL(node) LABEL(node, "_end")
 
 void compile_cmp(CompilerState *state, node::BooleanOperation *node,
                  SymbolTable *scope, std::string const &jmp) {
+    std::cout << (int)node->lhs->kind << std::endl;
+    std::cout << (int)node->rhs->kind << std::endl;
+    // BUG: variable references doesn't end up on rax anymore!
     compile_node(state, node->lhs, scope);
+    mov_result(state, "rax");
     asm_add_instruction(state->code, "push", "rax");
     compile_node(state, node->rhs, scope);
+    mov_result(state, "rax");
     asm_add_instruction(state->code, "pop", "rdx");
     asm_add_instruction(state->code, "cmp", "rax", "rdx");
     asm_add_instruction(state->code, jmp, TRUE_LABEL(node));
@@ -310,6 +327,8 @@ void compile_builtin_function(CompilerState *state, node::Node *node,
 
 void compile_function_call(CompilerState *state, node::Node *node,
                            SymbolTable *scope) {
+    // WARN: make sure to put the number of float arguments in `al` before
+    // calling C variadic functions
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     type::Type *function_type =
@@ -362,7 +381,19 @@ void compile_function_call(CompilerState *state, node::Node *node,
 
 void compile_cnd_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    // TODO
+    node::CndStmt *stmt = node->value.cnd_stmt;
+    node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
+
+    compile_node(state, stmt->condition, scope);
+    asm_add_label(state->code, TRUE_LABEL(cnd));
+    compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
+    asm_add_instruction(state->code, "jmp", END_LABEL(stmt));
+    asm_add_label(state->code, FALSE_LABEL(cnd));
+    if (stmt->otw_block) {
+        compile_block(state, stmt->otw_block,
+                      scope->block_scopes[stmt->otw_block]);
+    }
+    asm_add_label(state->code, END_LABEL(stmt));
 }
 
 void compile_for_stmt(CompilerState *state, node::Node *node,
@@ -372,7 +403,15 @@ void compile_for_stmt(CompilerState *state, node::Node *node,
 
 void compile_whl_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    // TODO
+    node::WhlStmt *stmt = node->value.whl_stmt;
+    node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
+
+    asm_add_label(state->code, BEGIN_LABEL(stmt));
+    compile_node(state, stmt->condition, scope);
+    asm_add_label(state->code, TRUE_LABEL(cnd));
+    compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
+    asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
+    asm_add_label(state->code, FALSE_LABEL(cnd));
 }
 
 void compile_ret_stmt(CompilerState *state, node::Node *node,

@@ -1,0 +1,19 @@
+int main() bgn
+    int a
+    int b
+
+    mov(a, 3)
+    mov(b, 9)
+
+    cnd eql(a, b) bgn
+        shw("a == b\n")
+    end otw bgn
+        shw("a != b\n")
+    end
+
+    cnd eql(b, mul(a, a)) bgn
+        shw("b == a*a\n")
+    end
+
+    ret 0
+end
