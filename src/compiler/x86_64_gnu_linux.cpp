@@ -25,7 +25,7 @@ const std::array<std::string, 6> ARG_REGISTERS_INTEGER = {"rdi", "rsi", "rdx",
 const std::array<std::string, 8> ARG_REGISTERS_FLOAT = {
     "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
-void mov_result(CompilerState *state, std::string const &register_name) {
+void mov_result_to_register(CompilerState *state, std::string const &register_name) {
     if (!(state->last_expr_addr.addressing_mode == AddressingMode::Register &&
           state->last_expr_addr.register_name == register_name)) {
         asm_add_instruction(state->code, "mov", register_name,
@@ -144,12 +144,7 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
         asm_add_instruction(state->code, "push",
                             asm_addr(state->last_expr_addr));
         compile_node(state, op_node->lhs, scope);
-        if (!(state->last_expr_addr.addressing_mode ==
-                  AddressingMode::Register &&
-              state->last_expr_addr.register_name == "rax")) {
-            asm_add_instruction(state->code, "mov", "rax",
-                                asm_addr(state->last_expr_addr));
-        }
+        mov_result_to_register(state, "rax");
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "add", "rax", "rdx");
         break;
@@ -158,12 +153,7 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
         asm_add_instruction(state->code, "push",
                             asm_addr(state->last_expr_addr));
         compile_node(state, op_node->lhs, scope);
-        if (!(state->last_expr_addr.addressing_mode ==
-                  AddressingMode::Register &&
-              state->last_expr_addr.register_name == "rax")) {
-            asm_add_instruction(state->code, "mov", "rax",
-                                asm_addr(state->last_expr_addr));
-        }
+        mov_result_to_register(state, "rax");
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "sub", "rax", "rdx");
         break;
@@ -175,12 +165,7 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
         asm_add_instruction(state->code, "pop", "rdx");
         // note: in 64 bits mode imul's 2 operands should be 32 bits long, and
         // the result is 64 bits.
-        if (!(state->last_expr_addr.addressing_mode ==
-                  AddressingMode::Register &&
-              state->last_expr_addr.register_name == "rax")) {
-            asm_add_instruction(state->code, "mov", "rax",
-                                asm_addr(state->last_expr_addr));
-        }
+        mov_result_to_register(state, "rax");
         asm_add_instruction(state->code, "imul", "eax", "edx");
         break;
     case node::ArithmeticOperationKind::Div:
@@ -190,12 +175,7 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
                             asm_addr(state->last_expr_addr));
         compile_node(state, op_node->lhs, scope);
         asm_add_instruction(state->code, "pop", "rdi");
-        if (!(state->last_expr_addr.addressing_mode ==
-                  AddressingMode::Register &&
-              state->last_expr_addr.register_name == "rax")) {
-            asm_add_instruction(state->code, "mov", "rax",
-                                asm_addr(state->last_expr_addr));
-        }
+        mov_result_to_register(state, "rax");
         // set rdx to 0 before calling idiv !
         asm_add_instruction(state->code, "xor", "rdx", "rdx");
         asm_add_instruction(state->code, "idiv", "rdi");
@@ -217,10 +197,10 @@ void compile_cmp(CompilerState *state, node::BooleanOperation *node,
     std::cout << (int)node->rhs->kind << std::endl;
     // BUG: variable references doesn't end up on rax anymore!
     compile_node(state, node->lhs, scope);
-    mov_result(state, "rax");
+    mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "push", "rax");
     compile_node(state, node->rhs, scope);
-    mov_result(state, "rax");
+    mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "pop", "rdx");
     asm_add_instruction(state->code, "cmp", "rax", "rdx");
     asm_add_instruction(state->code, jmp, TRUE_LABEL(node));
