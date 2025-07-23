@@ -69,8 +69,8 @@ Node *create_function_call(Location location, std::string const &name,
 }
 
 Node *create_cnd_stmt(Location location, Node *condition, Block *block,
-                      Node *else_expression) {
-    return new_node(CndStmt, cnd_stmt, condition, block, else_expression);
+                      Block *otw_block) {
+    return new_node(CndStmt, cnd_stmt, condition, block, otw_block);
 }
 
 Node *create_whl_stmt(Location location, Node *condition, Block *block) {

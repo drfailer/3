@@ -104,10 +104,10 @@ Node *create_function_call(Location location, std::string const &name,
 struct CndStmt {
     Node *condition;
     Block *block;
-    Node *else_expression;
+    Block *otw_block;
 };
 Node *create_cnd_stmt(Location location, Node *condition, Block *block,
-                      Node *else_expression = nullptr);
+                      Block *otw_block = nullptr);
 
 struct WhlStmt {
     Node *condition;
