@@ -91,6 +91,7 @@ void compile_x86_64(std::string const &filename, CompilerState *state,
     // TODO: read as manual to change the output name
     std::string as_cmd = "as -g -msyntax=intel " + asm_filename(filename) +
                          " -o " + object_filename(filename);
+    std::cout << "running: " << as_cmd << std::endl;
     system(as_cmd.c_str());
     // ld -o output_name a.out
     // TODO: ld should be done afterward!

@@ -511,6 +511,7 @@ void compile(std::string filename, std::string outputName) {
                           Program{state->program, state->scopes.global});
         // TODO: check compile status before running ld
         std::string ld_cmd = "ld -o " + outputName + " " + compiler::object_filename(filename) + " -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2";
+        std::cout << "running: " << ld_cmd << std::endl;
         system(ld_cmd.c_str());
     // }
 
