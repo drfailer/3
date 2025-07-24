@@ -552,6 +552,9 @@ void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {
 void make_start(CompilerState *state) {
     asm_add_global_symbol(state->code, "_start");
     asm_add_label(state->code, "_start");
+    asm_add_instruction(state->code, "xor", "ebp", "ebp");
+    // TODO: args
+    asm_add_instruction(state->code, "xor", "rax", "rax");
     asm_add_instruction(state->code, "call", "main");
     asm_add_instruction(state->code, "mov", "rdi", "rax");
     asm_add_instruction(state->code, "mov", "rax", "60");
