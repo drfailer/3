@@ -510,7 +510,7 @@ void compile(std::string filename, std::string outputName) {
                           compiler::Platform::GNULinux,
                           Program{state->program, state->scopes.global});
         // TODO: check compile status before running ld
-        std::string ld_cmd = "ld -o " + outputName + " " + compiler::object_filename(filename);
+        std::string ld_cmd = "ld -o " + outputName + " " + compiler::object_filename(filename) + " -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2";
         system(ld_cmd.c_str());
     // }
 
