@@ -352,6 +352,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
         args_addr.pop();
     }
     // call the function
+    asm_add_instruction(state->code, "xor", "rax", "rax");
     asm_add_instruction(state->code, "call", node->value.function_call->name);
     // make sure the compiler know that the result will be store in rax (if
     // the function returns a result).
