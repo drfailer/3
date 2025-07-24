@@ -328,15 +328,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
         compile_node(state, *args, scope);
         std::string arg_addr = asm_addr(state->last_expr_addr);
 
-        if (type::is_int(type) || type::is_chr(type)) {
-            if (int_idx < ARG_REGISTERS_INTEGER.size()) {
-                reg = ARG_REGISTERS_INTEGER[int_idx];
-                asm_add_instruction(state->code, "mov", reg, arg_addr);
-            } else {
-                args_addr.push(arg_addr);
-            }
-            int_idx++;
-        } else if (type::is_flt(type)) {
+        if (type::is_flt(type)) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
                 reg = ARG_REGISTERS_FLOAT[flt_idx];
                 asm_add_instruction(state->code, "mov", reg, arg_addr);
@@ -345,7 +337,13 @@ void compile_function_call(CompilerState *state, node::Node *node,
             }
             flt_idx++;
         } else {
-            std::cerr << "error: not implemented" << std::endl;
+            if (int_idx < ARG_REGISTERS_INTEGER.size()) {
+                reg = ARG_REGISTERS_INTEGER[int_idx];
+                asm_add_instruction(state->code, "mov", reg, arg_addr);
+            } else {
+                args_addr.push(arg_addr);
+            }
+            int_idx++;
         }
     }
     // push the remaining argument on the stack in the reverse order
