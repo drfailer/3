@@ -64,7 +64,8 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
     case node::ValueKind::String: {
         // TODO: we should ad the size on top of the the string value
         std::string label = asm_create_data_id(state->code, "value_");
-        asm_add_data(state->code, label, ".string", value_node->value.string);
+        asm_add_data(state->code, label, ".string",
+                     "\"" + std::string(value_node->value.string) + "\"");
         asm_add_instruction(state->code, "lea", "rax", label);
         asm_addr_register(state, "rax", type);
     } break;
