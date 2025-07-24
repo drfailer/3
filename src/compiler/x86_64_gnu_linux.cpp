@@ -489,9 +489,9 @@ void compile_function_definition(CompilerState *state, node::Node *node,
 }
 
 void compile_function_declaration(CompilerState *state, node::Node *node,
-                                  SymbolTable *scope) {
-    // TODO: add global symbol (the function is a foreign symbol for which the
-    // address will be resolved at link time)
+                                  SymbolTable *) {
+    asm_add_instruction(state->code, ".extern",
+                        node->value.function_declaration->name);
 }
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {

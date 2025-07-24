@@ -63,6 +63,7 @@
 %token <std::string> STRING
 %token ERROR
 %token RET
+%token DCL
 %token BGN END
 %token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
@@ -91,6 +92,7 @@ program: %empty | programUnit program ;
 
 programUnit:
     functionDefinition { DEBUG("create new function" ); }
+    | functionDeclaration { DEBUG("new function declaration" ); }
     | PREPROCESSOR_LOCATION { s3c::enter_file(state, $1); }
     ;
 
@@ -103,7 +105,7 @@ returnTypeSpecifier:
     }
     ;
 
-functionDefinition:
+functionSignature:
     returnTypeSpecifier[rt] IDENTIFIER[name] {
         // TODO: function declaration
         if (!s3c::new_function_definition(state, $name, @name.begin.line)) {
@@ -111,8 +113,19 @@ functionDefinition:
         }
     } '('parameterDeclarationList')' {
         s3c::set_curr_function_type(state, $rt, @rt.begin.line);
-    } block[body] {
-        s3c::add_function_definition(state, $name, $body, @name.begin.line);
+    }
+    ;
+
+functionDeclaration:
+    DCL functionSignature {
+        s3c::add_function_declaration(state, @1.begin.line);
+    }
+    ;
+
+functionDefinition:
+    functionSignature block[body] {
+        s3c::add_function_definition(state, state->curr_function.name,
+                                     $body, @1.begin.line);
     }
     ;
 

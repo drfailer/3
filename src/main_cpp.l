@@ -59,6 +59,8 @@ rng          { DEBUG("L_rng"); return Parser::token::RNG; }
 mov          { DEBUG("L_mov"); return Parser::token::MOV; }
 ret          { DEBUG("L_ret"); return Parser::token::RET; }
 
+dcl          { DEBUG("L_dcl"); return Parser::token::DCL; }
+
 bgn          { DEBUG("L_bng"); return Parser::token::BGN; }
 end          { DEBUG("L_bng"); return Parser::token::END; }
 "["          { DEBUG("L_osquareb"); return Parser::token::OSQUAREB; }

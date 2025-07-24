@@ -57,7 +57,9 @@ void enter_scope(State *state) {
 void leave_scope(State *state, node::Block *block) {
     auto scope = state->scopes.curr;
     state->scopes.curr = state->scopes.curr->parent;
-    state->scopes.curr->block_scopes[block] = scope;
+    if (block != nullptr) {
+        state->scopes.curr->block_scopes[block] = scope;
+    }
 }
 
 void add_symbol(State *state, std::string const &id, type::Type *type,
@@ -107,6 +109,13 @@ void add_function_definition(State *state, std::string const &name,
         LOCATION, name, state->curr_function.arguments, body));
     leave_scope(state, body);
     reset_curr_function(state);
+}
+
+void add_function_declaration(State *state, size_t line) {
+    state->program.push_back(node::create_function_declaration(
+        LOCATION, state->curr_function.name, state->curr_function.arguments));
+    s3c::leave_scope(state, nullptr);
+    s3c::reset_curr_function(state);
 }
 
 void begin_block(State *state) {

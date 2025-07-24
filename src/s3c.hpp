@@ -52,6 +52,7 @@ bool new_function_definition(State *state, std::string const &id, size_t line);
 void set_curr_function_type(State *state, type::Type *return_type, size_t line);
 void add_function_definition(State *state, std::string const &name,
                              node::Block *body, size_t line);
+void add_function_declaration(State *state, size_t line);
 
 void begin_block(State *state);
 node::Block *end_block(State *state);
