@@ -64,8 +64,7 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
     case node::ValueKind::String: {
         // TODO: we should ad the size on top of the the string value
         std::string label = asm_create_data_id(state->code, "value_");
-        asm_add_data(state->code, label, ".string",
-                     "\"" + std::string(value_node->value.string) + "\"");
+        asm_add_data(state->code, label, ".string", value_node->value.string);
         asm_add_instruction(state->code, "lea", "rax", label);
         asm_addr_register(state, "rax", type);
     } break;
@@ -75,7 +74,7 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
 void compile_variable_definition(CompilerState *state, node::Node *node,
                                  SymbolTable *scope) {
     node::VariableDefinition *var_node = node->value.variable_definition;
-    auto type = lookup(scope, var_node->name)->type;
+    auto type = lookup_id(scope, var_node->name)->type;
     auto size = type::get_type_size(type);
 
     allocate_stack_variable(state, var_node->name, size, type, "rbp");
@@ -110,12 +109,19 @@ void compile_index_expression(CompilerState *state, node::Node *node,
     node::IndexExpression *expr_node = node->value.index_expression;
     auto type = scope->node_types[node];
 
-    // TODO: handle float cases
-    compile_node(state, expr_node->index, scope); // result on rax
-    // TODO: does gas supports the fancy intel syntax?
-    asm_add_instruction(state->code, "lea", "rdx",
-                        asm_addr(state->last_expr_addr));
-    asm_add_instruction(state->code, "add", "rax", "rdx");
+    compile_node(state, expr_node->element, scope);
+    auto element_addr = state->last_expr_addr;
+    compile_node(state, expr_node->index, scope);
+    auto index_result_addr = state->last_expr_addr;
+
+    // asm_add_instruction(state->code, "lea", "rax",
+    //                     "[" + element_addr.register_name +
+    //                         std::to_string(element_addr.offset) + "-" +
+    //                         index_result_addr.register_name + "]");
+
+    asm_add_instruction(state->code, "mov", "rdi", asm_addr(index_result_addr));
+    asm_add_instruction(state->code, "lea", "rax", asm_addr(element_addr));
+    asm_add_instruction(state->code, "add", "rax", "rdi");
     asm_addr_register_indirect(state, "rax", type);
 }
 
@@ -292,7 +298,7 @@ void compile_builtin_function(CompilerState *state, node::Node *node,
         std::string msg = fun_node->argument->value.value->value.string;
         std::string msg_len = std::to_string(get_compiled_string_size(msg));
 
-        asm_add_data(state->code, msg_id, ".string", "\"" + msg + "\"");
+        asm_add_data(state->code, msg_id, ".string", msg);
         // save registers?
         asm_add_instruction(state->code, "mov", "rax", "1");
         asm_add_instruction(state->code, "mov", "rdi", "1");
@@ -313,7 +319,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     type::Type *function_type =
-        lookup(scope, node->value.function_call->name)->type;
+        lookup_id(scope, node->value.function_call->name)->type;
     auto args = node->value.function_call->arguments.begin();
     auto args_type = function_type->value.function->arguments_types.begin();
     size_t int_idx = 0;
@@ -431,7 +437,7 @@ void allocate_arguments(CompilerState *state, node::Node *node,
     for (; args != node->value.function_definition->arguments.end(); args++) {
         // TODO: check the rules for structs
         node::VariableDefinition *var_node = (*args)->value.variable_definition;
-        auto type = lookup(scope, var_node->name)->type;
+        auto type = lookup_id(scope, var_node->name)->type;
         std::string reg = "";
 
         if (type::is_int(type) || type::is_chr(type)) {
@@ -495,7 +501,6 @@ void compile_function_declaration(CompilerState *state, node::Node *node,
 }
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {
-    std::cout << "compile node " << (int)node->kind << std::endl;
     switch (node->kind) {
     case node::NodeKind::Value:
         compile_value(state, node, scope);
@@ -565,7 +570,7 @@ void compile(CompilerState *state, Program const &program) {
     for (auto node : program.code) {
         compile_node(state, node, program.scope);
     }
-    if (lookup(program.scope, "main")) {
+    if (lookup_id(program.scope, "main")) {
         make_start(state);
     }
 }
