@@ -66,18 +66,20 @@ node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
                                      size_t line,
                                      std::string const &operatorName);
 
-void very_function_call_type(std::string const &functionName,
-                             node::FunctionCall *functionCall,
-                             SymbolTable *scope, std::string const &fileName,
-                             size_t line);
-void begin_new_funcall(State *state, std::string const &id);
+void very_function_call_argument_types(std::string const &functionName,
+                                       node::FunctionCall *functionCall,
+                                       SymbolTable *scope,
+                                       std::string const &fileName,
+                                       size_t line);
+void begin_new_funcall(State *state);
 void save_function_call_argument(State *state, node::Node *node);
-// TODO: this function should take the argument list as argument
-node::Node *new_function_call(State *state, std::string const &id, size_t line);
+node::Node *new_function_call(State *state, std::string const &function_name,
+                              size_t line);
 
 void new_variable_declaration(State *state, std::string id, type::Type *type,
                               size_t line);
-node::Node *new_variable(State *state, std::string const &name, size_t line);
+node::Node *new_variable_reference(State *state, std::string const &name,
+                                   size_t line);
 node::Node *new_index_expr(State *state, std::string const &name, size_t line,
                            node::Node *index_node);
 
@@ -95,6 +97,29 @@ node::Node *new_for(State *state, std::string const &index_id,
 void new_shw(State *state, node::Node *expr, size_t line);
 
 bool try_verify_main_type(State *state);
+
+template <typename T>
+node::Node *new_value(State *state, T value, size_t line) {
+    auto node =
+        node::create_value(location_create(state->curr_filename, line), value);
+
+    if (std::is_same_v<T, long>) {
+        state->scopes.curr->node_types.insert(
+            {node, type::create_primitive_type(type::PrimitiveType::Int)});
+    } else if (std::is_same_v<T, double>) {
+        state->scopes.curr->node_types.insert(
+            {node, type::create_primitive_type(type::PrimitiveType::Flt)});
+    } else if (std::is_same_v<T, char>) {
+        state->scopes.curr->node_types.insert(
+            {node, type::create_primitive_type(type::PrimitiveType::Chr)});
+    } else if (std::is_same_v<T, std::string>) {
+        state->scopes.curr->node_types.insert(
+            {node, type::create_primitive_type(type::PrimitiveType::Str)});
+    } else {
+        state->scopes.curr->node_types.insert({node, type::create_nil_type()});
+    }
+    return node;
+}
 
 } // end namespace s3c
 

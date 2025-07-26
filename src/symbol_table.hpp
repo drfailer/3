@@ -30,6 +30,7 @@ struct SymbolTable {
 SymbolTable *symbol_table_create(SymbolTable *parent);
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
                    SymbolTable *scope, Location const &location);
-Symbol *lookup(SymbolTable *table, std::string const &id);
+Symbol *lookup_id(SymbolTable *table, std::string const &id);
+type::Type *lookup_node_type(SymbolTable *table, node::Node *node);
 
 #endif

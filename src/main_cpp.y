@@ -231,7 +231,7 @@ expression:
 variable:
     IDENTIFIER {
         DEBUG("new param variable");
-        $$ = s3c::new_variable(state, $1, @1.begin.line);
+        $$ = s3c::new_variable_reference(state, $1, @1.begin.line);
     }
     | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
         DEBUG("using an array");
@@ -326,7 +326,7 @@ booleanOperation:
 
 functionCall:
     IDENTIFIER'(' {
-        s3c::begin_new_funcall(state, $1);
+        s3c::begin_new_funcall(state);
     }
     parameterList')' {
         DEBUG("new funcall: " << $1);
@@ -356,27 +356,19 @@ assignment:
 value:
     INT {
         DEBUG("new int: " << $1);
-        $$ = node::create_value(
-                location_create(state->curr_function.name, @1.begin.line),
-                (long)$1);
+        $$ = s3c::new_value<long>(state, (long)$1, @1.begin.line);
     }
     | FLT {
         DEBUG("new double: " << $1);
-        $$ = node::create_value(
-                location_create(state->curr_function.name, @1.begin.line),
-                $1);
+        $$ = s3c::new_value<double>(state, $1, @1.begin.line);
     }
     | CHR {
         DEBUG("new char: " << $1);
-        $$ = node::create_value(
-                location_create(state->curr_function.name, @1.begin.line),
-                $1);
+        $$ = s3c::new_value<char>(state, $1, @1.begin.line);
     }
     | STRING {
         DEBUG("new str: " << $1);
-        $$ = node::create_value(
-                location_create(state->curr_function.name, @1.begin.line),
-                $1.substr(1, $1.size() - 2));
+        $$ = s3c::new_value<std::string>(state, $1, @1.begin.line);
     }
     ;
 

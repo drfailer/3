@@ -2,10 +2,12 @@
 #include "symbol_table.hpp"
 #include "tools/messages.hpp"
 #include "tools/type_utilities.hpp"
+#include "tree/location.hpp"
+#include "tree/node.hpp"
 #include "type/predicates.hpp"
 #include "type/type.hpp"
-#include <iostream>
 #include <sstream>
+#include <iostream>
 
 // TODO: add an error status in the state
 
@@ -72,9 +74,19 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
     insert_symbol(state->scopes.global, id, type, scope, location);
 }
 
+bool verify_symbol(State *state, std::string const &id,
+                   Location const &location) {
+    Symbol *sym = lookup_id(state->scopes.curr, id);
+    if (sym == nullptr) {
+        UNDEFINED_SYMBOL_ERROR(location, id);
+        return false;
+    }
+    return true;
+}
+
 node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line) {
-    auto location = LOCATION;
+    auto location = location_create(state->curr_filename, line);
     auto node = node::create_variable_definition(location, id);
     add_symbol(state, id, type, location);
     state->curr_function.arguments.push_back(node);
@@ -84,7 +96,7 @@ node::Node *new_argument_declaration(State *state, std::string const &id,
 
 bool new_function_definition(State *state, std::string const &id, size_t line) {
     state->curr_function.name = id;
-    Symbol *sym = lookup(state->scopes.global, id);
+    Symbol *sym = lookup_id(state->scopes.global, id);
 
     if (sym) {
         MULTIPLE_DEFINITION_ERROR(LOCATION, id, sym->location);
@@ -134,40 +146,32 @@ void add_instruction(State *state, node::Node *node) {
 
 void new_return_expr(State *state, node::Node *expr, size_t line) {
     std::ostringstream oss;
-    Symbol *sym = lookup(state->scopes.curr, state->curr_function.name);
-    auto expr_type = get_eval_type(expr, state->scopes.curr);
+    Symbol *sym = lookup_id(state->scopes.curr, state->curr_function.name);
     auto expected_type = sym->type->value.function->return_type;
+    auto node = node::create_ret_stmt(LOCATION, expr);
 
-    if (sym->type->value.function->return_type->kind == type::TypeKind::Nil &&
-        expr != nullptr) {
-        if (expr_type.status != eval_type_r::Success) {
-            // TODO: print expr_type error if status not suc
-            std::cerr << "TODO :" << __LINE__ << std::endl;
-        } else {
-            INVALID_RETURN_TYPE_ERROR(LOCATION, sym->id,
+    auto scope = state->scopes.curr;
+    state->post_process_callbacks.push_back([scope, node, expr, sym,
+                                             expected_type]() {
+        if (expr == nullptr) {
+            if (!type::is_nil(expected_type)) {
+                // TODO: we should not have to create a nil type here
+                auto nil_type = type::create_nil_type();
+                INVALID_RETURN_TYPE_ERROR(
+                    node->location, sym->id,
+                    sym->type->value.function->return_type, nil_type);
+                delete nil_type;
+            }
+            return;
+        }
+        auto expr_type = lookup_node_type(scope, expr);
+        if (!type::is_convertible(expr_type, expected_type)) {
+            INVALID_RETURN_TYPE_ERROR(node->location, sym->id,
                                       sym->type->value.function->return_type,
-                                      expr_type.type);
+                                      expr_type);
         }
-        return;
-    }
-
-    if (expr_type.status != eval_type_r::Success) {
-        // TODO: test if the type is post processable
-        // TODO: print error
-        return;
-    }
-
-    if (!type::equal(expr_type.type, expected_type)) {
-        if (type::is_convertible(expected_type, expr_type.type)) {
-            IMPLICIT_CONVERTION_WARNING(LOCATION, state->curr_function.name,
-                                        expr_type.type, expected_type);
-        } else {
-            INVALID_RETURN_TYPE_ERROR(LOCATION, state->curr_function.name,
-                                      expr_type.type, expected_type)
-        }
-    }
-    // else verify the type and throw a warning
-    add_instruction(state, node::create_ret_stmt(LOCATION, expr));
+    });
+    add_instruction(state, node);
 }
 
 node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
@@ -175,257 +179,231 @@ node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
                                      node::ArithmeticOperationKind kind,
                                      size_t line,
                                      std::string const &operator_name) {
-    auto lhs_type = get_eval_type(lhs, state->scopes.curr);
-    auto rhs_type = get_eval_type(rhs, state->scopes.curr);
-    // TODO: there are plenty of cases that are not handled here
-    // TODO: if one of the operands is an undefined function (None type),
-    // make the verification in post process
-    if (!type::supports_arithmetic(lhs_type.type) ||
-        !type::supports_arithmetic(rhs_type.type)) {
-        ARITHMETIC_OPERATOR_ERROR(LOCATION, operator_name)
-    }
-    return node::create_arithmetic_operation(LOCATION, kind, lhs, rhs);
-}
+    // if one of the operand is undefined, the node should always have the nill
+    // type
+    auto op_node = node::create_arithmetic_operation(LOCATION, kind, lhs, rhs);
+    auto scope = state->scopes.curr;
+    state->post_process_callbacks.push_back([op_node, scope, lhs, rhs,
+                                             operator_name]() {
+        auto lhs_type = lookup_node_type(scope, lhs);
+        auto rhs_type = lookup_node_type(scope, rhs);
 
-/*
- * Note: this function is called during the post process, so all the symbol
- *       should be defined.
- */
-void very_function_call_type(std::string const &function_id,
-                             node::FunctionCall *functionCall,
-                             SymbolTable *scope, std::string const &filename,
-                             size_t line) {
-    auto sym = lookup(scope, function_id);
-
-    if (sym) {
-        if (sym->type->kind != type::TypeKind::Function) {
-            std::cerr << "error: " << sym->id << " used as a function."
-                      << std::endl;
+        if (!type::supports_arithmetic(lhs_type) ||
+            !type::supports_arithmetic(rhs_type)) {
+            ARITHMETIC_OPERATOR_ERROR(op_node->location, operator_name)
+            scope->node_types.insert({op_node, type::create_nil_type()});
+        } else {
+            scope->node_types.insert(
+                {op_node, type::select_most_precise_arithmetic_type(lhs_type,
+                                                                    rhs_type)});
         }
-        auto function_type = sym->type->value.function;
-
-        if (function_type->arguments_types.size() !=
-            functionCall->arguments.size()) {
-            // TODO: error message
-            std::cerr << "error: wrong number of arguments for '" << function_id
-                      << "'." << std::endl;
-            std::cerr << "expecte type: " << type::type_to_string(sym->type)
-                      << std::endl;
-            std::cerr << "found " << std::endl;
-            return; // TODO: we should returh a status
-        }
-
-        auto arg = functionCall->arguments.begin();
-        auto expected_type = function_type->arguments_types.begin();
-        for (; expected_type != function_type->arguments_types.end();) {
-            if (!type::is_convertible(get_eval_type(*arg++, scope).type,
-                                      *expected_type++)) {
-                // TODO: improve this error message
-                std::cerr << "error: no matching function call to "
-                          << function_id << "." << std::endl;
-                return;
-            }
-        }
-    } else {
-        UNDEFINED_SYMBOL_ERROR(location_create(filename, line), function_id);
-    }
+    });
+    return op_node;
 }
 
 void save_function_call_argument(State *state, node::Node *node) {
     state->funcall_parameters.back().push_back(node);
 }
 
-void begin_new_funcall(State *state, std::string const &id) {
-    state->funcall_ids.push_back(id);
+void begin_new_funcall(State *state) {
     state->funcall_parameters.push_back({});
 }
 
-node::Node *new_function_call(State *state, std::string const &id,
+node::Node *new_function_call(State *state, std::string const &function_name,
                               size_t line) {
-    // TODO: we need a none type as if the function is not defined, we
-    // cannot get the return type (should be verified afterward)
     auto args = state->funcall_parameters.back();
-    auto *funcall = node::create_function_call({}, state->funcall_ids.back(),
-                                               std::move(args));
-    state->funcall_ids.pop_back();
+    auto *node = node::create_function_call(LOCATION, function_name, args);
     state->funcall_parameters.pop_back();
 
     // setup type verification
     std::string file = state->curr_filename;
     auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([=]() {
-        very_function_call_type(id, funcall->value.function_call, scope, file,
-                                line);
+    state->post_process_callbacks.push_back([scope, node, args]() {
+        auto function_name = node->value.function_call->name;
+        auto sym = lookup_id(scope, function_name);
+
+        if (sym == nullptr) {
+            UNDEFINED_SYMBOL_ERROR(node->location, function_name);
+            scope->node_types.insert({node, type::create_nil_type()});
+            return;
+        }
+        if (sym->type->kind != type::TypeKind::Function) {
+            INVALID_CALL_ERROR(node->location, function_name);
+            scope->node_types.insert({node, type::create_nil_type()});
+            return;
+        }
+
+        auto function_type = sym->type->value.function;
+        scope->node_types.insert({node, function_type->return_type});
+        if (function_type->arguments_types.size() != args.size()) {
+            WRONG_NUMBER_OF_ARGUMENT_ERROR(node->location, function_name,
+                                           sym->type);
+            return;
+        }
+
+        auto call_arg = args.begin();
+        auto function_arg_type = function_type->arguments_types.begin();
+        int arg_idx = 0;
+        for (; function_arg_type != function_type->arguments_types.end();) {
+            auto found_type = lookup_node_type(scope, *call_arg);
+            auto expected_tpe = *function_arg_type;
+
+            if (!type::is_convertible(found_type, expected_tpe)) {
+                ARGUMENT_TYPE_ERROR(node->location, function_name, arg_idx,
+                                    found_type, expected_tpe);
+                return;
+            }
+            arg_idx++;
+            call_arg++;
+            function_arg_type++;
+        }
     });
-    return funcall;
+    return node;
 }
 
 void new_variable_declaration(State *state, std::string id, type::Type *type,
                               size_t line) {
     auto symbol = state->scopes.curr->symbols.find(id);
+    auto location = location_create(state->curr_filename, line);
 
     // redefinitions are not allowed:
     if (symbol != state->scopes.curr->symbols.end()) {
-        MULTIPLE_DEFINITION_ERROR(LOCATION, id, symbol->second.location)
+        MULTIPLE_DEFINITION_ERROR(location, id, symbol->second.location)
     }
-    insert_symbol(state->scopes.curr, id, type, nullptr, LOCATION);
-    add_instruction(state, node::create_variable_definition(LOCATION, id));
+    insert_symbol(state->scopes.curr, id, type, nullptr, location);
+    add_instruction(state, node::create_variable_definition(location, id));
 }
 
-node::Node *new_variable(State *state, std::string const &name, size_t line) {
-    auto sym = lookup(state->scopes.curr, name);
+node::Node *new_variable_reference(State *state, std::string const &name,
+                                   size_t line) {
+    auto sym = lookup_id(state->scopes.curr, name);
+    auto node = node::create_variable_reference(LOCATION, name);
 
     if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(LOCATION, name)
+        UNDEFINED_SYMBOL_ERROR(node->location, name);
+        state->scopes.curr->node_types.insert({node, type::create_nil_type()});
+    } else {
+        state->scopes.curr->node_types.insert({node, sym->type});
     }
-    return node::create_variable_reference(LOCATION, name);
+    return node;
 }
 
 node::Node *new_index_expr(State *state, std::string const &name, size_t line,
                            node::Node *index_node) {
-    auto variable = node::create_variable_reference(LOCATION, name);
-    auto index_expr =
-        node::create_index_expression(LOCATION, variable, index_node);
-    auto sym = lookup(state->scopes.curr, name);
+    auto location = location_create(state->curr_filename, line);
+    auto variable = node::create_variable_reference(location, name);
+    auto node = node::create_index_expression(location, variable, index_node);
+    auto sym = lookup_id(state->scopes.curr, name);
 
     if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(LOCATION, name)
+        UNDEFINED_SYMBOL_ERROR(node->location, name);
+        state->scopes.curr->node_types.insert({node, type::create_nil_type()});
+        return node;
     } else if (sym->type->kind != type::TypeKind::Array) {
-        INDEX_NON_ARRAY_TYPE_ERROR(LOCATION, name);
+        INDEX_NON_ARRAY_TYPE_ERROR(node->location, name);
+        state->scopes.curr->node_types.insert({node, sym->type});
+        state->scopes.curr->node_types.insert({variable, sym->type});
     } else {
-        // TODO: check get_eval_type status
-        type::Type *index_type =
-            get_eval_type(index_node, state->scopes.curr).type;
-        bool index_is_int =
-            index_type->kind == type::TypeKind::Primitive &&
-            index_type->value.primitive == type::PrimitiveType::Int;
-        if (!index_is_int) {
-            INVALID_INDEX_TYPE_ERROR(LOCATION, index_type);
-        }
+        state->scopes.curr->node_types.insert(
+            {node, sym->type->value.array->type});
+        state->scopes.curr->node_types.insert({variable, sym->type});
+        auto scope = state->scopes.curr;
+        state->post_process_callbacks.push_back([scope, index_node]() {
+            auto index_type = lookup_node_type(scope, index_node);
+            if (!type::is_int(index_type)) {
+                INVALID_INDEX_TYPE_ERROR(index_node->location, index_type);
+            }
+        });
     }
-    return index_expr;
-}
-
-void very_assignement_type(node::Assignment *assignment,
-                           node::FunctionCall *expr, SymbolTable *scope,
-                           std::string const &filename, size_t line) {
-    Symbol *variable_symbol = nullptr;
-
-    if (assignment->target->kind == node::NodeKind::VariableReference) {
-        variable_symbol =
-            lookup(scope, assignment->target->value.variable_reference->name);
-    } else if (assignment->target->kind == node::NodeKind::IndexExpression) {
-        variable_symbol =
-            lookup(scope, get_lvalue_identifier(assignment->target));
-        // TODO: the error message inside get_indexed_identifier should here
-    } else {
-        std::cerr << "error: try to assign invalid expression." << std::endl;
-    }
-
-    if (auto functionCallSymbol = lookup(scope, expr->name)) {
-        if (!type::is_convertible(
-                functionCallSymbol->type->value.function->return_type,
-                variable_symbol->type)) {
-            std::cerr << "error: bad assignment TODO: better message"
-                      << std::endl;
-        }
-    } else {
-        UNDEFINED_SYMBOL_ERROR(
-            location_create(filename, line),
-            assignment->target->value.variable_reference->name)
-    }
+    return node;
 }
 
 void new_assignment(State *state, node::Node *target, node::Node *expr,
                     size_t line) {
-    auto icType = get_eval_type(expr, state->scopes.curr);
-    auto node = node::create_assignment(LOCATION, target, expr);
+    auto location = LOCATION;
+    auto node = node::create_assignment(location, target, expr);
     auto variable_name = get_lvalue_identifier(target);
-    auto symbol = lookup(state->scopes.curr, variable_name);
+    auto symbol = lookup_id(state->scopes.curr, variable_name);
+
+    add_instruction(state, node);
 
     if (!symbol) {
-        UNDEFINED_SYMBOL_ERROR(LOCATION, variable_name);
+        UNDEFINED_SYMBOL_ERROR(location, variable_name);
         return;
     }
 
-    if (expr->kind == node::NodeKind::FunctionCall) {
-        // this is a funcall so we have to wait the end of the parsing to
-        // check (this is due to the fact that a function can be used before
-        // it's defined).
-        state->post_process_callbacks.push_back([=]() {
-            very_assignement_type(node->value.assignment,
-                                  expr->value.function_call, state->scopes.curr,
-                                  state->curr_filename, line);
-        });
-    } else if (!type::is_convertible(icType.type, symbol->type)) {
-        std::cerr << "error: invalid assignment" << std::endl;
+    auto target_type = lookup_node_type(state->scopes.curr, target);
+    if (!type::is_primitive(target_type)) {
+        INVALID_MOV_ERROR(location, target_type);
+        return;
     }
-    add_instruction(state, node);
-    // TODO: check the type for strings -> array of char
+
+    auto scope = state->scopes.curr;
+    state->post_process_callbacks.push_back([scope, node, target_type, expr]() {
+        auto expr_type = lookup_node_type(scope, expr);
+        // TOOD: warning?
+        if (!type::is_convertible(expr_type, target_type)) {
+            BAD_ASSIGNMENT_ERROR(node->location, expr_type, target_type);
+        }
+    });
 }
 
 node::Node *new_for(State *state, std::string const &index_id,
                     node::Node *begin, node::Node *end, node::Node *step,
                     node::Block *block, size_t line) {
-    std::cerr << "TODO: verify rng types" << std::endl;
-    auto begin_type = get_eval_type(begin, state->scopes.curr);
-    auto end_type = get_eval_type(end, state->scopes.curr);
-    auto step_type = get_eval_type(step, state->scopes.curr);
-    type::Type *index_type = nullptr;
+    auto sym = lookup_id(state->scopes.curr, index_id);
+    auto var_node = node::create_variable_reference(LOCATION, index_id);
 
-    if (begin_type.status != eval_type_r::Success ||
-        !type::is_number(begin_type.type)) {
-        // TODO: print error
-        return nullptr;
-    }
-    index_type = begin_type.type;
+    if (!sym) {
+        UNDEFINED_SYMBOL_ERROR(var_node->location, index_id);
+    } else if (!type::supports_arithmetic(sym->type)) {
+        BAD_FOR_INDEX_VARIABLE_TYPE(var_node->location, index_id, sym->type);
+    } else {
+        auto scope = state->scopes.curr;
+        state->post_process_callbacks.push_back(
+            [scope, var_node, sym, begin, end, step]() {
+                auto begin_type = lookup_node_type(scope, begin);
+                auto end_type = lookup_node_type(scope, end);
+                auto step_type = lookup_node_type(scope, step);
 
-    if (end_type.status != eval_type_r::Success ||
-        type::is_number(end_type.type)) {
-        // TODO: print error
-        return nullptr;
-    } else if (end_type.type->value.primitive == type::PrimitiveType::Flt) {
-        index_type = end_type.type;
+                if (!type::is_convertible(begin_type, sym->type)) {
+                    FOR_RNG_ERROR(var_node->location, "begin expression",
+                                  sym->id, sym->type, begin_type);
+                }
+                if (!type::is_convertible(end_type, sym->type)) {
+                    FOR_RNG_ERROR(var_node->location, "end expression", sym->id,
+                                  sym->type, end_type);
+                }
+                if (!type::is_convertible(step_type, sym->type)) {
+                    FOR_RNG_ERROR(var_node->location, "step expression",
+                                  sym->id, sym->type, step_type);
+                }
+            });
     }
-
-    if (step_type.status != eval_type_r::Success ||
-        type::is_number(step_type.type)) {
-        // TODO: print error
-        return nullptr;
-    } else if (end_type.type->value.primitive == type::PrimitiveType::Flt) {
-        index_type = step_type.type;
-    }
-    add_symbol(state, index_id, index_type, LOCATION);
     leave_scope(state, block);
-    return node::create_for_stmt(
-        LOCATION, node::create_variable_definition(LOCATION, index_id), begin,
-        end, step, block);
+    return node::create_for_stmt(var_node->location, var_node, begin, end, step,
+                                 block);
 }
 
 void new_shw(State *state, node::Node *expr, size_t line) {
-    // TODO: check get_eval_type status
-    if (expr->kind == node::NodeKind::Value &&
-        expr->value.value->kind == node::ValueKind::String) {
-        add_instruction(state,
-                        node::create_builtin_function(
-                            LOCATION, node::BuiltinFunctionKind::Shw, expr));
-    } else if (get_eval_type(expr, state->scopes.curr).type->kind ==
-               type::TypeKind::Primitive) {
-        add_instruction(state,
-                        node::create_builtin_function(
-                            LOCATION, node::BuiltinFunctionKind::Shw, expr));
-    } else {
-        // TODO: this is error is not very clear (note that the syntax is
-        // not strong ehough on the shw function)
-        // TODO
-        // errorsManager_.addBadUsageOfShwError(
-        //     programBuilder_.currFileName, line,
-        //     get_eval_type(expr, contextManager_.currentScope).type);
-    }
+    auto scope = state->scopes.curr;
+    auto location = LOCATION;
+    auto node = node::create_builtin_function(
+        location, node::BuiltinFunctionKind::Shw, expr);
+
+    state->post_process_callbacks.push_back([scope, node, expr]() {
+        auto expr_type = lookup_node_type(scope, expr);
+        if (!type::is_str(expr_type)) {
+            ERROR(node->location, "shw takes a string as argument.");
+        }
+        // TODO: this may change if in the future implementation of shw
+        // support variable display
+    });
+    add_instruction(state, node);
 }
 
 bool try_verify_main_type(State *state) {
-    auto sym = lookup(state->scopes.global, "main");
+    auto sym = lookup_id(state->scopes.global, "main");
 
     if (!sym) {
         return true; // when compiling libraries or object files
