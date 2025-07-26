@@ -1,4 +1,5 @@
 #include "predicates.hpp"
+#include "type/type.hpp"
 
 namespace type {
 
@@ -60,6 +61,14 @@ bool is_flt(Type const *type) {
     return is_primitive(type) && type->value.primitive == PrimitiveType::Flt;
 }
 
+bool is_str(Type const *type) {
+    return is_primitive(type) && type->value.primitive == PrimitiveType::Str;
+}
+
+bool is_nil(Type const *type) {
+    return type->kind == TypeKind::Nil;
+}
+
 bool is_number(Type const *type) {
     if (is_primitive(type)) {
         return type->value.primitive == PrimitiveType::Int ||
@@ -69,6 +78,9 @@ bool is_number(Type const *type) {
 }
 
 bool supports_arithmetic(Type *type) {
+    if (type == nullptr) {
+        return false;
+    }
     if (is_primitive(type)) {
         return type->value.primitive == PrimitiveType::Int ||
                type->value.primitive == PrimitiveType::Flt ||
@@ -77,5 +89,16 @@ bool supports_arithmetic(Type *type) {
     return false;
 }
 
+/*
+ * Here we know that all the types are valid arithmetic types (numbers).
+ */
+Type *select_most_precise_arithmetic_type(Type *lhs, Type *rhs) {
+    if (is_flt(lhs) || is_flt(rhs)) {
+        return create_primitive_type(PrimitiveType::Flt);
+    } else if (is_int(lhs) || is_int(rhs)) {
+        return create_primitive_type(PrimitiveType::Int);
+    }
+    return create_primitive_type(PrimitiveType::Chr);
+}
 
 } // end namespace type
