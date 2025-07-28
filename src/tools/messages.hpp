@@ -20,19 +20,19 @@ void warning(std::string const &msg);
 #define ERROR(loc, args)                                                       \
     {                                                                          \
         std::ostringstream oss;                                                \
-        oss << loc << ": " << args << std::endl;                               \
+        oss << loc << ": " << args;                                            \
         msg::error(oss.str());                                                 \
     }
 #define WARNING(loc, args)                                                     \
     {                                                                          \
         std::ostringstream oss;                                                \
-        oss << loc << ": " << args << std::endl;                               \
+        oss << loc << ": " << args;                                            \
         msg::warning(oss.str());                                               \
     }
 #define QUOTE(val) "'" BOLD << val << NORM "'"
 
 #define UNDEFINED_SYMBOL_ERROR(loc, symbol_id)                                 \
-    ERROR(loc, "undefined symbol " << QUOTE(symbol_id) << ". " << __FILE__ << " " << __LINE__)
+    ERROR(loc, "undefined symbol " << QUOTE(symbol_id) << ".")
 #define MULTIPLE_DEFINITION_ERROR(loc, name, symbol_location)                  \
     ERROR(loc, "redifinition definition of symbol "                            \
                    << QUOTE(name) << " (previously defined here: '"            \
@@ -81,12 +81,10 @@ void warning(std::string const &msg);
                    << QUOTE("int") << " found "                                \
                    << QUOTE(type::type_to_string(found_type)) << ".")
 
-// TODO: useless untill `cnv` is implemented
-#define IMPLICIT_CONVERTION_WARNING(loc, function_id, found_type,              \
-                                    expected_type)                             \
-    WARNING(loc, "in " << QUOTE(function_id) << " implicit convertion from "   \
-                       << QUOTE(type::type_to_string(found_type)) << " to "    \
-                       << QUOTE(expected_type) << ".")
+#define IMPLICIT_CONVERTION_WARNING(loc, found_type, expected_type)            \
+    WARNING(loc, "implicit convertion from "                                   \
+                     << QUOTE(type::type_to_string(found_type)) << " to "      \
+                     << QUOTE(expected_type) << ".")
 
 #define INVALID_MOV_ERROR(loc, target_type)                                    \
     ERROR(loc, "bad assignment of to expression of type "                      \

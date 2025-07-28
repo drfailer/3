@@ -12,6 +12,7 @@
 namespace s3c {
 
 struct State {
+    int status;
     std::string curr_filename;
     struct {
         std::string name;
@@ -25,14 +26,14 @@ struct State {
         SymbolTable *global;
     } scopes;
     std::list<node::Node *> program;
-    std::list<std::function<void(void)>> post_process_callbacks;
+    std::list<std::function<bool(void)>> post_process_callbacks;
     std::list<std::list<node::Node *>> funcall_parameters;
     std::list<std::string> funcall_ids;
 };
 
 State *state_create();
 
-void post_process(State *state);
+bool post_process(State *state);
 
 void reset_curr_function(State *state);
 
@@ -48,7 +49,7 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
 
 node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line);
-bool new_function_definition(State *state, std::string const &id, size_t line);
+void new_function_definition(State *state, std::string const &id, size_t line);
 void set_curr_function_type(State *state, type::Type *return_type, size_t line);
 void add_function_definition(State *state, std::string const &name,
                              node::Block *body, size_t line);

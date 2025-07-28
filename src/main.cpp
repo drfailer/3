@@ -31,10 +31,7 @@ void makeExecutable(std::string file) {
                                  std::filesystem::perm_options::add);
 }
 
-void compile(std::string filename, std::string outputName) {
-    int parserOutput;
-    int preprocessorErrorStatus = 0;
-
+bool compile(std::string filename, std::string outputName) {
     s3c::State *state = s3c::state_create();
     Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
 
@@ -45,7 +42,7 @@ void compile(std::string filename, std::string outputName) {
         pp.process(filename); // launch the preprocessor
     } catch (std::logic_error &e) {
         msg::error(e.what());
-        preprocessorErrorStatus = 1;
+        return false;
     }
 
     // open and parse the file
@@ -53,12 +50,19 @@ void compile(std::string filename, std::string outputName) {
                      std::ios::in); // parse the preprocessed file
     parser::Scanner scanner{is, std::cerr};
     parser::Parser parser{&scanner, state};
-    parserOutput = parser.parse();
-    s3c::post_process(state);
+    int err = parser.parse();
+
+    if (err || state->status) {
+        return false;
+    }
+
+    if (!s3c::post_process(state)) {
+        return false;
+    }
 
     // look for main
     if (!try_verify_main_type(state)) {
-        std::cout << "wrong main type" << std::endl;
+        return false;
     }
 
     // if no errors, transpile the file
@@ -80,13 +84,17 @@ void compile(std::string filename, std::string outputName) {
         std::filesystem::remove(PREPROCESSOR_OUTPUT_FILE);
     }
     delete state;
+    return true;
 }
 
 int main(int argc, char **argv) {
     if (argc == 2) {
-        compile(argv[1], "bin"); // TODO: add an option to choose the name of
-                                 // the created script
-    } else {                     // launch the interpreter for debugging
+        if (!compile(argv[1], "bin")) {
+            std::cerr << "Compilation failed!" << std::endl;
+            return 1;
+        }
+    } else {
         cli();
     }
+    return 0;
 }

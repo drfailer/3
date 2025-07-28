@@ -101,10 +101,7 @@ returnTypeSpecifier:
 
 functionSignature:
     returnTypeSpecifier[rt] IDENTIFIER[name] {
-        // TODO: function declaration
-        if (!s3c::new_function_definition(state, $name, @name.begin.line)) {
-            return 1;
-        }
+        s3c::new_function_definition(state, $name, @name.begin.line);
     } '('parameterDeclarationList')' {
         s3c::set_curr_function_type(state, $rt, @rt.begin.line);
     }
