@@ -1,4 +1,5 @@
 #include "compiler.hpp"
+#include "compiler/tools.hpp"
 #include "x86_64_gnu_linux.hpp"
 #include <cstdlib>
 #include <filesystem>
@@ -69,16 +70,7 @@ void asm_addr_based(CompilerState *state, std::string base_name, int offset,
     state->last_expr_addr.type = type;
 }
 
-std::string asm_filename(std::string const &filename) {
-    std::string base_name = std::filesystem::path(filename).filename();
-    return base_name + ".asm";
-}
-
-std::string object_filename(std::string const &filename) {
-    std::string base_name = std::filesystem::path(filename).filename();
-    return base_name + ".o";
-}
-
+// TODO: return a bool
 void compile_x86_64(std::string const &filename, CompilerState *state,
                     Platform platform, Program const &program) {
     switch (platform) {
@@ -87,14 +79,6 @@ void compile_x86_64(std::string const &filename, CompilerState *state,
         break;
     }
     asm_dump(state->code, filename);
-    // TODO: run the following command:
-    // TODO: read as manual to change the output name
-    std::string as_cmd = "as -g -msyntax=intel " + asm_filename(filename) +
-                         " -o " + object_filename(filename);
-    std::cout << "running: " << as_cmd << std::endl;
-    system(as_cmd.c_str());
-    // ld -o output_name a.out
-    // TODO: ld should be done afterward!
 }
 
 void compile(std::string const &filename, Arch arch, Platform platform,
@@ -142,7 +126,7 @@ void asm_dump_data(Asm const &code, std::ofstream &fs) {
 }
 
 void asm_dump(Asm const &code, std::string const &filename) {
-    std::ofstream fs(asm_filename(filename));
+    std::ofstream fs(filename);
 
     fs << ".intel_syntax noprefix" << std::endl;
     fs << ".text" << std::endl;

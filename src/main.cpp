@@ -1,58 +1,152 @@
 #include "compiler/compiler.hpp"
+#include "compiler/tools.hpp"
 #include "parser/lexer.hpp"
 #include "parser/parser.hpp"
 #include "preprocessor/preprocessor.hpp"
 #include "s3c.hpp"
 #include "tools/messages.hpp"
 #include <filesystem>
-#define PREPROCESSOR_OUTPUT_FILE "__main_pp.prog__"
-#define REMOVE_PREPROCESSOR_FILE false
+#define PREPROCESSOR_OUTPUT_FILE "__main_pp__"
 
-/* Run interactive parser. It was used during the beginning of the project. */
-void cli() {
-    s3c::State *state = s3c::state_create();
-    parser::Scanner scanner{std::cin, std::cerr};
-    parser::Parser parser{&scanner, state};
-    s3c::enter_scope(state);
-    parser.parse();
-    // TODO s3c.errorsManager().report();
-    // if (!s3c.errorsManager().getErrors()) {
-    //     TODO s3c.programBuilder().display();
-    // }
-    delete state;
+struct Options {
+    std::string input_file; // TODO: will be changed to a list
+    std::string output_file;
+    std::string build_directory_name;
+    enum {
+        GenerateExecutable,
+        GenerateAssembly,
+    } generate_option;
+    std::vector<std::string> linker_options = {};
+};
+
+bool starts_with(std::string const &str, std::string const &pattern) {
+    if (str.size() < pattern.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < pattern.size(); ++i) {
+        if (str[i] != pattern[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+Options parse_args(std::vector<std::string> const &args) {
+    Options opts = {
+        .input_file = "",
+        .output_file = "bin",
+        .build_directory_name = "build/",
+        .generate_option = Options::GenerateExecutable,
+        .linker_options = {},
+    };
+    size_t i = 0;
+
+    while (i < args.size()) {
+        std::string arg = args[i++];
+        if (arg == "-o" || arg == "--output") {
+            if (i == args.size()) {
+                std::cerr << "error: expected file name after " << arg << "."
+                          << std::endl;
+                exit(1);
+            }
+            opts.output_file = args[i++];
+        } else if (starts_with(arg, "--output=")) {
+            opts.output_file = arg.substr(9);
+        } else if (arg == "--build-dir") {
+            if (i == args.size()) {
+                std::cerr << "error: expected directory name after " << arg
+                          << "." << std::endl;
+                exit(1);
+            }
+            opts.build_directory_name = args[i++];
+        } else if (starts_with(arg, "--build-dir=")) {
+            opts.build_directory_name = arg.substr(12);
+        } else if (starts_with(arg, "-L")) {
+            opts.linker_options.push_back(arg);
+            if (arg.size() == 2) {
+                if (i == args.size()) {
+                    std::cerr << "error: expected file name after " << arg
+                              << "." << std::endl;
+                    exit(1);
+                }
+                opts.linker_options.push_back(args[i++]);
+            }
+        } else if (starts_with(arg, "-l")) {
+            opts.linker_options.push_back(arg);
+        } else if (arg == "--asm") {
+            opts.generate_option = Options::GenerateAssembly;
+        } else {
+            opts.input_file = arg;
+        }
+    }
+    if (opts.input_file.empty()) {
+        std::cerr << "error: no input file." << std::endl;
+        exit(1);
+    }
+    if (opts.output_file.empty()) {
+        if (opts.generate_option == Options::GenerateExecutable) {
+            opts.output_file =
+                opts.input_file.substr(0, opts.input_file.size() - 2);
+        } else {
+            opts.output_file =
+                opts.input_file.substr(0, opts.input_file.size() - 1) + "asm";
+        }
+    }
+    return opts;
 }
 
 /* add execution rights to the result file */
-void makeExecutable(std::string file) {
-    std::filesystem::permissions(file,
+void make_file_executable(std::string const &fielname) {
+    std::filesystem::permissions(fielname,
                                  std::filesystem::perms::owner_exec |
                                      std::filesystem::perms::group_exec |
                                      std::filesystem::perms::others_exec,
                                  std::filesystem::perm_options::add);
 }
 
-bool compile(std::string filename, std::string outputName) {
-    s3c::State *state = s3c::state_create();
-    Preprocessor pp(PREPROCESSOR_OUTPUT_FILE);
+void make_directory(std::string const &directory_name) {
+    if (!std::filesystem::exists(directory_name)) {
+        std::filesystem::create_directory(directory_name);
+    }
+}
 
-    // s3c::enter_file(state, filename);
-    // s3c::enter_scope(state);
+bool preprocess(Options const &opts) {
+    Preprocessor pp(opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE);
 
     try {
-        pp.process(filename); // launch the preprocessor
+        pp.process(opts.input_file); // launch the preprocessor
     } catch (std::logic_error &e) {
         msg::error(e.what());
         return false;
     }
+    return true;
+}
 
-    // open and parse the file
-    std::ifstream is(PREPROCESSOR_OUTPUT_FILE,
-                     std::ios::in); // parse the preprocessed file
+bool parse(Options const &opts, s3c::State *state) {
+    // BUG: when declaring a string here, its destructor ends up crashing???
+    // std::string pp_file = opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE;
+    std::ifstream is(opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE,
+                     std::ios::in);
     parser::Scanner scanner{is, std::cerr};
     parser::Parser parser{&scanner, state};
     int err = parser.parse();
 
     if (err || state->status) {
+        return false;
+    }
+    return true;
+}
+
+bool compile(Options const &opts) {
+    s3c::State *state = s3c::state_create();
+
+    make_directory(opts.build_directory_name);
+
+    if (!preprocess(opts)) {
+        return false;
+    }
+
+    if (!parse(opts, state)) {
         return false;
     }
 
@@ -65,36 +159,42 @@ bool compile(std::string filename, std::string outputName) {
         return false;
     }
 
-    // if no errors, transpile the file
-    // TODO: use the status from the state
-    // if (!s3c.errorsManager().getErrors()) {
-    compiler::compile(filename, compiler::Arch::X86_64,
-                      compiler::Platform::GNULinux,
-                      Program{state->program, state->scopes.global});
-    // TODO: check compile status before running ld
-    std::string ld_cmd = "ld -o " + outputName + " " +
-                         compiler::object_filename(filename) +
-                         " -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2";
-    std::cout << "running: " << ld_cmd << std::endl;
-    system(ld_cmd.c_str());
-    // }
+    if (opts.generate_option == Options::GenerateAssembly) {
+        auto base_name = compiler::base_name(opts.input_file);
+        auto asm_file = compiler::asm_filename(base_name);
+        compiler::compile(asm_file, compiler::Arch::X86_64,
+                          compiler::Platform::GNULinux,
+                          Program{state->program, state->scopes.global});
+    } else {
+        auto base_name =
+            opts.build_directory_name + compiler::base_name(opts.input_file);
+        auto asm_file = compiler::asm_filename(base_name);
+        auto obj_file = compiler::object_filename(base_name);
 
-    // remove the preprocessor output file
-    if (REMOVE_PREPROCESSOR_FILE) {
-        std::filesystem::remove(PREPROCESSOR_OUTPUT_FILE);
+        compiler::compile(asm_file, compiler::Arch::X86_64,
+                          compiler::Platform::GNULinux,
+                          Program{state->program, state->scopes.global});
+        compiler::run_cmd("as", "-g", "-msyntax=intel", asm_file, "-o",
+                          obj_file);
+        compiler::run_cmd("ld", "-o", opts.output_file, obj_file, "-lc",
+                          "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2");
     }
+
     delete state;
     return true;
 }
 
 int main(int argc, char **argv) {
-    if (argc == 2) {
-        if (!compile(argv[1], "bin")) {
-            std::cerr << "Compilation failed!" << std::endl;
-            return 1;
-        }
-    } else {
-        cli();
+    std::vector<std::string> args;
+
+    for (int i = 1; i < argc; ++i) {
+        args.push_back(argv[i]);
+    }
+    Options opts = parse_args(args);
+
+    if (!compile(opts)) {
+        std::cerr << "Compilation failed!" << std::endl;
+        return 1;
     }
     return 0;
 }

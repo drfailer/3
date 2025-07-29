@@ -63,9 +63,6 @@ enum class Platform {
     GNULinux,
 };
 
-std::string object_filename(std::string const &filename);
-std::string asm_filename(std::string const &filename);
-
 void compile(std::string const &filename, Arch arch, Platform platform,
              Program const &program);
 
