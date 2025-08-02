@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <type_traits>
+#include <vector>
 
 namespace compiler {
 
@@ -20,11 +22,25 @@ std::string base_name(std::string const &filename);
 std::string asm_filename(std::string const &base_name);
 std::string object_filename(std::string const &base_name);
 
+template <typename T>
+std::string format_cmd_arg(T const &arg) {
+    std::ostringstream oss;
+
+    if constexpr (std::is_same_v<std::vector<std::string>, T>) {
+        for (auto arg_val : arg) {
+            oss << " " << arg_val;
+        }
+    } else {
+        oss << " " << arg;
+    }
+    return oss.str();
+}
+
 template <typename ...T>
-void run_cmd(std::string const &exec, T ...args) {
-    std::string cmd_str = (exec + ... + (std::string(" ") + args));
+int run_cmd(std::string const &exec, T ...args) {
+    std::string cmd_str = (exec + ... + format_cmd_arg(args));
     std::cout << "running: " << cmd_str << std::endl;
-    system(cmd_str.c_str());
+    return system(cmd_str.c_str());
 }
 
 } // end namespace compiler

@@ -5,6 +5,7 @@
 #include "preprocessor/preprocessor.hpp"
 #include "s3c.hpp"
 #include "tools/messages.hpp"
+#include "tools/strings.hpp"
 #include <filesystem>
 #define PREPROCESSOR_OUTPUT_FILE "__main_pp__"
 
@@ -18,18 +19,6 @@ struct Options {
     } generate_option;
     std::vector<std::string> linker_options = {};
 };
-
-bool starts_with(std::string const &str, std::string const &pattern) {
-    if (str.size() < pattern.size()) {
-        return false;
-    }
-    for (size_t i = 0; i < pattern.size(); ++i) {
-        if (str[i] != pattern[i]) {
-            return false;
-        }
-    }
-    return true;
-}
 
 Options parse_args(std::vector<std::string> const &args) {
     Options opts = {
@@ -73,8 +62,13 @@ Options parse_args(std::vector<std::string> const &args) {
             }
         } else if (starts_with(arg, "-l")) {
             opts.linker_options.push_back(arg);
+        } else if (starts_with(arg, "-rpath=")) {
+            opts.linker_options.push_back(arg);
         } else if (arg == "--asm") {
             opts.generate_option = Options::GenerateAssembly;
+        } else if (arg[0] == '-') {
+            std::cerr << "error: unknown option " << arg << "." << std::endl;
+            exit(1);
         } else {
             opts.input_file = arg;
         }
@@ -124,7 +118,8 @@ bool preprocess(Options const &opts) {
 
 bool parse(Options const &opts, s3c::State *state) {
     // BUG: when declaring a string here, its destructor ends up crashing???
-    // std::string pp_file = opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE;
+    // std::string pp_file = opts.build_directory_name +
+    // PREPROCESSOR_OUTPUT_FILE;
     std::ifstream is(opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE,
                      std::ios::in);
     parser::Scanner scanner{is, std::cerr};
@@ -174,11 +169,14 @@ bool compile(Options const &opts) {
         compiler::compile(asm_file, compiler::Arch::X86_64,
                           compiler::Platform::GNULinux,
                           Program{state->program, state->scopes.global});
-        compiler::run_cmd("as", "-g", "-msyntax=intel", asm_file, "-o",
-                          obj_file);
+        int assembler_success = compiler::run_cmd("as", "-g", "-msyntax=intel",
+                                                  asm_file, "-o", obj_file);
         // TODO: add opts.linker_options
-        compiler::run_cmd("ld", "-o", opts.output_file, obj_file, "-lc",
-                          "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2");
+        if (assembler_success == 0) {
+            compiler::run_cmd("ld", "-o", opts.output_file, obj_file, "-lc",
+                              "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
+                              opts.linker_options);
+        }
     }
 
     delete state;
