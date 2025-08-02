@@ -381,7 +381,17 @@ void compile_cnd_stmt(CompilerState *state, node::Node *node,
 
 void compile_for_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    // TODO
+    node::ForStmt *stmt = node->value.for_stmt;
+    node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
+
+    asm_add_label(state->code, BEGIN_LABEL(stmt));
+    compile_node(state, stmt->condition, scope);
+    asm_add_label(state->code, TRUE_LABEL(cnd));
+    compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
+    // TODO: compiler the addition
+    throw std::runtime_error("the for is not fully implemented");
+    asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
+    asm_add_label(state->code, FALSE_LABEL(cnd));
 }
 
 void compile_whl_stmt(CompilerState *state, node::Node *node,

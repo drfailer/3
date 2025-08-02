@@ -2,7 +2,6 @@
 #define AST_NODE_H
 #include "location.hpp"
 #include <cstddef>
-#include <vector>
 #include <string>
 #include <vector>
 
@@ -118,12 +117,12 @@ Node *create_whl_stmt(Location location, Node *condition, Block *block);
 struct ForStmt {
     Node *index;
     Node *start;
-    Node *end;
+    Node *condition;
     Node *step;
     Block *block;
 };
-Node *create_for_stmt(Location location, Node *index, Node *start, Node *end,
-                      Node *step, Block *block);
+Node *create_for_stmt(Location location, Node *index, Node *start,
+                      Node *condition, Node *step, Block *block);
 
 struct RetStmt {
     Node *expression;

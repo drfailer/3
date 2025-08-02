@@ -407,7 +407,7 @@ cndBase:
     ;
 
 for:
-    FOR IDENTIFIER[v] RNG'('expression[b] COMMA expression[e] COMMA expression[s]')' {
+    FOR IDENTIFIER[v] RNG'('expression[b] COMMA booleanOperation[e] COMMA expression[s]')' {
         s3c::enter_scope(state);
     } block[ops] {
         DEBUG("in for");

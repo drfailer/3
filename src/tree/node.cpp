@@ -62,7 +62,6 @@ Node *create_function_declaration(Location location, std::string const &name,
     return new_node(FunctionDeclaration, function_declaration, name, arguments);
 }
 
-
 Node *create_function_call(Location location, std::string const &name,
                            std::vector<Node *> const &arguments) {
     return new_node(FunctionCall, function_call, name, arguments);
@@ -77,9 +76,9 @@ Node *create_whl_stmt(Location location, Node *condition, Block *block) {
     return new_node(WhlStmt, whl_stmt, condition, block);
 }
 
-Node *create_for_stmt(Location location, Node *index, Node *start, Node *end,
-                      Node *step, Block *block) {
-    return new_node(ForStmt, for_stmt, index, start, end, step, block);
+Node *create_for_stmt(Location location, Node *index, Node *start,
+                      Node *condition, Node *step, Block *block) {
+    return new_node(ForStmt, for_stmt, index, start, condition, step, block);
 }
 
 Node *create_ret_stmt(Location location, Node *expression) {

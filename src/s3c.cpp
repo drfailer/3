@@ -363,20 +363,14 @@ node::Node *new_for(State *state, std::string const &index_id,
     } else {
         auto scope = state->scopes.curr;
         state->post_process_callbacks.push_back(
-            [scope, var_node, sym, begin, end, step]() -> bool {
+            [scope, var_node, sym, begin, step]() -> bool {
                 auto begin_type = lookup_node_type(scope, begin);
-                auto end_type = lookup_node_type(scope, end);
                 auto step_type = lookup_node_type(scope, step);
                 bool res = true;
 
                 if (!type::is_convertible(begin_type, sym->type)) {
                     FOR_RNG_ERROR(var_node->location, "begin expression",
                                   sym->id, sym->type, begin_type);
-                    res = false;
-                }
-                if (!type::is_convertible(end_type, sym->type)) {
-                    FOR_RNG_ERROR(var_node->location, "end expression", sym->id,
-                                  sym->type, end_type);
                     res = false;
                 }
                 if (!type::is_convertible(step_type, sym->type)) {

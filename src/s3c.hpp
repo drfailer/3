@@ -92,7 +92,7 @@ void new_assignment(State *state, node::Node *target, node::Node *expr,
                     size_t line);
 
 node::Node *new_for(State *state, std::string const &index_id,
-                    node::Node *begin, node::Node *end, node::Node *step,
+                    node::Node *begin, node::Node *condition, node::Node *step,
                     node::Block *block, size_t line);
 
 void new_shw(State *state, node::Node *expr, size_t line);
