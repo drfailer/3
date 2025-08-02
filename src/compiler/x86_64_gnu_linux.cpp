@@ -187,12 +187,11 @@ void compile_arithmetic_operation_flt(CompilerState *state,
                                       node::ArithmeticOperation *node,
                                       SymbolTable *scope,
                                       std::string const &op) {
-    // TODO: might have to use movsd instead of pop
     compile_node(state, node->rhs, scope);
-    asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
+    asm_add_instruction(state->code, "movsd", "[rsp-8]", asm_addr(state->last_expr_addr));
     compile_node(state, node->lhs, scope);
     mov_result_to_register(state, "xmm0");
-    asm_add_instruction(state->code, "pop", "xmm1");
+    asm_add_instruction(state->code, "movsd", "xmm1", "[rsp-8]");
     asm_add_instruction(state->code, op, "xmm0", "xmm1");
     asm_addr_register(state, "xmm0", nullptr);
 }
