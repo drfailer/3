@@ -33,6 +33,7 @@ set(files
     src/s3c.cpp
     src/symbol_table.cpp
     src/tools/messages.cpp
+    src/tools/strings.cpp
     src/tools/type_utilities.cpp
     src/tree/node.cpp
     src/tree/location.cpp
