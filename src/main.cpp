@@ -64,7 +64,7 @@ Options parse_args(std::vector<std::string> const &args) {
             opts.linker_options.push_back(arg);
         } else if (starts_with(arg, "-rpath=")) {
             opts.linker_options.push_back(arg);
-        } else if (arg == "--asm") {
+        } else if (arg == "-S") {
             opts.generate_option = Options::GenerateAssembly;
         } else if (arg[0] == '-') {
             std::cerr << "error: unknown option " << arg << "." << std::endl;

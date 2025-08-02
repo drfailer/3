@@ -3,12 +3,10 @@
 #include "compiler/tools.hpp"
 #include "symbol_table.hpp"
 #include "tools/strings.hpp"
-#include "tools/type_utilities.hpp"
 #include "type/predicates.hpp"
 #include "type/type.hpp"
 #include <array>
 #include <iostream>
-#include <sstream>
 
 /*
  * Convetions:
