@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <string>
 #include <map>
-#include <list>
+#include <vector>
 
 namespace type {
 
@@ -37,10 +37,10 @@ Type *create_obj_type(std::string const &id,
 struct FunctionType {
     std::string id;
     Type *return_type;
-    std::list<Type*> arguments_types;
+    std::vector<Type*> arguments_types;
 };
 Type *create_function_type(std::string const &id, Type *return_type,
-                           std::list<Type *> &&arguments_types);
+                           std::vector<Type *> &&arguments_types);
 
 enum class TypeKind {
     Nil,

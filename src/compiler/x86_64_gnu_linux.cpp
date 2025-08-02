@@ -25,7 +25,8 @@ const std::array<std::string, 6> ARG_REGISTERS_INTEGER = {"rdi", "rsi", "rdx",
 const std::array<std::string, 8> ARG_REGISTERS_FLOAT = {
     "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
-void mov_result_to_register(CompilerState *state, std::string const &register_name) {
+void mov_result_to_register(CompilerState *state,
+                            std::string const &register_name) {
     if (!(state->last_expr_addr.addressing_mode == AddressingMode::Register &&
           state->last_expr_addr.register_name == register_name)) {
         asm_add_instruction(state->code, "mov", register_name,
@@ -320,32 +321,28 @@ void compile_function_call(CompilerState *state, node::Node *node,
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     type::Type *function_type =
         lookup_id(scope, node->value.function_call->name)->type;
-    auto args = node->value.function_call->arguments.begin();
-    auto args_type = function_type->value.function->arguments_types.begin();
-    size_t int_idx = 0;
-    size_t flt_idx = 0;
+    auto args = node->value.function_call->arguments;
+    auto args_type = function_type->value.function->arguments_types;
+    size_t int_idx = 0, flt_idx = 0;
     std::stack<std::string> args_addr;
-    for (; args != node->value.function_call->arguments.end(); args++) {
-        // TODO: check the rules for structs
-        auto type = *args_type++;
-        std::string reg = "";
-
+    // TODO: check the rules for structs
+    for (size_t i = 0; i < args.size(); i++) {
         // compile the argument node
-        compile_node(state, *args, scope);
+        compile_node(state, args[i], scope);
         std::string arg_addr = asm_addr(state->last_expr_addr);
 
-        if (type::is_flt(type)) {
+        if (type::is_flt(args_type[i])) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
-                reg = ARG_REGISTERS_FLOAT[flt_idx];
-                asm_add_instruction(state->code, "mov", reg, arg_addr);
+                asm_add_instruction(state->code, "mov",
+                                    ARG_REGISTERS_FLOAT[flt_idx], arg_addr);
             } else {
                 args_addr.push(arg_addr);
             }
             flt_idx++;
         } else {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
-                reg = ARG_REGISTERS_INTEGER[int_idx];
-                asm_add_instruction(state->code, "mov", reg, arg_addr);
+                asm_add_instruction(state->code, "mov",
+                                    ARG_REGISTERS_INTEGER[int_idx], arg_addr);
             } else {
                 args_addr.push(arg_addr);
             }
@@ -431,12 +428,11 @@ void allocate_arguments(CompilerState *state, node::Node *node,
                         SymbolTable *scope) {
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
-    auto args = node->value.function_definition->arguments.begin();
-    size_t int_idx = 0;
-    size_t flt_idx = 0;
-    for (; args != node->value.function_definition->arguments.end(); args++) {
+    auto args = node->value.function_definition->arguments;
+    size_t int_idx = 0, flt_idx = 0;
+    for (size_t idx = 0; idx < args.size(); idx++) {
         // TODO: check the rules for structs
-        node::VariableDefinition *var_node = (*args)->value.variable_definition;
+        auto *var_node = args[idx]->value.variable_definition;
         auto type = lookup_id(scope, var_node->name)->type;
         std::string reg = "";
 
@@ -465,7 +461,7 @@ void allocate_arguments(CompilerState *state, node::Node *node,
         } else {
             std::cerr << "error: not implemented" << std::endl;
         }
-        compile_variable_definition(state, *args, scope);
+        compile_variable_definition(state, args[idx], scope);
         asm_add_instruction(state->code, "mov",
                             asm_addr(get_address(state, var_node->name)), reg);
     }

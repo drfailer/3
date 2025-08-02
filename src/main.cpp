@@ -176,6 +176,7 @@ bool compile(Options const &opts) {
                           Program{state->program, state->scopes.global});
         compiler::run_cmd("as", "-g", "-msyntax=intel", asm_file, "-o",
                           obj_file);
+        // TODO: add opts.linker_options
         compiler::run_cmd("ld", "-o", opts.output_file, obj_file, "-lc",
                           "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2");
     }

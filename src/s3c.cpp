@@ -232,21 +232,16 @@ node::Node *new_function_call(State *state, std::string const &function_name,
         }
 
         bool res = true;
-        auto call_arg = args.begin();
-        auto function_arg_type = function_type->arguments_types.begin();
-        int arg_idx = 0;
-        for (; function_arg_type != function_type->arguments_types.end();) {
-            auto found_type = lookup_node_type(scope, *call_arg);
-            auto expected_tpe = *function_arg_type;
+        auto args_types = function_type->arguments_types;
+        for (size_t idx = 0; idx < args.size(); ++idx) {
+            auto found_type = lookup_node_type(scope, args[idx]);
+            auto expected_tpe = args_types[idx];
 
             if (!type::is_convertible(found_type, expected_tpe)) {
-                ARGUMENT_TYPE_ERROR(node->location, function_name, arg_idx,
+                ARGUMENT_TYPE_ERROR(node->location, function_name, idx,
                                     found_type, expected_tpe);
                 res = false;
             }
-            arg_idx++;
-            call_arg++;
-            function_arg_type++;
         }
         return res;
     });

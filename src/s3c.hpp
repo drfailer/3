@@ -16,19 +16,19 @@ struct State {
     std::string curr_filename;
     struct {
         std::string name;
-        std::list<node::Node *> arguments;
+        std::vector<node::Node *> arguments;
         type::Type *return_type;
-        std::list<type::Type *> arguments_types;
+        std::vector<type::Type *> arguments_types;
         std::stack<node::Block *> blocks;
     } curr_function;
     struct {
         SymbolTable *curr;
         SymbolTable *global;
     } scopes;
-    std::list<node::Node *> program;
-    std::list<std::function<bool(void)>> post_process_callbacks;
-    std::list<std::list<node::Node *>> funcall_parameters;
-    std::list<std::string> funcall_ids;
+    std::vector<node::Node *> program;
+    std::vector<std::function<bool(void)>> post_process_callbacks;
+    std::vector<std::vector<node::Node *>> funcall_parameters;
+    std::vector<std::string> funcall_ids;
 };
 
 State *state_create();

@@ -2,7 +2,7 @@
 #define AST_NODE_H
 #include "location.hpp"
 #include <cstddef>
-#include <list>
+#include <vector>
 #include <string>
 #include <vector>
 
@@ -79,27 +79,27 @@ Node *create_index_expression(Location location, Node *element, Node *index);
 
 struct FunctionDefinition {
     std::string name;
-    std::list<Node *> arguments;
+    std::vector<Node *> arguments;
     Block *body;
 };
 Node *create_function_definition(Location location, std::string const &name,
-                                 std::list<Node *> const &arguments,
+                                 std::vector<Node *> const &arguments,
                                  Block *body);
 
 // TODO: do we want to use this type in FunctionDefinition as well?
 struct FunctionDeclaration {
     std::string name;
-    std::list<Node *> arguments;
+    std::vector<Node *> arguments;
 };
 Node *create_function_declaration(Location location, std::string const &name,
-                                  std::list<Node *> const &arguments);
+                                  std::vector<Node *> const &arguments);
 
 struct FunctionCall {
     std::string name;
-    std::list<Node *> arguments;
+    std::vector<Node *> arguments;
 };
 Node *create_function_call(Location location, std::string const &name,
-                           std::list<Node *> const &arguments);
+                           std::vector<Node *> const &arguments);
 
 struct CndStmt {
     Node *condition;

@@ -51,20 +51,20 @@ Node *create_index_expression(Location location, Node *element, Node *index) {
 }
 
 Node *create_function_definition(Location location, std::string const &name,
-                                 std::list<Node *> const &arguments,
+                                 std::vector<Node *> const &arguments,
                                  Block *body) {
     return new_node(FunctionDefinition, function_definition, name, arguments,
                     body);
 }
 
 Node *create_function_declaration(Location location, std::string const &name,
-                                  std::list<Node *> const &arguments) {
+                                  std::vector<Node *> const &arguments) {
     return new_node(FunctionDeclaration, function_declaration, name, arguments);
 }
 
 
 Node *create_function_call(Location location, std::string const &name,
-                           std::list<Node *> const &arguments) {
+                           std::vector<Node *> const &arguments) {
     return new_node(FunctionCall, function_call, name, arguments);
 }
 

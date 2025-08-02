@@ -32,7 +32,7 @@ Type *create_obj_type(std::string const &id,
 }
 
 Type *create_function_type(std::string const &id, Type *return_type,
-                           std::list<Type *> &&arguments_types) {
+                           std::vector<Type *> &&arguments_types) {
     return new_type(Function, function, id, return_type, arguments_types);
 }
 
