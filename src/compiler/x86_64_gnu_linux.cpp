@@ -1,6 +1,8 @@
 #include "x86_64_gnu_linux.hpp"
 #include "compiler/compiler.hpp"
 #include "compiler/tools.hpp"
+#include "symbol_table.hpp"
+#include "tools/strings.hpp"
 #include "tools/type_utilities.hpp"
 #include "type/predicates.hpp"
 #include "type/type.hpp"
@@ -29,8 +31,13 @@ void mov_result_to_register(CompilerState *state,
                             std::string const &register_name) {
     if (!(state->last_expr_addr.addressing_mode == AddressingMode::Register &&
           state->last_expr_addr.register_name == register_name)) {
-        asm_add_instruction(state->code, "mov", register_name,
-                            asm_addr(state->last_expr_addr));
+        if (starts_with(register_name, "xmm")) {
+            asm_add_instruction(state->code, "movsd", register_name,
+                                asm_addr(state->last_expr_addr));
+        } else {
+            asm_add_instruction(state->code, "mov", register_name,
+                                asm_addr(state->last_expr_addr));
+        }
     }
 }
 
@@ -56,12 +63,13 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
                             std::to_string(value_node->value.integer));
         asm_addr_register(state, "rax", type);
         break;
-    case node::ValueKind::Real:
-        // TODO: learn how to use floats properly :D
-        asm_add_instruction(state->code, "mov", "rax",
-                            std::to_string(value_node->value.real));
-        asm_addr_register(state, "rax", type);
-        break;
+    case node::ValueKind::Real: {
+        auto flt_id = asm_create_data_id(state->code, "flt");
+        asm_add_data(state->code, flt_id, ".double",
+                     std::to_string(value_node->value.real));
+        asm_add_instruction(state->code, "movsd", "xmm0", flt_id);
+        asm_addr_register(state, "xmm0", type);
+    } break;
     case node::ValueKind::String: {
         // TODO: we should ad the size on top of the the string value
         std::string label = asm_create_data_id(state->code, "value_");
@@ -91,6 +99,7 @@ void compile_assignement(CompilerState *state, node::Node *node,
     compile_node(state, assignment_node->target, scope);
     target = state->last_expr_addr;
 
+    // TODO: handle float case
     if (target.addressing_mode == AddressingMode::RegisterIndirect) {
         asm_add_instruction(state->code, "push", target.register_name);
         compile_node(state, assignment_node->value, scope);
@@ -134,63 +143,93 @@ void compile_variable_reference(CompilerState *state, node::Node *node,
     asm_addr_based(state, "rbp", addr.offset, addr.type);
 }
 
+void compile_add_sub_int(CompilerState *state, node::ArithmeticOperation *node,
+                         SymbolTable *scope, bool sub) {
+    compile_node(state, node->rhs, scope);
+    asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
+    compile_node(state, node->lhs, scope);
+    mov_result_to_register(state, "rax");
+    asm_add_instruction(state->code, "pop", "rdx");
+    if (sub) {
+        asm_add_instruction(state->code, "sub", "rax", "rdx");
+    } else {
+        asm_add_instruction(state->code, "add", "rax", "rdx");
+    }
+    asm_addr_register(state, "rax", nullptr);
+}
+
+void compile_mul_int(CompilerState *state, node::ArithmeticOperation *node,
+                     SymbolTable *scope) {
+    compile_node(state, node->rhs, scope);
+    asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
+    compile_node(state, node->lhs, scope);
+    asm_add_instruction(state->code, "pop", "rdx");
+    // note: in 64 bits mode imul's 2 operands should be 32 bits long, and
+    // the result is 64 bits.
+    mov_result_to_register(state, "rax");
+    asm_add_instruction(state->code, "imul", "eax", "edx");
+    asm_addr_register(state, "rax", nullptr);
+}
+
+void compile_div_int(CompilerState *state, node::ArithmeticOperation *node,
+                     SymbolTable *scope) {
+    compile_node(state, node->rhs, scope);
+    asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
+    compile_node(state, node->lhs, scope);
+    asm_add_instruction(state->code, "pop", "rdi");
+    mov_result_to_register(state, "rax");
+    asm_add_instruction(state->code, "xor", "rdx", "rdx"); // zero rdx
+    asm_add_instruction(state->code, "idiv", "rdi");
+    asm_addr_register(state, "rax", nullptr);
+}
+
+void compile_arithmetic_operation_flt(CompilerState *state,
+                                      node::ArithmeticOperation *node,
+                                      SymbolTable *scope,
+                                      std::string const &op) {
+    // TODO: might have to use movsd instead of pop
+    compile_node(state, node->rhs, scope);
+    asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
+    compile_node(state, node->lhs, scope);
+    mov_result_to_register(state, "xmm0");
+    asm_add_instruction(state->code, "pop", "xmm1");
+    asm_add_instruction(state->code, op, "xmm0", "xmm1");
+    asm_addr_register(state, "xmm0", nullptr);
+}
+
 void compile_arithmetic_operation(CompilerState *state, node::Node *node,
                                   SymbolTable *scope) {
     node::ArithmeticOperation *op_node = node->value.arithmetic_operation;
-    // TODO: use different operations depending on the operand type
-    //       use xmm registers add addsd, ... for floats
-    // TODO: compile function should return a result that will contain where the
-    // result of the instruction/operations is store (rax, address on stack,
-    // ...)
-    // TODO: compile functions should have configuration to specidiy where the
-    // result should go.
-    // TODO: know when registers contain addresses or immediate values
-    // (dereference or not dereference?)
     switch (op_node->kind) {
     case node::ArithmeticOperationKind::Add:
-        compile_node(state, op_node->rhs, scope);
-        asm_add_instruction(state->code, "push",
-                            asm_addr(state->last_expr_addr));
-        compile_node(state, op_node->lhs, scope);
-        mov_result_to_register(state, "rax");
-        asm_add_instruction(state->code, "pop", "rdx");
-        asm_add_instruction(state->code, "add", "rax", "rdx");
+        if (type::is_flt(lookup_node_type(scope, node))) {
+            compile_arithmetic_operation_flt(state, op_node, scope, "addsd");
+        } else {
+            compile_add_sub_int(state, op_node, scope, false);
+        }
         break;
     case node::ArithmeticOperationKind::Sub:
-        compile_node(state, op_node->rhs, scope);
-        asm_add_instruction(state->code, "push",
-                            asm_addr(state->last_expr_addr));
-        compile_node(state, op_node->lhs, scope);
-        mov_result_to_register(state, "rax");
-        asm_add_instruction(state->code, "pop", "rdx");
-        asm_add_instruction(state->code, "sub", "rax", "rdx");
+        if (type::is_flt(lookup_node_type(scope, node))) {
+            compile_arithmetic_operation_flt(state, op_node, scope, "subsd");
+        } else {
+            compile_add_sub_int(state, op_node, scope, true);
+        }
         break;
     case node::ArithmeticOperationKind::Mul:
-        compile_node(state, op_node->rhs, scope);
-        asm_add_instruction(state->code, "push",
-                            asm_addr(state->last_expr_addr));
-        compile_node(state, op_node->lhs, scope);
-        asm_add_instruction(state->code, "pop", "rdx");
-        // note: in 64 bits mode imul's 2 operands should be 32 bits long, and
-        // the result is 64 bits.
-        mov_result_to_register(state, "rax");
-        asm_add_instruction(state->code, "imul", "eax", "edx");
+        if (type::is_flt(lookup_node_type(scope, node))) {
+            compile_arithmetic_operation_flt(state, op_node, scope, "mulsd");
+        } else {
+            compile_mul_int(state, op_node, scope);
+        }
         break;
     case node::ArithmeticOperationKind::Div:
-        // throw std::logic_error("div doesn't work");
-        compile_node(state, op_node->rhs, scope);
-        asm_add_instruction(state->code, "push",
-                            asm_addr(state->last_expr_addr));
-        compile_node(state, op_node->lhs, scope);
-        asm_add_instruction(state->code, "pop", "rdi");
-        mov_result_to_register(state, "rax");
-        // set rdx to 0 before calling idiv !
-        asm_add_instruction(state->code, "xor", "rdx", "rdx");
-        asm_add_instruction(state->code, "idiv", "rdi");
+        if (type::is_flt(lookup_node_type(scope, node))) {
+            compile_arithmetic_operation_flt(state, op_node, scope, "divsd");
+        } else {
+            compile_div_int(state, op_node, scope);
+        }
         break;
     }
-    // TODO: get the type through scope->node_types[node]
-    asm_addr_register(state, "rax", nullptr);
 }
 
 #define LABEL(node, suffix) "label_" + ptr_to_string(node) + suffix
@@ -203,7 +242,6 @@ void compile_cmp(CompilerState *state, node::BooleanOperation *node,
                  SymbolTable *scope, std::string const &jmp) {
     std::cout << (int)node->lhs->kind << std::endl;
     std::cout << (int)node->rhs->kind << std::endl;
-    // BUG: variable references doesn't end up on rax anymore!
     compile_node(state, node->lhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "push", "rax");
@@ -217,6 +255,7 @@ void compile_cmp(CompilerState *state, node::BooleanOperation *node,
 
 void compile_boolean_operation(CompilerState *state, node::Node *node,
                                SymbolTable *scope) {
+    // TODO: float?
     node::BooleanOperation *op_node = node->value.boolean_operation;
     switch (op_node->kind) {
     case node::BooleanOperationKind::And:
@@ -333,7 +372,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
 
         if (type::is_flt(args_type[i])) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
-                asm_add_instruction(state->code, "mov",
+                asm_add_instruction(state->code, "movsd",
                                     ARG_REGISTERS_FLOAT[flt_idx], arg_addr);
             } else {
                 args_addr.push(arg_addr);
@@ -359,7 +398,13 @@ void compile_function_call(CompilerState *state, node::Node *node,
     asm_add_instruction(state->code, "call", node->value.function_call->name);
     // make sure the compiler know that the result will be store in rax (if
     // the function returns a result).
-    asm_addr_register(state, "rax", function_type->value.function->return_type);
+    if (type::is_flt(function_type->value.function->return_type)) {
+        asm_addr_register(state, "xmm0",
+                          function_type->value.function->return_type);
+    } else {
+        asm_addr_register(state, "rax",
+                          function_type->value.function->return_type);
+    }
 }
 
 void compile_cnd_stmt(CompilerState *state, node::Node *node,
@@ -413,8 +458,13 @@ void compile_ret_stmt(CompilerState *state, node::Node *node,
 
     compile_node(state, ret_node->expression, scope);
     if (ret_node->expression->kind != node::NodeKind::Value) {
-        asm_add_instruction(state->code, "mov", "rax",
-                            asm_addr(state->last_expr_addr));
+        if (type::is_flt(lookup_node_type(scope, ret_node->expression))) {
+            asm_add_instruction(state->code, "movsd", "xmm0",
+                                asm_addr(state->last_expr_addr));
+        } else {
+            asm_add_instruction(state->code, "mov", "rax",
+                                asm_addr(state->last_expr_addr));
+        }
     }
     // TODO: this is not required if the return is at the end of the block
     asm_add_instruction(state->code, "jmp",
