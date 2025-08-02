@@ -83,6 +83,7 @@ void asm_add_instruction(Asm &code, std::string const &instruction,
                          std::string const &arg1 = "",
                          std::string const &arg2 = "");
 void asm_comment_last_instruction(Asm &code, std::string const &comment);
+void asm_add_comment_line(Asm &code, std::string const &comment);
 void asm_add_data(Asm &code, std::string const &name, std::string const &type,
                   std::string const &value);
 std::string asm_create_data_id(Asm const &code, std::string const &name);

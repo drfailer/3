@@ -154,6 +154,10 @@ void asm_comment_last_instruction(Asm &code, std::string const &comment) {
     code.instructions.back().comment = comment;
 }
 
+void asm_add_comment_line(Asm &code, std::string const &comment) {
+    code.instructions.push_back(Instruction{"# " + comment, "", "", ""});
+}
+
 void asm_add_data(Asm &code, std::string const &name, std::string const &type,
                   std::string const &value) {
     code.data.push_back(Data{name, type, value});
