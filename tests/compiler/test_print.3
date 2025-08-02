@@ -1,0 +1,14 @@
+~~~ compiler command:
+~~~ ./s3c -o prog ../tests/compiler/test_print.3 -L../utilities/print -lprint -rpath=../utilities/print
+
+use ../../utilities/print/print
+
+int main() bgn
+    shw("int: ")
+    print_int(4)
+    shw("\nflt: ")
+    print_flt(3.14)
+    shw("\nstr: ")
+    print_str("hello world")
+    shw("\n")
+end

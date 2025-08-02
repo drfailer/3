@@ -7,3 +7,6 @@ src/parser/position.hh
 src/parser/stack.hh
 .cache/clangd/index
 compile_commands.json
+*.o
+*.so
+*.a
