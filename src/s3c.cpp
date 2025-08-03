@@ -156,10 +156,12 @@ void new_return_expr(State *state, node::Node *expr, size_t line) {
         }
         auto expr_type = lookup_node_type(scope, expr);
         if (!type::is_convertible(expr_type, expected_type)) {
-            INVALID_RETURN_TYPE_ERROR(node->location, sym->id,
-                                      sym->type->value.function->return_type,
-                                      expr_type);
+            INVALID_RETURN_TYPE_ERROR(node->location, sym->id, expr_type,
+                                      sym->type->value.function->return_type);
             return false;
+        } else if (!type::equal(expr_type, expected_type)) {
+            IMPLICIT_CONVERTION_WARNING(node->location, expr_type,
+                                        sym->type->value.function->return_type);
         }
         return true;
     });
@@ -186,8 +188,8 @@ node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
             return false;
         }
         scope->node_types.insert(
-            {op_node, type::select_most_precise_arithmetic_type(lhs_type,
-                                                                rhs_type)});
+            {op_node,
+             type::select_most_precise_arithmetic_type(lhs_type, rhs_type)});
         return true;
     });
     return op_node;
@@ -334,8 +336,8 @@ void new_assignment(State *state, node::Node *target, node::Node *expr,
     }
 
     auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, node, target_type, expr]()
-            -> bool {
+    state->post_process_callbacks.push_back([scope, node, target_type,
+                                             expr]() -> bool {
         auto expr_type = lookup_node_type(scope, expr);
         // TOOD: warning?
         if (!type::is_convertible(expr_type, target_type)) {
