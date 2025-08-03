@@ -142,7 +142,7 @@ void compile_variable_reference(CompilerState *state, node::Node *node,
 }
 
 void compile_add_sub_int(CompilerState *state, node::ArithmeticOperation *node,
-                         SymbolTable *scope, bool sub) {
+                         SymbolTable *scope, bool sub, type::Type *type) {
     compile_node(state, node->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_node(state, node->lhs, scope);
@@ -153,11 +153,11 @@ void compile_add_sub_int(CompilerState *state, node::ArithmeticOperation *node,
     } else {
         asm_add_instruction(state->code, "add", "rax", "rdx");
     }
-    asm_addr_register(state, "rax", nullptr);
+    asm_addr_register(state, "rax", type);
 }
 
 void compile_mul_int(CompilerState *state, node::ArithmeticOperation *node,
-                     SymbolTable *scope) {
+                     SymbolTable *scope, type::Type *type) {
     compile_node(state, node->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_node(state, node->lhs, scope);
@@ -166,11 +166,11 @@ void compile_mul_int(CompilerState *state, node::ArithmeticOperation *node,
     // the result is 64 bits.
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "imul", "eax", "edx");
-    asm_addr_register(state, "rax", nullptr);
+    asm_addr_register(state, "rax", type);
 }
 
 void compile_div_int(CompilerState *state, node::ArithmeticOperation *node,
-                     SymbolTable *scope) {
+                     SymbolTable *scope, type::Type *type) {
     compile_node(state, node->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_node(state, node->lhs, scope);
@@ -178,52 +178,70 @@ void compile_div_int(CompilerState *state, node::ArithmeticOperation *node,
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "xor", "rdx", "rdx"); // zero rdx
     asm_add_instruction(state->code, "idiv", "rdi");
-    asm_addr_register(state, "rax", nullptr);
+    asm_addr_register(state, "rax", type);
 }
 
 void compile_arithmetic_operation_flt(CompilerState *state,
                                       node::ArithmeticOperation *node,
-                                      SymbolTable *scope,
-                                      std::string const &op) {
+                                      SymbolTable *scope, std::string const &op,
+                                      type::Type *type) {
     compile_node(state, node->rhs, scope);
-    asm_add_instruction(state->code, "movsd", "[rsp-8]", asm_addr(state->last_expr_addr));
+    // implicit convertion to double
+    if (type::is_flt(scope->node_types[node->rhs])) {
+        asm_add_instruction(state->code, "movsd", "[rsp-8]",
+                            asm_addr(state->last_expr_addr));
+    } else {
+        asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
+                            asm_addr(state->last_expr_addr));
+        asm_add_instruction(state->code, "movsd", "[rsp-8]", "xmm0");
+    }
     compile_node(state, node->lhs, scope);
-    mov_result_to_register(state, "xmm0");
+    if (type::is_flt(scope->node_types[node->lhs])) {
+        mov_result_to_register(state, "xmm0");
+    } else {
+        asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
+                            asm_addr(state->last_expr_addr));
+    }
     asm_add_instruction(state->code, "movsd", "xmm1", "[rsp-8]");
     asm_add_instruction(state->code, op, "xmm0", "xmm1");
-    asm_addr_register(state, "xmm0", nullptr);
+    asm_addr_register(state, "xmm0", type);
 }
 
 void compile_arithmetic_operation(CompilerState *state, node::Node *node,
                                   SymbolTable *scope) {
     node::ArithmeticOperation *op_node = node->value.arithmetic_operation;
+    type::Type *op_type = scope->node_types[node];
     switch (op_node->kind) {
     case node::ArithmeticOperationKind::Add:
         if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "addsd");
+            compile_arithmetic_operation_flt(state, op_node, scope, "addsd",
+                                             op_type);
         } else {
-            compile_add_sub_int(state, op_node, scope, false);
+            compile_add_sub_int(state, op_node, scope, false, op_type);
         }
         break;
     case node::ArithmeticOperationKind::Sub:
         if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "subsd");
+            compile_arithmetic_operation_flt(state, op_node, scope, "subsd",
+                                             op_type);
         } else {
-            compile_add_sub_int(state, op_node, scope, true);
+            compile_add_sub_int(state, op_node, scope, true, op_type);
         }
         break;
     case node::ArithmeticOperationKind::Mul:
         if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "mulsd");
+            compile_arithmetic_operation_flt(state, op_node, scope, "mulsd",
+                                             op_type);
         } else {
-            compile_mul_int(state, op_node, scope);
+            compile_mul_int(state, op_node, scope, op_type);
         }
         break;
     case node::ArithmeticOperationKind::Div:
         if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "divsd");
+            compile_arithmetic_operation_flt(state, op_node, scope, "divsd",
+                                             op_type);
         } else {
-            compile_div_int(state, op_node, scope);
+            compile_div_int(state, op_node, scope, op_type);
         }
         break;
     }
