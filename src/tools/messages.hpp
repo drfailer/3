@@ -84,7 +84,7 @@ void warning(std::string const &msg);
 #define IMPLICIT_CONVERTION_WARNING(loc, found_type, expected_type)            \
     WARNING(loc, "implicit convertion from "                                   \
                      << QUOTE(type::type_to_string(found_type)) << " to "      \
-                     << QUOTE(expected_type) << ".")
+                     << QUOTE(type::type_to_string(expected_type)) << ".")
 
 #define INVALID_MOV_ERROR(loc, target_type)                                    \
     ERROR(loc, "bad assignment of to expression of type "                      \
