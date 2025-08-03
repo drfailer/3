@@ -98,15 +98,39 @@ void compile_assignement(CompilerState *state, node::Node *node,
     target = state->last_expr_addr;
 
     // TODO: handle float case
+    // TODO: implicit convertion from float or to float
+    // TODO: clean this function
     if (target.addressing_mode == AddressingMode::RegisterIndirect) {
         asm_add_instruction(state->code, "push", target.register_name);
         compile_node(state, assignment_node->value, scope);
         asm_add_instruction(state->code, "pop", "rdx");
-        asm_add_instruction(state->code, "mov", "[rdx]",
-                            asm_addr(state->last_expr_addr));
+        if (type::is_flt(scope->node_types[assignment_node->target])) {
+            std::string value_addr = asm_addr(state->last_expr_addr);
+            if (!type::is_flt(scope->node_types[assignment_node->value])) {
+                asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
+                                    value_addr);
+                value_addr = "xmm0";
+            }
+            asm_add_instruction(state->code, "movsd", "[rdx]", value_addr);
+        } else {
+            asm_add_instruction(state->code, "mov", "[rdx]",
+                                asm_addr(state->last_expr_addr));
+        }
     } else if (target.addressing_mode == AddressingMode::Based) {
         compile_node(state, assignment_node->value, scope);
-        asm_add_instruction(state->code, "mov", asm_addr(target), "rax");
+        if (type::is_flt(scope->node_types[assignment_node->target])) {
+            auto value_addr = asm_addr(state->last_expr_addr);
+            if (!type::is_flt(scope->node_types[assignment_node->value])) {
+                asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
+                                    value_addr);
+                value_addr = "xmm0";
+            }
+            asm_add_instruction(state->code, "movsd", asm_addr(target),
+                                value_addr);
+        } else {
+            asm_add_instruction(state->code, "mov", asm_addr(target),
+                                asm_addr(state->last_expr_addr));
+        }
     } else {
         std::cerr << "error: invalide target." << std::endl;
     }
@@ -117,16 +141,11 @@ void compile_index_expression(CompilerState *state, node::Node *node,
     node::IndexExpression *expr_node = node->value.index_expression;
     auto type = scope->node_types[node];
 
+    // TODO: make sure that this works with float arrays
     compile_node(state, expr_node->element, scope);
     auto element_addr = state->last_expr_addr;
     compile_node(state, expr_node->index, scope);
     auto index_result_addr = state->last_expr_addr;
-
-    // asm_add_instruction(state->code, "lea", "rax",
-    //                     "[" + element_addr.register_name +
-    //                         std::to_string(element_addr.offset) + "-" +
-    //                         index_result_addr.register_name + "]");
-
     asm_add_instruction(state->code, "mov", "rdi", asm_addr(index_result_addr));
     asm_add_instruction(state->code, "lea", "rax", asm_addr(element_addr));
     asm_add_instruction(state->code, "add", "rax", "rdi");
