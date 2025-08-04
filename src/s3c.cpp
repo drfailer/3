@@ -313,26 +313,24 @@ node::Node *new_index_expr(State *state, std::string const &name, size_t line,
     return node;
 }
 
-void new_assignment(State *state, node::Node *target, node::Node *expr,
-                    size_t line) {
+node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
+                           size_t line) {
     auto location = LOCATION;
     auto node = node::create_assignment(location, target, expr);
     auto variable_name = get_lvalue_identifier(target);
     auto symbol = lookup_id(state->scopes.curr, variable_name);
 
-    add_instruction(state, node);
-
     if (!symbol) {
         UNDEFINED_SYMBOL_ERROR(location, variable_name);
         state->status = 1;
-        return;
+        return node;
     }
 
     auto target_type = lookup_node_type(state->scopes.curr, target);
     if (!type::is_primitive(target_type)) {
         INVALID_MOV_ERROR(location, target_type);
         state->status = 1;
-        return;
+        return node;
     }
 
     auto scope = state->scopes.curr;
@@ -349,43 +347,36 @@ void new_assignment(State *state, node::Node *target, node::Node *expr,
         }
         return true;
     });
+    return node;
 }
 
-node::Node *new_for(State *state, std::string const &index_id,
-                    node::Node *begin, node::Node *end, node::Node *step,
-                    node::Block *block, size_t line) {
-    auto sym = lookup_id(state->scopes.curr, index_id);
-    auto var_node = node::create_variable_reference(LOCATION, index_id);
+node::Node *new_for(State *state, node::Node *init, node::Node *end,
+                    node::Node *step, node::Block *block, size_t line) {
+    auto location = LOCATION;
+    auto scope = state->scopes.curr;
+    state->post_process_callbacks.push_back(
+        [location, scope, init, step]() -> bool {
+            auto idx_var = init->value.assignment->target;
+            auto idx_sym =
+                lookup_id(scope, idx_var->value.variable_reference->name);
+            auto idx_var_type = idx_sym->type;
+            auto step_type = lookup_node_type(scope, step);
 
-    if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(var_node->location, index_id);
-        state->status = 1;
-    } else if (!type::supports_arithmetic(sym->type)) {
-        BAD_FOR_INDEX_VARIABLE_TYPE(var_node->location, index_id, sym->type);
-    } else {
-        auto scope = state->scopes.curr;
-        state->post_process_callbacks.push_back(
-            [scope, var_node, sym, begin, step]() -> bool {
-                auto begin_type = lookup_node_type(scope, begin);
-                auto step_type = lookup_node_type(scope, step);
-                bool res = true;
-
-                if (!type::is_convertible(begin_type, sym->type)) {
-                    FOR_RNG_ERROR(var_node->location, "begin expression",
-                                  sym->id, sym->type, begin_type);
-                    res = false;
+            if (!type::equal(idx_var_type, step_type)) {
+                if (!type::is_convertible(idx_var_type, step_type)) {
+                    FOR_STEP_TYPE_ERROR(location, step_type, idx_var_type);
+                } else {
+                    FOR_STEP_TYPE_WARNING(location, step_type, idx_var_type);
                 }
-                if (!type::is_convertible(step_type, sym->type)) {
-                    FOR_RNG_ERROR(var_node->location, "step expression",
-                                  sym->id, sym->type, step_type);
-                    res = false;
-                }
-                return res;
-            });
-    }
+            }
+            return true;
+        });
     leave_scope(state, block);
-    return node::create_for_stmt(var_node->location, var_node, begin, end, step,
-                                 block);
+    // the syntax allow to just put the expression that is assigned to the loop
+    // variable, therefore, we need to manually create the assignment
+    auto step_assignment =
+        new_assignment(state, init->value.assignment->target, step, line);
+    return node::create_for_stmt(location, init, end, step_assignment, block);
 }
 
 void new_shw(State *state, node::Node *expr, size_t line) {

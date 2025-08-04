@@ -274,8 +274,6 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
 
 void compile_cmp(CompilerState *state, node::BooleanOperation *node,
                  SymbolTable *scope, std::string const &jmp) {
-    std::cout << (int)node->lhs->kind << std::endl;
-    std::cout << (int)node->rhs->kind << std::endl;
     compile_node(state, node->lhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "push", "rax");
@@ -463,12 +461,12 @@ void compile_for_stmt(CompilerState *state, node::Node *node,
     node::ForStmt *stmt = node->value.for_stmt;
     node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
 
+    compile_node(state, stmt->init, scope);
     asm_add_label(state->code, BEGIN_LABEL(stmt));
     compile_node(state, stmt->condition, scope);
     asm_add_label(state->code, TRUE_LABEL(cnd));
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
-    // TODO: compiler the addition
-    throw std::runtime_error("the for is not fully implemented");
+    compile_node(state, stmt->step, scope);
     asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(cnd));
 }

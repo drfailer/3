@@ -100,11 +100,15 @@ void warning(std::string const &msg);
                            << QUOTE(type::type_to_string(found_type))          \
                            << " which cannot be used in a for loops.")
 
-#define FOR_RNG_ERROR(loc, rng, index_id, index_type, found_type)              \
-    ERROR(loc, "for index variable "                                           \
-                   << QUOTE(index_id) << " is of type "                        \
-                   << QUOTE(type::type_to_string(index_type)) << " but "       \
-                   << rng << " is of type "                                    \
-                   << QUOTE(type::type_to_string(found_type)))
+#define FOR_STEP_TYPE_ERROR(loc, found_type, expected_type)                    \
+    ERROR(loc, "in for statement, found step expression of type "              \
+                   << QUOTE(type::type_to_string(found_type))                  \
+                   << ", which is incompatible with the index type "           \
+                   << QUOTE(type::type_to_string(expected_type)) << ".")
+#define FOR_STEP_TYPE_WARNING(loc, found_type, expected_type)                  \
+    ERROR(loc, "in for statement, implicit convertion from "                   \
+                   << QUOTE(type::type_to_string(found_type)) << " to "        \
+                   << QUOTE(type::type_to_string(expected_type))               \
+                   << " on step.")
 
 #endif

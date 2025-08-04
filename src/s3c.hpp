@@ -88,12 +88,11 @@ void very_assignement_type(State *state, node::Assignment *assignment,
                            node::FunctionCall *expr, std::string const &file,
                            size_t line);
 
-void new_assignment(State *state, node::Node *target, node::Node *expr,
-                    size_t line);
+node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
+                          size_t line);
 
-node::Node *new_for(State *state, std::string const &index_id,
-                    node::Node *begin, node::Node *condition, node::Node *step,
-                    node::Block *block, size_t line);
+node::Node *new_for(State *state, node::Node *init, node::Node *condition,
+                    node::Node *step, node::Block *block, size_t line);
 
 void new_shw(State *state, node::Node *expr, size_t line);
 

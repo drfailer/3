@@ -50,8 +50,8 @@
 %token NIL
 %token INTT FLTT CHRT STRT
 %token CND OTW FOR WHL
-%token COMMA OSQUAREB CSQUAREB
-%token SHW IPT ADD SUB MUL DIV RNG MOV
+%token COMMA SEMI OSQUAREB CSQUAREB
+%token SHW IPT ADD SUB MUL DIV MOV
 %token EQL SUP INF SEQ IEQ AND LOR XOR NOT
 %token <std::string> IDENTIFIER
 %token <std::string> STRING
@@ -66,6 +66,7 @@
 %nterm <type::Type*> returnTypeSpecifier
 %nterm <node::Node*> parameterDeclaration
 %nterm <node::Node*> value
+%nterm <node::Node*> assignment
 %nterm <node::Node*> expression
 %nterm <node::Node*> variable
 %nterm <node::Node*> arithmeticOperation
@@ -191,7 +192,7 @@ instruction:
     shw
     | ipt
     | variableDeclaration
-    | assignment
+    | assignment { s3c::add_instruction(state, $1); }
     | functionCall { s3c::add_instruction(state, $1); }
     ;
 
@@ -340,7 +341,7 @@ variableDeclaration:
 assignment:
     MOV'('variable[var] COMMA expression[expr]')' {
         DEBUG("new assignment");
-        s3c::new_assignment(state, $var, $expr, @var.begin.line);
+        $$ = s3c::new_assignment(state, $var, $expr, @var.begin.line);
     }
     ;
 
@@ -407,11 +408,11 @@ cndBase:
     ;
 
 for:
-    FOR IDENTIFIER[v] RNG'('expression[b] COMMA booleanOperation[e] COMMA expression[s]')' {
+    FOR assignment[b] SEMI booleanOperation[e] SEMI expression[s] {
         s3c::enter_scope(state);
     } block[ops] {
         DEBUG("in for");
-        $$ = s3c::new_for(state, $v, $b, $e, $s, $ops, @v.begin.line);
+        $$ = s3c::new_for(state, $b, $e, $s, $ops, @1.begin.line);
     }
     ;
 

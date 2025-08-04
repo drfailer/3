@@ -115,14 +115,13 @@ struct WhlStmt {
 Node *create_whl_stmt(Location location, Node *condition, Block *block);
 
 struct ForStmt {
-    Node *index;
-    Node *start;
+    Node *init;
     Node *condition;
     Node *step;
     Block *block;
 };
-Node *create_for_stmt(Location location, Node *index, Node *start,
-                      Node *condition, Node *step, Block *block);
+Node *create_for_stmt(Location location, Node *init, Node *condition,
+                      Node *step, Block *block);
 
 struct RetStmt {
     Node *expression;

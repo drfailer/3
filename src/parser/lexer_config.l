@@ -20,6 +20,7 @@ float [+-]?{digit}+\.{digit}+
 char '{alpha}'
 identifier [a-z]({alpha}|{digit}|_)*
 comma ,
+semi ;
 blanks [\S\s \t\n]
 string \"(\\.|[^"\\])*\"
 comment \~\~\~.*$
@@ -55,7 +56,6 @@ lor          { DEBUG("L_lor"); return Parser::token::LOR; }
 xor          { DEBUG("L_xor"); return Parser::token::XOR; }
 not          { DEBUG("L_not"); return Parser::token::NOT; }
 
-rng          { DEBUG("L_rng"); return Parser::token::RNG; }
 mov          { DEBUG("L_mov"); return Parser::token::MOV; }
 ret          { DEBUG("L_ret"); return Parser::token::RET; }
 
@@ -126,6 +126,7 @@ nil {
 }
 
 {comma}      { DEBUG("L_comma"); return Parser::token::COMMA; }
+{semi}       { DEBUG("L_semi"); return Parser::token::SEMI; }
 {comment}    { DEBUG("L_comment"); } // comment => do nothing
 \n           { yylloc->lines(yyleng); yylloc->step(); }
 {blanks}

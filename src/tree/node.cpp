@@ -76,9 +76,9 @@ Node *create_whl_stmt(Location location, Node *condition, Block *block) {
     return new_node(WhlStmt, whl_stmt, condition, block);
 }
 
-Node *create_for_stmt(Location location, Node *index, Node *start,
-                      Node *condition, Node *step, Block *block) {
-    return new_node(ForStmt, for_stmt, index, start, condition, step, block);
+Node *create_for_stmt(Location location, Node *init, Node *condition,
+                      Node *step, Block *block) {
+    return new_node(ForStmt, for_stmt, init, condition, step, block);
 }
 
 Node *create_ret_stmt(Location location, Node *expression) {
