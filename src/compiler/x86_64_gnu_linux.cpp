@@ -272,12 +272,15 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
 #define BEGIN_LABEL(node) LABEL(node, "_begin")
 #define END_LABEL(node) LABEL(node, "_end")
 
-void compile_cmp(CompilerState *state, node::BooleanOperation *node,
+void compile_cmp(CompilerState *state, node::Node *node,
                  SymbolTable *scope, std::string const &jmp) {
-    compile_node(state, node->lhs, scope);
+    node::Node *lhs = node->value.boolean_operation->lhs;
+    node::Node *rhs = node->value.boolean_operation->rhs;
+
+    compile_node(state, lhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "push", "rax");
-    compile_node(state, node->rhs, scope);
+    compile_node(state, rhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "pop", "rdx");
     asm_add_instruction(state->code, "cmp", "rdx", "rax");
@@ -336,25 +339,25 @@ void compile_boolean_operation(CompilerState *state, node::Node *node,
     case node::BooleanOperationKind::Not:
         compile_node(state, op_node->lhs, scope);
         asm_add_label(state->code, FALSE_LABEL(op_node->lhs));
-        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
-        asm_add_label(state->code, TRUE_LABEL(op_node->lhs));
         asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
+        asm_add_label(state->code, TRUE_LABEL(op_node->lhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
         break;
         // TODO: be carefull with unsigned in the future
     case node::BooleanOperationKind::Eql:
-        compile_cmp(state, op_node, scope, "je");
+        compile_cmp(state, node, scope, "je");
         break;
     case node::BooleanOperationKind::Inf:
-        compile_cmp(state, op_node, scope, "jl");
+        compile_cmp(state, node, scope, "jl");
         break;
     case node::BooleanOperationKind::Sup:
-        compile_cmp(state, op_node, scope, "jg");
+        compile_cmp(state, node, scope, "jg");
         break;
     case node::BooleanOperationKind::Ieq:
-        compile_cmp(state, op_node, scope, "jle");
+        compile_cmp(state, node, scope, "jle");
         break;
     case node::BooleanOperationKind::Seq:
-        compile_cmp(state, op_node, scope, "jge");
+        compile_cmp(state, node, scope, "jge");
         break;
     }
 }
@@ -442,13 +445,12 @@ void compile_function_call(CompilerState *state, node::Node *node,
 void compile_cnd_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
     node::CndStmt *stmt = node->value.cnd_stmt;
-    node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
 
     compile_node(state, stmt->condition, scope);
-    asm_add_label(state->code, TRUE_LABEL(cnd));
+    asm_add_label(state->code, TRUE_LABEL(stmt->condition));
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
     asm_add_instruction(state->code, "jmp", END_LABEL(stmt));
-    asm_add_label(state->code, FALSE_LABEL(cnd));
+    asm_add_label(state->code, FALSE_LABEL(stmt->condition));
     if (stmt->otw_block) {
         compile_block(state, stmt->otw_block,
                       scope->block_scopes[stmt->otw_block]);
