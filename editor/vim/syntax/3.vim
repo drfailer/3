@@ -8,7 +8,7 @@ hi link Delimiters Keyword
 syn keyword Conditions cnd otw
 hi link Conditions Conditional
 
-syn keyword Loops whl for rng
+syn keyword Loops whl for
 hi link Loops Repeat
 
 " types
@@ -16,7 +16,7 @@ syn keyword Types nil int flt chr str
 hi link Types Type
 
 " operators
-syn keyword Operators set add sub mul div lor xor and eql ieq seq sup inf
+syn keyword Operators set add sub mul div lor xor and eql ieq seq sup inf not
 hi link Operators Operator
 
 " string
