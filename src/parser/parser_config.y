@@ -74,7 +74,7 @@
 %nterm <node::Node*> booleanOperation
 %nterm <node::Block*> block
 %nterm <node::Node*> cnd
-%nterm <node::Node*> cndBase
+%nterm <node::Node*> cndBegin
 %nterm <node::Node*> for
 %nterm <node::Node*> whl
 
@@ -379,31 +379,174 @@ statement:
     }
     ;
 
+// cnd:
+//     cndBase {
+//         $$ = $1;
+//     }
+//     | cndBase[cndb] OTW {
+//         DEBUG("els");
+//         s3c::enter_scope(state);
+//     } block[ops] {
+//         auto ifstmt = $cndb;
+//         // adding else block
+//         ifstmt->value.cnd_stmt->otw_block = $ops;
+//         $$ = ifstmt;
+//         s3c::leave_scope(state, $ops);
+//     }
+//     ;
+//
+// cndBase:
+//     CND booleanOperation[cond] {
+//         s3c::enter_scope(state);
+//     } block[ops] {
+//         DEBUG("if");
+//         $$ = node::create_cnd_stmt(
+//             location_create(state->curr_filename, @1.begin.line),
+//             $cond, $ops);
+//         s3c::leave_scope(state, $ops);
+//     }
+//     ;
+
+// to make the new syntax work, the if statement should be recursive so that we
+// allow the start of a new if before the end of the curent block and without
+// the need to add an extra "bgn" when the cnd comes after the otw keyword.
+
+// otwContent:
+//     booleanOperation[cond] {
+//         s3c::enter_scope(state);
+//         s3c::begin_block(state);
+//         node::Node *stmt = node::create_cnd_stmt(
+//                                  location_create(state->curr_filename, @1.begin.line),
+//                                  $cond, nullptr, nullptr);
+//         node::Node **cur_otw = &state->parser_stack.top()->value.cnd_stmt->otw;
+//
+//         while (*cur_otw != nullptr) {
+//             cur_otw = &(*cur_otw)->value.cnd_stmt->otw;
+//         }
+//         *cur_otw = stmt;
+//     } code
+//     | {
+//         s3c::enter_scope(state);
+//         s3c::begin_block(state);
+//     } code
+//     ;
+//
+// cndCode:
+//     code
+//     | code OTW {
+//         auto block = s3c::end_block(state);
+//         s3c::leave_scope(state, block);
+//
+//         node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+//         while (cur->block != nullptr) {
+//             cur = cur->otw->value.cnd_stmt;
+//         }
+//         cur->block = block;
+//     } otwContent
+//     ;
+//
+// cnd:
+//     CND booleanOperation[cond] BGN {
+//         state->parser_stack.push(
+//                     node::create_cnd_stmt(
+//                         location_create(state->curr_filename, @1.begin.line),
+//                         $cond, nullptr, nullptr));
+//         s3c::begin_block(state);
+//         s3c::enter_scope(state);
+//     } cndCode END {
+//         node::Block *block = s3c::end_block(state);
+//         s3c::leave_scope(state, block);
+//
+//         node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+//         while (cur->block != nullptr) {
+//             cur = cur->otw->value.cnd_stmt;
+//         }
+//         cur->block = block;
+//
+//         state->parser_stack.pop();
+//         $$ = cnd_node;
+//     }
+//     ;
+
+///////////
+
 cnd:
-    cndBase {
-        $$ = $1;
-    }
-    | cndBase[cndb] OTW {
-        DEBUG("els");
+    cndBegin[cond] {
+        state->parser_stack.push(
+                    node::create_cnd_stmt(
+                        location_create(state->curr_filename, @1.begin.line),
+                        $cond, nullptr, nullptr));
+        s3c::begin_block(state);
         s3c::enter_scope(state);
-    } block[ops] {
-        auto ifstmt = $cndb;
-        // adding else block
-        ifstmt->value.cnd_stmt->otw_block = $ops;
-        $$ = ifstmt;
-        s3c::leave_scope(state, $ops);
+    } cndContent cndEnd {
+        $$ = state->parser_stack.top();
+        state->parser_stack.pop();
     }
     ;
 
-cndBase:
-    CND booleanOperation[cond] {
+cndBegin:
+    CND booleanOperation[cond] BGN { $$ = $cond; }
+    ;
+
+cndContent:
+    code optOtw
+    ;
+
+optOtw:
+    %empty
+    | OTW {
+        // TODO: create a separated rule for otw
+        // TODO: create the corresponding functions in s3c
+        auto block = s3c::end_block(state);
+        s3c::leave_scope(state, block);
+
+        node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+        while (cur->block != nullptr) {
+            cur = cur->otw->value.cnd_stmt;
+        }
+        cur->block = block;
+    } booleanOperation[cond] {
+        node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+        while (cur->otw != nullptr) {
+            cur = cur->otw->value.cnd_stmt;
+        }
+        cur->otw = node::create_cnd_stmt(
+                        location_create(state->curr_filename, @1.begin.line),
+                        $cond, nullptr, nullptr);
+
+        s3c::begin_block(state);
         s3c::enter_scope(state);
-    } block[ops] {
-        DEBUG("if");
-        $$ = node::create_cnd_stmt(
-            location_create(state->curr_filename, @1.begin.line),
-            $cond, $ops);
-        s3c::leave_scope(state, $ops);
+    } cndContent
+    | OTW {
+        auto block = s3c::end_block(state);
+        s3c::leave_scope(state, block);
+
+        node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+        while (cur->block != nullptr) {
+            cur = cur->otw->value.cnd_stmt;
+        }
+        cur->block = block;
+
+        s3c::begin_block(state);
+        s3c::enter_scope(state);
+    } code
+    ;
+
+cndEnd:
+    END {
+        auto block = s3c::end_block(state);
+        s3c::leave_scope(state, block);
+
+        // TODO: check if the block is nullptr then add the block, otherwise, add the otw block
+        node::Node *cur = state->parser_stack.top();
+        while (cur->value.cnd_stmt->otw != nullptr) {
+            cur = cur->value.cnd_stmt->otw;
+        }
+        if (cur->value.cnd_stmt->block == nullptr) {
+            cur->value.cnd_stmt->block = block;
+        } else {
+            cur->value.cnd_stmt->otw = node::create_block(cur->location, block);
+        }
     }
     ;
 

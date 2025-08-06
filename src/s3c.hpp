@@ -29,6 +29,7 @@ struct State {
     std::vector<std::function<bool(void)>> post_process_callbacks;
     std::vector<std::vector<node::Node *>> funcall_parameters;
     std::vector<std::string> funcall_ids;
+    std::stack<node::Node *> parser_stack; // node stack for complexe rules
 };
 
 State *state_create();
@@ -89,7 +90,7 @@ void very_assignement_type(State *state, node::Assignment *assignment,
                            size_t line);
 
 node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
-                          size_t line);
+                           size_t line);
 
 node::Node *new_for(State *state, node::Node *init, node::Node *condition,
                     node::Node *step, node::Block *block, size_t line);

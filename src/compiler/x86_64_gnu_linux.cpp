@@ -451,9 +451,9 @@ void compile_cnd_stmt(CompilerState *state, node::Node *node,
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
     asm_add_instruction(state->code, "jmp", END_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(stmt->condition));
-    if (stmt->otw_block) {
-        compile_block(state, stmt->otw_block,
-                      scope->block_scopes[stmt->otw_block]);
+    if (stmt->otw) {
+        // TODO: check that nested conditions are compiled correctly
+        compile_node(state, stmt->otw, scope);
     }
     asm_add_label(state->code, END_LABEL(stmt));
 }
@@ -629,8 +629,8 @@ void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {
         compile_ret_stmt(state, node, scope);
         break;
     case node::NodeKind::Block:
-        // TODO: this one might be useless
-        compile_block(state, node->value.block, scope);
+        compile_block(state, node->value.block,
+                      scope->block_scopes[node->value.block]);
         break;
     case node::NodeKind::ArithmeticOperation:
         compile_arithmetic_operation(state, node, scope);

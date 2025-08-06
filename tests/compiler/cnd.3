@@ -7,8 +7,18 @@ int main() bgn
 
     cnd eql(a, b) bgn
         shw("a == b\n")
-    end otw bgn
+    otw
+        cnd eql(b, mul(a, a)) bgn
+            shw("a != b\n")
+        end
+    end
+
+    cnd eql(a, b) bgn
+        shw("a == b\n")
+    otw eql(b, mul(a, a))
         shw("a != b\n")
+    otw
+        shw("otw")
     end
 
     cnd eql(b, mul(a, a)) bgn

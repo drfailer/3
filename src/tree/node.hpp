@@ -103,10 +103,10 @@ Node *create_function_call(Location location, std::string const &name,
 struct CndStmt {
     Node *condition;
     Block *block;
-    Block *otw_block;
+    Node *otw;
 };
 Node *create_cnd_stmt(Location location, Node *condition, Block *block,
-                      Block *otw_block = nullptr);
+                      Node *otw = nullptr);
 
 struct WhlStmt {
     Node *condition;
