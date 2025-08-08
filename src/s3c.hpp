@@ -87,6 +87,11 @@ void very_assignement_type(State *state, node::Assignment *assignment,
 node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
                            size_t line);
 
+void new_cnd(State *state, node::Node *cond, size_t line);
+void new_otw(State *state);
+void new_otw_cnd(State *state, node::Node *cond, size_t line);
+node::Node * end_cnd(State *state);
+
 node::Node *new_for(State *state, node::Node *init, node::Node *condition,
                     node::Node *step, node::Block *block, size_t line);
 

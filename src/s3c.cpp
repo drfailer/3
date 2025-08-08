@@ -351,6 +351,53 @@ node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
     return node;
 }
 
+void new_cnd(State *state, node::Node *cond, size_t line) {
+    state->parser_stack.push(node::create_cnd_stmt(
+        location_create(state->curr_filename, line), cond, nullptr,
+        nullptr));
+}
+
+void new_otw(State *state) {
+    auto block = s3c::end_block(state);
+    s3c::leave_scope(state, block);
+
+    node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+    while (cur->block != nullptr) {
+        cur = cur->otw->value.cnd_stmt;
+    }
+    cur->block = block;
+
+    s3c::begin_block(state);
+    s3c::enter_scope(state);
+}
+
+void new_otw_cnd(State *state, node::Node *cond, size_t line) {
+    node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+    while (cur->otw != nullptr) {
+        cur = cur->otw->value.cnd_stmt;
+    }
+    cur->otw = node::create_cnd_stmt(
+        location_create(state->curr_filename, line), cond, nullptr, nullptr);
+}
+
+node::Node *end_cnd(State *state) {
+    auto cnd = state->parser_stack.top();
+    auto block = s3c::end_block(state);
+    s3c::leave_scope(state, block);
+
+    node::Node *cur = cnd;
+    while (cur->value.cnd_stmt->otw != nullptr) {
+        cur = cur->value.cnd_stmt->otw;
+    }
+    if (cur->value.cnd_stmt->block == nullptr) {
+        cur->value.cnd_stmt->block = block;
+    } else {
+        cur->value.cnd_stmt->otw = node::create_block(cur->location, block);
+    }
+    state->parser_stack.pop();
+    return cnd;
+}
+
 node::Node *new_for(State *state, node::Node *init, node::Node *end,
                     node::Node *step, node::Block *block, size_t line) {
     auto location = LOCATION;

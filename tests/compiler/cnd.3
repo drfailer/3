@@ -1,35 +1,51 @@
-int main() bgn
-    int a
-    int b
-
-    mov(a, 3)
-    mov(b, 9)
-
-    cnd eql(b, mul(a, a)) bgn
-        shw("b == a*a\n")
+nil test_cnd(int a, int b, int c) bgn
+    cnd eql(a, b) bgn
+        shw("* [1] eql(a, b)\n")
     end
 
-    cnd eql(a, b) bgn
-        shw("a == b\n")
+    cnd eql(a, mul(b, 2)) bgn
+        shw("* [2] eql(a, mul(b, 2))\n")
     otw
-        cnd eql(b, mul(a, a)) bgn
-            shw("a != b\n")
+        shw("* [3] not eql(a, mul(b, 2))\n")
+    end
+
+    cnd eql(a, c) bgn
+        shw("* [4] eql(a, c)\n")
+    otw
+        cnd eql(mul(b, c), a) bgn
+            shw("* [5] eql(mul(b, c), a)\n")
         end
     end
 
-    cnd eql(a, b) bgn
-        shw("a == b\n")
-    otw eql(b, mul(a, a))
-        shw("a != b\n")
+    cnd eql(a, c) bgn
+        shw("* [6] eql(a, c)\n")
+    otw eql(a, add(b, c))
+        shw("* [7] eql(a, add(b, c))\n")
+    otw eql(a, sub(b, c))
+        shw("* [8] eql(a, sub(b, c))\n")
     end
 
-    cnd eql(a, b) bgn
-        shw("a == b\n")
-    otw eql(b, mul(a, a))
-        shw("a != b\n")
+    cnd eql(a, c) bgn
+        shw("* [9] eql(a, c)\n")
+    otw eql(a, add(b, c))
+        shw("* [10] eql(a, add(b, c))\n")
+    otw eql(a, sub(b, c))
+        shw("* [11] eql(a, sub(b, c))\n")
     otw
-        shw("otw")
+        shw("* [12] end\n")
     end
+end
 
+int main() bgn
+    shw("test_cnd(1, 1, 0) -> [1, 3, 7, 10]:\n")
+    test_cnd(1, 1, 0)
+    shw("test_cnd(2, 1, 2) -> [2, 4, 6, 9]:\n")
+    test_cnd(2, 1, 2)
+    shw("test_cnd(4, 2, 2) -> [2, 5, 7, 10]:\n")
+    test_cnd(4, 2, 2)
+    shw("test_cnd(4, 6, 2) -> [3, 8, 11]:\n")
+    test_cnd(4, 6, 2)
+    shw("test_cnd(10, 0, 0) -> [3, 12]:\n")
+    test_cnd(10, 0, 0)
     ret 0
 end

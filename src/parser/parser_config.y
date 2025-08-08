@@ -74,7 +74,6 @@
 %nterm <node::Node*> booleanOperation
 %nterm <node::Block*> block
 %nterm <node::Node*> cnd
-%nterm <node::Node*> cndBegin
 %nterm <node::Node*> for
 %nterm <node::Node*> whl
 
@@ -380,22 +379,14 @@ statement:
     ;
 
 cnd:
-    cndBegin[cond] {
-        state->parser_stack.push(
-                    node::create_cnd_stmt(
-                        location_create(state->curr_filename, @1.begin.line),
-                        $cond, nullptr, nullptr));
-    } cndContent cndEnd {
-        $$ = state->parser_stack.top();
-        state->parser_stack.pop();
-    }
-    ;
-
-cndBegin:
     CND {
         s3c::enter_scope(state);
         s3c::begin_block(state);
-    } booleanOperation[cond] BGN { $$ = $cond; }
+    } booleanOperation[cond] BGN {
+        s3c::new_cnd(state, $cond, @1.begin.line);
+    } cndContent END {
+        $$ = s3c::end_cnd(state);
+    }
     ;
 
 cndContent:
@@ -404,50 +395,16 @@ cndContent:
 
 otw:
     OTW {
-        auto block = s3c::end_block(state);
-        s3c::leave_scope(state, block);
-
-        node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
-        while (cur->block != nullptr) {
-            cur = cur->otw->value.cnd_stmt;
-        }
-        cur->block = block;
-
-        s3c::begin_block(state);
-        s3c::enter_scope(state);
+        s3c::new_otw(state);
     }
     ;
 
 optOtw:
     %empty
     | otw booleanOperation[cond] {
-        node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
-        while (cur->otw != nullptr) {
-            cur = cur->otw->value.cnd_stmt;
-        }
-        cur->otw = node::create_cnd_stmt(
-                        location_create(state->curr_filename, @1.begin.line),
-                        $cond, nullptr, nullptr);
+        s3c::new_otw_cnd(state, $cond, @1.begin.line);
     } cndContent
     | otw code
-    ;
-
-cndEnd:
-    END {
-        auto block = s3c::end_block(state);
-        s3c::leave_scope(state, block);
-
-        // TODO: check if the block is nullptr then add the block, otherwise, add the otw block
-        node::Node *cur = state->parser_stack.top();
-        while (cur->value.cnd_stmt->otw != nullptr) {
-            cur = cur->value.cnd_stmt->otw;
-        }
-        if (cur->value.cnd_stmt->block == nullptr) {
-            cur->value.cnd_stmt->block = block;
-        } else {
-            cur->value.cnd_stmt->otw = node::create_block(cur->location, block);
-        }
-    }
     ;
 
 for:
