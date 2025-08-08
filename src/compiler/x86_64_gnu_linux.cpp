@@ -461,7 +461,7 @@ void compile_cnd_stmt(CompilerState *state, node::Node *node,
 void compile_for_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
     node::ForStmt *stmt = node->value.for_stmt;
-    node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
+    node::Node *cnd = stmt->condition;
 
     compile_node(state, stmt->init, scope);
     asm_add_label(state->code, BEGIN_LABEL(stmt));
@@ -476,7 +476,7 @@ void compile_for_stmt(CompilerState *state, node::Node *node,
 void compile_whl_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
     node::WhlStmt *stmt = node->value.whl_stmt;
-    node::BooleanOperation *cnd = stmt->condition->value.boolean_operation;
+    node::Node *cnd = stmt->condition;
 
     asm_add_label(state->code, BEGIN_LABEL(stmt));
     compile_node(state, stmt->condition, scope);
