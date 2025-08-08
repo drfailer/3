@@ -5,6 +5,10 @@ int main() bgn
     mov(a, 3)
     mov(b, 9)
 
+    cnd eql(b, mul(a, a)) bgn
+        shw("b == a*a\n")
+    end
+
     cnd eql(a, b) bgn
         shw("a == b\n")
     otw
@@ -17,12 +21,14 @@ int main() bgn
         shw("a == b\n")
     otw eql(b, mul(a, a))
         shw("a != b\n")
-    otw
-        shw("otw")
     end
 
-    cnd eql(b, mul(a, a)) bgn
-        shw("b == a*a\n")
+    cnd eql(a, b) bgn
+        shw("a == b\n")
+    otw eql(b, mul(a, a))
+        shw("a != b\n")
+    otw
+        shw("otw")
     end
 
     ret 0

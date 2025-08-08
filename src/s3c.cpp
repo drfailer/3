@@ -299,6 +299,7 @@ node::Node *new_index_expr(State *state, std::string const &name, size_t line,
     } else {
         state->scopes.curr->node_types.insert(
             {node, sym->type->value.array->type});
+        // this may not be usefull
         state->scopes.curr->node_types.insert({variable, sym->type});
         auto scope = state->scopes.curr;
         state->post_process_callbacks.push_back([scope, index_node]() -> bool {

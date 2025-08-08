@@ -379,105 +379,12 @@ statement:
     }
     ;
 
-// cnd:
-//     cndBase {
-//         $$ = $1;
-//     }
-//     | cndBase[cndb] OTW {
-//         DEBUG("els");
-//         s3c::enter_scope(state);
-//     } block[ops] {
-//         auto ifstmt = $cndb;
-//         // adding else block
-//         ifstmt->value.cnd_stmt->otw_block = $ops;
-//         $$ = ifstmt;
-//         s3c::leave_scope(state, $ops);
-//     }
-//     ;
-//
-// cndBase:
-//     CND booleanOperation[cond] {
-//         s3c::enter_scope(state);
-//     } block[ops] {
-//         DEBUG("if");
-//         $$ = node::create_cnd_stmt(
-//             location_create(state->curr_filename, @1.begin.line),
-//             $cond, $ops);
-//         s3c::leave_scope(state, $ops);
-//     }
-//     ;
-
-// to make the new syntax work, the if statement should be recursive so that we
-// allow the start of a new if before the end of the curent block and without
-// the need to add an extra "bgn" when the cnd comes after the otw keyword.
-
-// otwContent:
-//     booleanOperation[cond] {
-//         s3c::enter_scope(state);
-//         s3c::begin_block(state);
-//         node::Node *stmt = node::create_cnd_stmt(
-//                                  location_create(state->curr_filename, @1.begin.line),
-//                                  $cond, nullptr, nullptr);
-//         node::Node **cur_otw = &state->parser_stack.top()->value.cnd_stmt->otw;
-//
-//         while (*cur_otw != nullptr) {
-//             cur_otw = &(*cur_otw)->value.cnd_stmt->otw;
-//         }
-//         *cur_otw = stmt;
-//     } code
-//     | {
-//         s3c::enter_scope(state);
-//         s3c::begin_block(state);
-//     } code
-//     ;
-//
-// cndCode:
-//     code
-//     | code OTW {
-//         auto block = s3c::end_block(state);
-//         s3c::leave_scope(state, block);
-//
-//         node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
-//         while (cur->block != nullptr) {
-//             cur = cur->otw->value.cnd_stmt;
-//         }
-//         cur->block = block;
-//     } otwContent
-//     ;
-//
-// cnd:
-//     CND booleanOperation[cond] BGN {
-//         state->parser_stack.push(
-//                     node::create_cnd_stmt(
-//                         location_create(state->curr_filename, @1.begin.line),
-//                         $cond, nullptr, nullptr));
-//         s3c::begin_block(state);
-//         s3c::enter_scope(state);
-//     } cndCode END {
-//         node::Block *block = s3c::end_block(state);
-//         s3c::leave_scope(state, block);
-//
-//         node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
-//         while (cur->block != nullptr) {
-//             cur = cur->otw->value.cnd_stmt;
-//         }
-//         cur->block = block;
-//
-//         state->parser_stack.pop();
-//         $$ = cnd_node;
-//     }
-//     ;
-
-///////////
-
 cnd:
     cndBegin[cond] {
         state->parser_stack.push(
                     node::create_cnd_stmt(
                         location_create(state->curr_filename, @1.begin.line),
                         $cond, nullptr, nullptr));
-        s3c::begin_block(state);
-        s3c::enter_scope(state);
     } cndContent cndEnd {
         $$ = state->parser_stack.top();
         state->parser_stack.pop();
@@ -485,18 +392,18 @@ cnd:
     ;
 
 cndBegin:
-    CND booleanOperation[cond] BGN { $$ = $cond; }
+    CND {
+        s3c::enter_scope(state);
+        s3c::begin_block(state);
+    } booleanOperation[cond] BGN { $$ = $cond; }
     ;
 
 cndContent:
     code optOtw
     ;
 
-optOtw:
-    %empty
-    | OTW {
-        // TODO: create a separated rule for otw
-        // TODO: create the corresponding functions in s3c
+otw:
+    OTW {
         auto block = s3c::end_block(state);
         s3c::leave_scope(state, block);
 
@@ -505,7 +412,15 @@ optOtw:
             cur = cur->otw->value.cnd_stmt;
         }
         cur->block = block;
-    } booleanOperation[cond] {
+
+        s3c::begin_block(state);
+        s3c::enter_scope(state);
+    }
+    ;
+
+optOtw:
+    %empty
+    | otw booleanOperation[cond] {
         node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
         while (cur->otw != nullptr) {
             cur = cur->otw->value.cnd_stmt;
@@ -513,23 +428,8 @@ optOtw:
         cur->otw = node::create_cnd_stmt(
                         location_create(state->curr_filename, @1.begin.line),
                         $cond, nullptr, nullptr);
-
-        s3c::begin_block(state);
-        s3c::enter_scope(state);
     } cndContent
-    | OTW {
-        auto block = s3c::end_block(state);
-        s3c::leave_scope(state, block);
-
-        node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
-        while (cur->block != nullptr) {
-            cur = cur->otw->value.cnd_stmt;
-        }
-        cur->block = block;
-
-        s3c::begin_block(state);
-        s3c::enter_scope(state);
-    } code
+    | otw code
     ;
 
 cndEnd:

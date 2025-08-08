@@ -446,7 +446,7 @@ void compile_cnd_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
     node::CndStmt *stmt = node->value.cnd_stmt;
 
-    compile_node(state, stmt->condition, scope);
+    compile_node(state, stmt->condition, scope->block_scopes[stmt->block]);
     asm_add_label(state->code, TRUE_LABEL(stmt->condition));
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
     asm_add_instruction(state->code, "jmp", END_LABEL(stmt));
