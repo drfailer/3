@@ -68,11 +68,6 @@ node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
                                      size_t line,
                                      std::string const &operatorName);
 
-void very_function_call_argument_types(std::string const &functionName,
-                                       node::FunctionCall *functionCall,
-                                       SymbolTable *scope,
-                                       std::string const &fileName,
-                                       size_t line);
 void begin_new_funcall(State *state);
 void save_function_call_argument(State *state, node::Node *node);
 node::Node *new_function_call(State *state, std::string const &function_name,
