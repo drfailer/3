@@ -1,5 +1,6 @@
 #include "preprocessor.hpp"
 #include <algorithm>
+#include <filesystem>
 #include <regex>
 
 /**
@@ -8,11 +9,9 @@
  * @param  pathToMain  Just the path to the file given to the transpiler.
  */
 void Preprocessor::process(std::string pathToMain) {
-    std::string tmp = pathToMain;
-
-    while (tmp[tmp.length() - 1] != '/')
-        tmp.pop_back();
-    pathToProject = tmp;
+    auto path = std::filesystem::path(pathToMain);
+    pathToProject =
+        std::filesystem::path(pathToMain).parent_path().string();
     process_rec(pathToMain);
 }
 
