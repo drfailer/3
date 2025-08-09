@@ -18,7 +18,7 @@ digit [0-9]
 int [+-]?{digit}+
 float [+-]?{digit}+\.{digit}+
 char '{alpha}'
-identifier [a-z]({alpha}|{digit}|_)*
+identifier {alpha}({alpha}|{digit}|_)*
 comma ,
 semi ;
 blanks [\S\s \t\n]
