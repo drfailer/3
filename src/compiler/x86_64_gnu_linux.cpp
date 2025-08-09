@@ -6,6 +6,7 @@
 #include "type/predicates.hpp"
 #include "type/type.hpp"
 #include <array>
+#include <cassert>
 #include <cstring>
 #include <iostream>
 
@@ -40,6 +41,25 @@ void mov_result_to_register(CompilerState *state,
     }
 }
 
+Address create_tmp_str_value(CompilerState *state, node::Node *value,
+                             Address addr) {
+    std::string value_str(value->value.value->value.string);
+    Address result_addr;
+
+    result_addr.addressing_mode = AddressingMode::Register;
+    result_addr.register_name = "rax";
+    result_addr.type = addr.type;
+    assert(addr.addressing_mode == AddressingMode::ImmediateValue);
+
+    // nb bytes
+    asm_add_instruction(state->code, "push", std::to_string(value_str.size()));
+    // data ptr
+    asm_add_instruction(state->code, "lea", "rax", asm_addr(addr));
+    asm_add_instruction(state->code, "push", "rax");
+    asm_add_instruction(state->code, "lea", "rax", "[rsp+8]");
+    return result_addr;
+}
+
 void compile_block(CompilerState *state, node::Block *node, SymbolTable *scope);
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
@@ -70,15 +90,9 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
         asm_addr_register(state, "xmm0", type);
     } break;
     case node::ValueKind::String: {
-        // TODO: we should ad the size on top of the the string value
         std::string label = asm_create_data_id(state->code, "value_");
-        asm_add_data(state->code, label,
-                     "  .quad " +
-                         std::to_string(strlen(value_node->value.string)) +
-                         "  \n.string",
-                     value_node->value.string);
-        asm_add_instruction(state->code, "lea", "rax", label);
-        asm_addr_register(state, "rax", type);
+        asm_add_data(state->code, label, ".string", value_node->value.string);
+        asm_addr_immediate_value(state, label, type);
     } break;
     }
 }
@@ -144,21 +158,49 @@ void compile_assignement(CompilerState *state, node::Node *node,
             asm_add_instruction(state->code, "mov", asm_addr(target),
                                 asm_addr(state->last_expr_addr));
         } else if (type::is_str(target_type)) {
+            // str is store backward as followed on the stack:
+            // [nb bytes] <- effective address of the string
+            // [data ptr]
             if (assignment_node->value->kind == node::NodeKind::Value) {
-                asm_add_instruction(state->code, "mov", "rdx", "[rax]");
+                auto value_addr = state->last_expr_addr;
+                std::string value_str(
+                    assignment_node->value->value.value->value.string);
+                // nb bytes
+                asm_add_instruction(state->code, "mov", "rdx",
+                                    std::to_string(value_str.size()));
                 asm_add_instruction(state->code, "mov", asm_addr(target),
                                     "rdx");
+                // data ptr
                 target.offset -= 8;
-                asm_add_instruction(state->code, "lea", "rdx", "[rax+8]");
+                asm_add_instruction(state->code, "lea", "rdx",
+                                    asm_addr(value_addr));
                 asm_add_instruction(state->code, "mov", asm_addr(target),
                                     "rdx");
             } else {
                 auto value_addr = state->last_expr_addr;
-                asm_add_instruction(state->code, "mov", asm_addr(target),
-                                    asm_addr(value_addr));
-                value_addr.offset -= 8;
-                asm_add_instruction(state->code, "mov", asm_addr(target),
-                                    asm_addr(value_addr));
+                if (value_addr.addressing_mode == AddressingMode::Based) {
+                    // nb bytes
+                    asm_add_instruction(state->code, "mov", "rax",
+                                        asm_addr(value_addr));
+                    asm_add_instruction(state->code, "mov", asm_addr(target),
+                                        "rax");
+                    // data ptr
+                    target.offset -= 8;
+                    value_addr.offset -= 8;
+                    asm_add_instruction(state->code, "lea", "rax",
+                                        asm_addr(value_addr));
+                    asm_add_instruction(state->code, "mov", asm_addr(target),
+                                        "rax");
+                } else {
+                    // nb bytes
+                    asm_add_instruction(state->code, "mov", asm_addr(target),
+                                        asm_addr(value_addr));
+                    // data ptr
+                    target.offset -= 8;
+                    value_addr.offset -= 8;
+                    asm_add_instruction(state->code, "mov", asm_addr(target),
+                                        asm_addr(value_addr));
+                }
             }
         } else {
             throw std::logic_error("unknown assignment target tyep: " +
@@ -431,37 +473,49 @@ void compile_function_call(CompilerState *state, node::Node *node,
     auto args = node->value.function_call->arguments;
     auto args_type = function_type->value.function->arguments_types;
     size_t int_idx = 0, flt_idx = 0;
-    std::stack<std::string> args_addr;
+    size_t stack_size_to_release = 0;
+    std::stack<Address> args_addr;
     // TODO: check the rules for structs
     for (size_t i = 0; i < args.size(); i++) {
         // compile the argument node
         compile_node(state, args[i], scope);
         auto value_addr = state->last_expr_addr;
-        std::string arg_addr = asm_addr(value_addr);
 
         if (type::is_flt(args_type[i])) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
                 asm_add_instruction(state->code, "movsd",
-                                    ARG_REGISTERS_FLOAT[flt_idx], arg_addr);
+                                    ARG_REGISTERS_FLOAT[flt_idx],
+                                    asm_addr(value_addr));
             } else {
-                args_addr.push(arg_addr);
+                args_addr.push(value_addr);
             }
             flt_idx++;
         } else if (type::is_int(args_type[i])) {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
                 asm_add_instruction(state->code, "mov",
-                                    ARG_REGISTERS_INTEGER[int_idx], arg_addr);
+                                    ARG_REGISTERS_INTEGER[int_idx],
+                                    asm_addr(value_addr));
             } else {
-                args_addr.push(arg_addr);
+                args_addr.push(value_addr);
             }
             int_idx++;
         } else if (type::is_str(args_type[i])) {
+            if (value_addr.addressing_mode == AddressingMode::ImmediateValue) {
+                value_addr = create_tmp_str_value(state, args[i], value_addr);
+                stack_size_to_release += 16;
+            }
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
-                asm_add_instruction(state->code, "lea",
-                                    ARG_REGISTERS_INTEGER[int_idx],
-                                    arg_addr);
+                if (value_addr.addressing_mode == AddressingMode::Based) {
+                    asm_add_instruction(state->code, "lea",
+                                        ARG_REGISTERS_INTEGER[int_idx],
+                                        asm_addr(value_addr));
+                } else {
+                    asm_add_instruction(state->code, "mov",
+                                        ARG_REGISTERS_INTEGER[int_idx],
+                                        asm_addr(value_addr));
+                }
             } else {
-                args_addr.push(arg_addr);
+                args_addr.push(value_addr);
             }
             int_idx++;
         } else {
@@ -471,8 +525,9 @@ void compile_function_call(CompilerState *state, node::Node *node,
     }
     // push the remaining argument on the stack in the reverse order
     while (!args_addr.empty()) {
-        asm_add_instruction(state->code, "push", args_addr.top());
+        asm_add_instruction(state->code, "push", asm_addr(args_addr.top()));
         args_addr.pop();
+        stack_size_to_release += 8;
     }
     // call the function
     asm_add_instruction(state->code, "xor", "rax", "rax");
@@ -485,6 +540,10 @@ void compile_function_call(CompilerState *state, node::Node *node,
     } else {
         asm_addr_register(state, "rax",
                           function_type->value.function->return_type);
+    }
+    if (stack_size_to_release > 0) {
+        asm_add_instruction(state->code, "add", "rsp",
+                            std::to_string(stack_size_to_release));
     }
 }
 

@@ -3,7 +3,7 @@
 
 use ../../utilities/print/print
 
-int main() bgn
+nil values() bgn
     shw("int: ")
     print_int(4)
     shw("\nflt: ")
@@ -11,4 +11,29 @@ int main() bgn
     shw("\nstr: ")
     print_str("Hello, World!")
     shw("\n")
+end
+
+nil variables() bgn
+    int i
+    flt f
+    str s
+    str s2
+
+    mov(i, 4)
+    mov(f, 3.14)
+    mov(s, "Hello, World!")
+    mov(s2, s)
+
+    shw("int: ")
+    print_int(i)
+    shw("\nflt: ")
+    print_flt(f)
+    shw("\nstr: ")
+    print_str(s)
+    shw("\n")
+end
+
+int main() bgn
+    values()
+    variables()
 end
