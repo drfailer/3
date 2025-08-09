@@ -1,7 +1,9 @@
 #include <stdio.h>
 
-int print_str(const char *val) {
-    int ret = printf("%s", val);
+// this function does not work with standard strings
+int print_str(unsigned long *str3) {
+    char *cstr = (char*)(*(str3 - 1));
+    int ret = printf("%s", cstr);
     if (ret == 0) {
         return ret;
     }

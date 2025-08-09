@@ -72,7 +72,11 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
     case node::ValueKind::String: {
         // TODO: we should ad the size on top of the the string value
         std::string label = asm_create_data_id(state->code, "value_");
-        asm_add_data(state->code, label, ".string", value_node->value.string);
+        asm_add_data(state->code, label,
+                     "  .quad " +
+                         std::to_string(strlen(value_node->value.string)) +
+                         "  \n.string",
+                     value_node->value.string);
         asm_add_instruction(state->code, "lea", "rax", label);
         asm_addr_register(state, "rax", type);
     } break;
@@ -141,17 +145,13 @@ void compile_assignement(CompilerState *state, node::Node *node,
                                 asm_addr(state->last_expr_addr));
         } else if (type::is_str(target_type)) {
             if (assignment_node->value->kind == node::NodeKind::Value) {
-                asm_add_instruction(
-                    state->code, "mov", "rdx",
-                    std::to_string(
-                        strlen(
-                            assignment_node->value->value.value->value.string) +
-                        1));
+                asm_add_instruction(state->code, "mov", "rdx", "[rax]");
                 asm_add_instruction(state->code, "mov", asm_addr(target),
                                     "rdx");
                 target.offset -= 8;
+                asm_add_instruction(state->code, "lea", "rdx", "[rax+8]");
                 asm_add_instruction(state->code, "mov", asm_addr(target),
-                                    asm_addr(state->last_expr_addr));
+                                    "rdx");
             } else {
                 auto value_addr = state->last_expr_addr;
                 asm_add_instruction(state->code, "mov", asm_addr(target),
@@ -457,15 +457,9 @@ void compile_function_call(CompilerState *state, node::Node *node,
             int_idx++;
         } else if (type::is_str(args_type[i])) {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
-                if (value_addr.addressing_mode == AddressingMode::Based) {
-                    asm_add_instruction(state->code, "lea",
-                                        ARG_REGISTERS_INTEGER[int_idx],
-                                        arg_addr);
-                } else {
-                    asm_add_instruction(state->code, "mov",
-                                        ARG_REGISTERS_INTEGER[int_idx],
-                                        arg_addr);
-                }
+                asm_add_instruction(state->code, "lea",
+                                    ARG_REGISTERS_INTEGER[int_idx],
+                                    arg_addr);
             } else {
                 args_addr.push(arg_addr);
             }
