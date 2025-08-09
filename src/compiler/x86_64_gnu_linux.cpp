@@ -6,6 +6,7 @@
 #include "type/predicates.hpp"
 #include "type/type.hpp"
 #include <array>
+#include <cstring>
 #include <iostream>
 
 /*
@@ -93,6 +94,8 @@ void compile_assignement(CompilerState *state, node::Node *node,
                          SymbolTable *scope) {
     node::Assignment *assignment_node = node->value.assignment;
     Address target;
+    auto target_type = scope->node_types[assignment_node->target];
+    auto value_type = scope->node_types[assignment_node->value];
 
     compile_node(state, assignment_node->target, scope);
     target = state->last_expr_addr;
@@ -104,32 +107,62 @@ void compile_assignement(CompilerState *state, node::Node *node,
         asm_add_instruction(state->code, "push", target.register_name);
         compile_node(state, assignment_node->value, scope);
         asm_add_instruction(state->code, "pop", "rdx");
-        if (type::is_flt(scope->node_types[assignment_node->target])) {
+        if (type::is_flt(target_type)) {
             std::string value_addr = asm_addr(state->last_expr_addr);
-            if (!type::is_flt(scope->node_types[assignment_node->value])) {
+            if (!type::is_flt(value_type)) {
                 asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
                                     value_addr);
                 value_addr = "xmm0";
             }
             asm_add_instruction(state->code, "movsd", "[rdx]", value_addr);
-        } else {
+        } else if (type::is_int(target_type)) {
             asm_add_instruction(state->code, "mov", "[rdx]",
                                 asm_addr(state->last_expr_addr));
+        } else if (type::is_str(target_type)) {
+            throw std::logic_error(
+                "error: str type does not support direct addressing mode.");
+        } else {
+            throw std::logic_error("unknown assignment target tyep: " +
+                                   type::type_to_string(target_type));
         }
     } else if (target.addressing_mode == AddressingMode::Based) {
         compile_node(state, assignment_node->value, scope);
-        if (type::is_flt(scope->node_types[assignment_node->target])) {
+        if (type::is_flt(target_type)) {
             auto value_addr = asm_addr(state->last_expr_addr);
-            if (!type::is_flt(scope->node_types[assignment_node->value])) {
+            if (!type::is_flt(value_type)) {
                 asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
                                     value_addr);
                 value_addr = "xmm0";
             }
             asm_add_instruction(state->code, "movsd", asm_addr(target),
                                 value_addr);
-        } else {
+        } else if (type::is_int(target_type)) {
             asm_add_instruction(state->code, "mov", asm_addr(target),
                                 asm_addr(state->last_expr_addr));
+        } else if (type::is_str(target_type)) {
+            if (assignment_node->value->kind == node::NodeKind::Value) {
+                asm_add_instruction(
+                    state->code, "mov", "rdx",
+                    std::to_string(
+                        strlen(
+                            assignment_node->value->value.value->value.string) +
+                        1));
+                asm_add_instruction(state->code, "mov", asm_addr(target),
+                                    "rdx");
+                target.offset -= 8;
+                asm_add_instruction(state->code, "mov", asm_addr(target),
+                                    asm_addr(state->last_expr_addr));
+            } else {
+                auto value_addr = state->last_expr_addr;
+                asm_add_instruction(state->code, "mov", asm_addr(target),
+                                    asm_addr(value_addr));
+                value_addr.offset -= 8;
+                asm_add_instruction(state->code, "mov", asm_addr(target),
+                                    asm_addr(value_addr));
+            }
+        } else {
+            throw std::logic_error("unknown assignment target tyep: " +
+                                   type::type_to_string(target_type));
         }
     } else {
         std::cerr << "error: invalide target." << std::endl;
@@ -272,8 +305,8 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
 #define BEGIN_LABEL(node) LABEL(node, "_begin")
 #define END_LABEL(node) LABEL(node, "_end")
 
-void compile_cmp(CompilerState *state, node::Node *node,
-                 SymbolTable *scope, std::string const &jmp) {
+void compile_cmp(CompilerState *state, node::Node *node, SymbolTable *scope,
+                 std::string const &jmp) {
     node::Node *lhs = node->value.boolean_operation->lhs;
     node::Node *rhs = node->value.boolean_operation->rhs;
 
@@ -403,7 +436,8 @@ void compile_function_call(CompilerState *state, node::Node *node,
     for (size_t i = 0; i < args.size(); i++) {
         // compile the argument node
         compile_node(state, args[i], scope);
-        std::string arg_addr = asm_addr(state->last_expr_addr);
+        auto value_addr = state->last_expr_addr;
+        std::string arg_addr = asm_addr(value_addr);
 
         if (type::is_flt(args_type[i])) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
@@ -413,7 +447,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
                 args_addr.push(arg_addr);
             }
             flt_idx++;
-        } else {
+        } else if (type::is_int(args_type[i])) {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
                 asm_add_instruction(state->code, "mov",
                                     ARG_REGISTERS_INTEGER[int_idx], arg_addr);
@@ -421,6 +455,24 @@ void compile_function_call(CompilerState *state, node::Node *node,
                 args_addr.push(arg_addr);
             }
             int_idx++;
+        } else if (type::is_str(args_type[i])) {
+            if (int_idx < ARG_REGISTERS_INTEGER.size()) {
+                if (value_addr.addressing_mode == AddressingMode::Based) {
+                    asm_add_instruction(state->code, "lea",
+                                        ARG_REGISTERS_INTEGER[int_idx],
+                                        arg_addr);
+                } else {
+                    asm_add_instruction(state->code, "mov",
+                                        ARG_REGISTERS_INTEGER[int_idx],
+                                        arg_addr);
+                }
+            } else {
+                args_addr.push(arg_addr);
+            }
+            int_idx++;
+        } else {
+            throw std::logic_error("error: unsuported type " +
+                                   type::type_to_string(args_type[i]));
         }
     }
     // push the remaining argument on the stack in the reverse order
