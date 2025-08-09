@@ -12,6 +12,9 @@ void Preprocessor::process(std::string pathToMain) {
     auto path = std::filesystem::path(pathToMain);
     pathToProject =
         std::filesystem::path(pathToMain).parent_path().string();
+    if (!pathToProject.empty()) {
+        pathToProject += "/";
+    }
     process_rec(pathToMain);
 }
 
