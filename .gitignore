@@ -10,3 +10,5 @@ compile_commands.json
 *.o
 *.so
 *.a
+.gdb_history
+out/
