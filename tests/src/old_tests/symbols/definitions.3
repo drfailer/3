@@ -1,0 +1,17 @@
+int test() bgn
+  shw("test")
+  ret 2
+end
+
+int times_two(int a) bgn
+  ret mul(a, 2)
+end
+
+nil main() bgn
+  int b
+  test()
+  mov(b, 3)
+  mov(b, times_two(b))
+  shw(b)
+  shw("\n")
+end

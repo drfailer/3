@@ -1,0 +1,39 @@
+~~~ compiler command:
+~~~ ./s3c -o prog ../tests/compiler/test_print.3 -L../utilities/print -lprint -rpath=../utilities/print
+
+use ../../utilities/print/print
+
+nil values() bgn
+    shw("int: ")
+    print_int(4)
+    shw("\nflt: ")
+    print_flt(mul(3.14, 2))
+    shw("\nstr: ")
+    print_str("Hello, World!")
+    shw("\n")
+end
+
+nil variables() bgn
+    int i
+    flt f
+    str s
+    str s2
+
+    mov(i, 4)
+    mov(f, 3.14)
+    mov(s, "Hello, World!")
+    mov(s2, s)
+
+    shw("int: ")
+    print_int(i)
+    shw("\nflt: ")
+    print_flt(f)
+    shw("\nstr: ")
+    print_str(s)
+    shw("\n")
+end
+
+int main() bgn
+    values()
+    variables()
+end

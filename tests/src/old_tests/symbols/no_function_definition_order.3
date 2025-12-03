@@ -1,0 +1,10 @@
+~~~ Very basic test to verify that we can call `hello` even if it as been
+~~~ declared after main
+
+nil main() bgn
+  hello()
+end
+
+nil hello() bgn
+  shw("hello\n")
+end

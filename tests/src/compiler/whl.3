@@ -1,0 +1,22 @@
+int main() bgn
+    int i
+
+    mov(i, 0)
+
+    shw("print hello 10 times:\n")
+    whl inf(i, 10) bgn
+        shw("hello\n")
+        mov(i, add(i, 1))
+    end
+
+    ~~~ TODO: this version of shw is not functional yet (we might ultimately use printf)
+    ~~~ mov(i, 0)
+    ~~~ shw("print alphabet:\n")
+    ~~~ whl inf(i, 26) bgn
+    ~~~     shw(add('a', i))
+    ~~~     shw("\n")
+    ~~~     mov(i, add(i, 1))
+    ~~~ end
+
+    ret 0
+end
