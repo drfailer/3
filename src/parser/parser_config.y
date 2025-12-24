@@ -24,7 +24,7 @@
 %define api.namespace {parser}
 %define api.value.type variant
 %locations
-%parse-param {Scanner* scanner} {s3c::State *state}
+%parse-param {Scanner *scanner} {s3c::State *state}
 
 %code requires
 {

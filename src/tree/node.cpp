@@ -28,9 +28,7 @@ Node *create_value(Location location, double real) {
 }
 
 Node *create_value(Location location, std::string const string) {
-    auto cstring = new char[string.size() + 1];
-    memcpy(cstring, string.data(), string.size());
-    cstring[string.size()] = 0;
+    auto cstring = strdup(string.c_str());
     return new_node(Value, value, ValueKind::String, {.string = cstring});
 }
 

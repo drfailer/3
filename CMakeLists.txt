@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
+set(CMAKE_VERBOSE_MAKEFILE TRUE)
+
 # compiler options
 add_compile_options(-Wall -Wextra -Wuninitialized -g)
 
@@ -18,7 +20,7 @@ add_custom_target(parser COMMAND bison -Wconflicts-sr -Wcounterexamples parser_c
                   BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser.cpp
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/
                   COMMENT "building parser")
-  add_custom_target(lexer COMMAND flex lexer_config.l
+add_custom_target(lexer COMMAND flex lexer_config.l
                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/lexer_config.l
                   BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/lexer.cpp
                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/
@@ -42,4 +44,4 @@ set(files
 )
 
 add_executable(s3c src/parser/parser.cpp src/parser/lexer.cpp ${files})
-add_dependencies(s3c parser lexer)
+# add_dependencies(s3c parser lexer)

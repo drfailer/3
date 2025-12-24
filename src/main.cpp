@@ -7,6 +7,7 @@
 #include "tools/messages.hpp"
 #include "tools/strings.hpp"
 #include <filesystem>
+#include <cassert>
 #define PREPROCESSOR_OUTPUT_FILE "__main_pp__"
 
 struct Options {
@@ -28,50 +29,53 @@ Options parse_args(std::vector<std::string> const &args) {
         .generate_option = Options::GenerateExecutable,
         .linker_options = {},
     };
-    size_t i = 0;
+    auto arg = args.begin();
 
-    while (i < args.size()) {
-        std::string arg = args[i++];
-        if (arg == "-o" || arg == "--output") {
-            if (i == args.size()) {
-                std::cerr << "error: expected file name after " << arg << "."
+    while (arg != args.end()) {
+        if (*arg == "-o" || *arg == "--output") {
+            arg++;
+            if (arg == args.end()) {
+                std::cerr << "error: expected file name after " << *arg << "."
                           << std::endl;
                 exit(1);
             }
-            opts.output_file = args[i++];
-        } else if (starts_with(arg, "--output=")) {
-            opts.output_file = arg.substr(9);
-        } else if (arg == "--build-dir") {
-            if (i == args.size()) {
-                std::cerr << "error: expected directory name after " << arg
+            opts.output_file = *arg;
+        } else if (starts_with(*arg, "--output=")) {
+            opts.output_file = arg->substr(9);
+        } else if (*arg == "--build-dir") {
+            arg++;
+            if (arg == args.end()) {
+                std::cerr << "error: expected directory name after " << *arg
                           << "." << std::endl;
                 exit(1);
             }
-            opts.build_directory_name = args[i++];
-        } else if (starts_with(arg, "--build-dir=")) {
-            opts.build_directory_name = arg.substr(12);
-        } else if (starts_with(arg, "-L")) {
-            opts.linker_options.push_back(arg);
-            if (arg.size() == 2) {
-                if (i == args.size()) {
-                    std::cerr << "error: expected file name after " << arg
+            opts.build_directory_name = *arg;
+        } else if (starts_with(*arg, "--build-dir=")) {
+            opts.build_directory_name = arg->substr(12);
+        } else if (starts_with(*arg, "-L")) {
+            opts.linker_options.push_back(*arg);
+            if (arg->size() == 2) {
+                arg++;
+                if (arg == args.end()) {
+                    std::cerr << "error: expected file name after " << *arg
                               << "." << std::endl;
                     exit(1);
                 }
-                opts.linker_options.push_back(args[i++]);
+                opts.linker_options.push_back(*arg);
             }
-        } else if (starts_with(arg, "-l")) {
-            opts.linker_options.push_back(arg);
-        } else if (starts_with(arg, "-rpath=")) {
-            opts.linker_options.push_back(arg);
-        } else if (arg == "-S") {
+        } else if (starts_with(*arg, "-l")) {
+            opts.linker_options.push_back(*arg);
+        } else if (starts_with(*arg, "-rpath=")) {
+            opts.linker_options.push_back(*arg);
+        } else if (*arg == "-S") {
             opts.generate_option = Options::GenerateAssembly;
-        } else if (arg[0] == '-') {
-            std::cerr << "error: unknown option " << arg << "." << std::endl;
+        } else if ((*arg)[0] == '-') {
+            std::cerr << "error: unknown option " << *arg << "." << std::endl;
             exit(1);
         } else {
-            opts.input_file = arg;
+            opts.input_file = *arg;
         }
+        arg++;
     }
     if (opts.input_file.empty()) {
         std::cerr << "error: no input file." << std::endl;
@@ -116,20 +120,22 @@ bool preprocess(Options const &opts) {
     return true;
 }
 
+// FIXME: bison is generating a lot of invalid reads/writes on the scanner and
+//        the state. I really don't understand what it's doing under the hood.
 bool parse(Options const &opts, s3c::State *state) {
     // BUG: when declaring a string here, its destructor ends up crashing???
-    // std::string pp_file = opts.build_directory_name +
-    // PREPROCESSOR_OUTPUT_FILE;
-    std::ifstream is(opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE,
-                     std::ios::in);
-    parser::Scanner scanner{is, std::cerr};
-    parser::Parser parser{&scanner, state};
-    int err = parser.parse();
-
-    if (err || state->status) {
-        return false;
-    }
-    return true;
+    std::string pp_file = opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE;
+    std::ifstream is(pp_file, std::ios::in);
+    assert(is.good());
+    assert(state != nullptr);
+    parser::Scanner *scanner = new parser::Scanner(is, std::cerr);
+    parser::Parser *parser = new parser::Parser(scanner, state);
+    int err = parser->parse();
+    bool result = !(err || state->status);
+    // BUG: this results in a double free but why?
+    // delete scanner;
+    delete parser;
+    return result;
 }
 
 bool compile(Options const &opts) {
@@ -171,7 +177,6 @@ bool compile(Options const &opts) {
                           Program{state->program, state->scopes.global});
         int assembler_success = compiler::run_cmd("as", "-g", "-msyntax=intel",
                                                   asm_file, "-o", obj_file);
-        // TODO: add opts.linker_options
         if (assembler_success == 0) {
             compiler::run_cmd("ld", "-o", opts.output_file, obj_file, "-lc",
                               "-dynamic-linker", "/lib64/ld-linux-x86-64.so.2",
