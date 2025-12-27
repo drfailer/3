@@ -2,6 +2,8 @@
 #define TESTLIB_CONFIG
 #include <string>
 #include <vector>
+#include <filesystem>
+#define CONFIG_EXTENSION ".conf"
 
 struct TestConfig {
     std::string title;
@@ -24,5 +26,7 @@ struct TestConfig {
 };
 
 TestConfig parse_config_file(std::string const &filename);
+
+std::vector<std::filesystem::path> get_config_files(std::string const &config_dir);
 
 #endif

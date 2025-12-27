@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iostream>
+#include <cassert>
 
 #define debug(...) fprintf(stderr, __VA_ARGS__)
 
@@ -259,6 +261,8 @@ TestConfig parse_config_file(std::string const &filename) {
     ParserState state;
     state.buf = buf;
 
+    assert(file.is_open());
+
     state.status = ParserStatus::Ok;
     while (!file.eof()) {
         ++line;
@@ -283,4 +287,19 @@ TestConfig parse_config_file(std::string const &filename) {
     }
 
     return config;
+}
+
+std::vector<std::filesystem::path> get_config_files(std::string const &config_dir) {
+    std::vector<std::filesystem::path> result;
+
+    for (auto entry : std::filesystem::recursive_directory_iterator(config_dir)) {
+        if (entry.is_directory()) {
+            continue;
+        }
+        std::filesystem::path path(entry);
+        if (path.extension() == CONFIG_EXTENSION) {
+            result.push_back(entry);
+        }
+    }
+    return result;
 }
