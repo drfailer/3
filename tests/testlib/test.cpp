@@ -113,7 +113,7 @@ static void update_test_gold_files(std::string const &path_to_config) {
         return;
     }
 
-    std::cout << "update gold file for test '" << config.title << std::endl;
+    std::cout << "update gold file for test `" << config.title << "'" << std::endl;
 
     std::filesystem::create_directories(gold_dir);
     int build_res = run_cmd("../build/s3c", "-o",
