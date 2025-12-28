@@ -12,3 +12,4 @@ compile_commands.json
 *.a
 .gdb_history
 out/
+tests/test
