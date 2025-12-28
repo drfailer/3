@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <cassert>
+#include <regex>
 
 #define debug(...) fprintf(stderr, __VA_ARGS__)
 
@@ -289,16 +290,30 @@ TestConfig parse_config_file(std::string const &filename) {
     return config;
 }
 
-std::vector<std::filesystem::path> get_config_files(std::string const &config_dir) {
+std::vector<std::filesystem::path> get_config_files(std::string const &config_dir, std::string const &pattern) {
     std::vector<std::filesystem::path> result;
 
-    for (auto entry : std::filesystem::recursive_directory_iterator(config_dir)) {
-        if (entry.is_directory()) {
-            continue;
+    if (pattern.empty()) {
+        for (auto entry : std::filesystem::recursive_directory_iterator(config_dir)) {
+            if (entry.is_directory()) {
+                continue;
+            }
+            std::filesystem::path path(entry);
+            if (path.extension() == CONFIG_EXTENSION) {
+                result.emplace_back(entry);
+            }
         }
-        std::filesystem::path path(entry);
-        if (path.extension() == CONFIG_EXTENSION) {
-            result.push_back(entry);
+    } else {
+        std::regex re(pattern);
+
+        for (auto entry : std::filesystem::recursive_directory_iterator(config_dir)) {
+            if (entry.is_directory()) {
+                continue;
+            }
+            std::filesystem::path path(entry);
+            if (path.extension() == CONFIG_EXTENSION && std::regex_search(std::string(path), re)) {
+                result.emplace_back(entry);
+            }
         }
     }
     return result;

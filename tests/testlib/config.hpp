@@ -27,6 +27,6 @@ struct TestConfig {
 
 TestConfig parse_config_file(std::string const &filename);
 
-std::vector<std::filesystem::path> get_config_files(std::string const &config_dir);
+std::vector<std::filesystem::path> get_config_files(std::string const &config_dir, std::string const &pattern = "");
 
 #endif
