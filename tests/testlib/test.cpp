@@ -130,6 +130,7 @@ static void update_test_gold_files(std::string const &path_to_config) {
     if (run_res != config.results.exit_code) {
         error("cannot update gold file due to missmatch return type. Found ",
               run_res, " bun expected ", config.results.exit_code);
+        return;
     }
     std::cout << config.title << ": gold file generated successfuly." << std::endl;
 }

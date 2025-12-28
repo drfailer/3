@@ -1,5 +1,5 @@
 ~~~ compiler command:
-~~~ ./s3c -o prog ../tests/compiler/test_print.3 -L../utilities/print -lprint -rpath=../utilities/print
+~~~ ./s3c -o prog ../tests/compiler/printlib.3 -L../utilities/print -lprint -rpath=../utilities/print
 
 use ../../utilities/print/print
 
@@ -36,4 +36,5 @@ end
 int main() bgn
     values()
     variables()
+    ret 0
 end

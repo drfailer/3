@@ -1,0 +1,2 @@
+running: as -g -msyntax=intel build/printlib.asm -o build/printlib.o
+running: ld -o out//printlib build/printlib.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2 -L../utilities/print -lprint -rpath=../utilities/print
