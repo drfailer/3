@@ -1,0 +1,2 @@
+running: as -g -msyntax=intel build/cnd.asm -o build/cnd.o
+running: ld -o out/syntax/cnd/cnd build/cnd.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2
