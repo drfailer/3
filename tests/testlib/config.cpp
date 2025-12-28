@@ -100,12 +100,13 @@ ParserState parse_list(ParserState const &state) {
             result.status = ParserStatus::Ok;
             return result;
         }
+        new_state.value.values.clear();
         new_state = parse_value(result);
         if (new_state.status != ParserStatus::Ok) {
             result.status = ParserStatus::Error;
             return  result;
         }
-        result.value.values.push_back(new_state.value.values[0]);
+        result.value.values.push_back(new_state.value.values.back());
         result.idx = new_state.idx;
         new_state = parse_char(result, ',');
         if (new_state.status == ParserStatus::Ok) {
@@ -161,7 +162,7 @@ ParserState parse_string(ParserState const &state) {
     while (result.idx < result.size) {
         if (result.buf[result.idx] == '"' &&
             result.buf[result.idx - 1] != '\\') {
-            value_append(&result, value);
+            result.value.values.push_back(value);
             ++result.idx;
             result.status = ParserStatus::Ok;
             return result;
