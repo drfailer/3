@@ -60,7 +60,7 @@ Address create_tmp_str_value(CompilerState *state, node::Node *value,
     return result_addr;
 }
 
-void compile_block(CompilerState *state, node::Block *node, SymbolTable *scope);
+void compile_block(CompilerState *state, node::Node *node, SymbolTable *scope);
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
 
@@ -610,9 +610,10 @@ void compile_ret_stmt(CompilerState *state, node::Node *node,
                         "epilogue_" + state->curr_function_id);
 }
 
-void compile_block(CompilerState *state, node::Block *node,
+void compile_block(CompilerState *state, node::Node *node,
                    SymbolTable *scope) {
-    for (auto instruction : node->nodes) {
+    node::Block *block_node = node->value.block;
+    for (auto instruction : block_node->nodes) {
         compile_node(state, instruction, scope);
     }
 }
@@ -734,8 +735,7 @@ void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {
         compile_ret_stmt(state, node, scope);
         break;
     case node::NodeKind::Block:
-        compile_block(state, node->value.block,
-                      scope->block_scopes[node->value.block]);
+        compile_block(state, node, scope->block_scopes[node]);
         break;
     case node::NodeKind::ArithmeticOperation:
         compile_arithmetic_operation(state, node, scope);

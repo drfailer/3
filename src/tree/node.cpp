@@ -50,7 +50,7 @@ Node *create_index_expression(Location location, Node *element, Node *index) {
 
 Node *create_function_definition(Location location, std::string const &name,
                                  std::vector<Node *> const &arguments,
-                                 Block *body) {
+                                 Node *body) {
     return new_node(FunctionDefinition, function_definition, name, arguments,
                     body);
 }
@@ -65,17 +65,17 @@ Node *create_function_call(Location location, std::string const &name,
     return new_node(FunctionCall, function_call, name, arguments);
 }
 
-Node *create_cnd_stmt(Location location, Node *condition, Block *block,
+Node *create_cnd_stmt(Location location, Node *condition, Node *block,
                       Node *otw) {
     return new_node(CndStmt, cnd_stmt, condition, block, otw);
 }
 
-Node *create_whl_stmt(Location location, Node *condition, Block *block) {
+Node *create_whl_stmt(Location location, Node *condition, Node *block) {
     return new_node(WhlStmt, whl_stmt, condition, block);
 }
 
 Node *create_for_stmt(Location location, Node *init, Node *condition,
-                      Node *step, Block *block) {
+                      Node *step, Node *block) {
     return new_node(ForStmt, for_stmt, init, condition, step, block);
 }
 
@@ -87,13 +87,13 @@ Node *create_block(Location location, std::vector<Node *> &&nodes) {
     return new_node(Block, block, nodes);
 }
 
-Node *create_block(Location location, Block *block) {
-    return new Node{
-        .location = location,
-        .kind = NodeKind::Block,
-        .value = {.block = block},
-    };
-}
+// Node *create_block(Location location, Node *block) {
+//     return new Node{
+//         .location = location,
+//         .kind = NodeKind::Block,
+//         .value = {.block = block},
+//     };
+// }
 
 Node *create_arithmetic_operation(Location location,
                                   ArithmeticOperationKind kind, Node *lhs,

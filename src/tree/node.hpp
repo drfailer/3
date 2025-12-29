@@ -79,11 +79,11 @@ Node *create_index_expression(Location location, Node *element, Node *index);
 struct FunctionDefinition {
     std::string name;
     std::vector<Node *> arguments;
-    Block *body;
+    Node *body;
 };
 Node *create_function_definition(Location location, std::string const &name,
                                  std::vector<Node *> const &arguments,
-                                 Block *body);
+                                 Node *body);
 
 // TODO: do we want to use this type in FunctionDefinition as well?
 struct FunctionDeclaration {
@@ -102,26 +102,26 @@ Node *create_function_call(Location location, std::string const &name,
 
 struct CndStmt {
     Node *condition;
-    Block *block;
+    Node *block;
     Node *otw;
 };
-Node *create_cnd_stmt(Location location, Node *condition, Block *block,
+Node *create_cnd_stmt(Location location, Node *condition, Node *block,
                       Node *otw = nullptr);
 
 struct WhlStmt {
     Node *condition;
-    Block *block;
+    Node *block;
 };
-Node *create_whl_stmt(Location location, Node *condition, Block *block);
+Node *create_whl_stmt(Location location, Node *condition, Node *block);
 
 struct ForStmt {
     Node *init;
     Node *condition;
     Node *step;
-    Block *block;
+    Node *block;
 };
 Node *create_for_stmt(Location location, Node *init, Node *condition,
-                      Node *step, Block *block);
+                      Node *step, Node *block);
 
 struct RetStmt {
     Node *expression;
@@ -132,7 +132,7 @@ struct Block {
     std::vector<Node *> nodes;
 };
 Node *create_block(Location location, std::vector<Node *> &&nodes);
-Node *create_block(Location location, Block *block);
+// Node *create_block(Location location, Node *block);
 
 enum ArithmeticOperationKind {
     Add,

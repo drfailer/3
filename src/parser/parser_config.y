@@ -72,7 +72,7 @@
 %nterm <node::Node*> arithmeticOperation
 %nterm <node::Node*> functionCall
 %nterm <node::Node*> booleanOperation
-%nterm <node::Block*> block
+%nterm <node::Node*> block
 %nterm <node::Node*> cnd
 %nterm <node::Node*> for
 %nterm <node::Node*> whl

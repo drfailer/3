@@ -19,7 +19,7 @@ struct State {
         std::vector<node::Node *> arguments;
         type::Type *return_type;
         std::vector<type::Type *> arguments_types;
-        std::stack<node::Block *> blocks;
+        std::stack<node::Node *> blocks;
     } curr_function;
     struct {
         SymbolTable *curr;
@@ -42,7 +42,7 @@ void enter_file(State *state, std::string const &filename);
 void enter_function(State *state, std::string const &function_name);
 
 void enter_scope(State *state);
-void leave_scope(State *state, node::Block *block);
+void leave_scope(State *state, node::Node *block);
 void add_symbol(State *state, std::string const &id, type::Type *type,
                 Location const &location);
 void add_global_symbol(State *state, std::string const &id, type::Type *type,
@@ -53,11 +53,11 @@ node::Node *new_argument_declaration(State *state, std::string const &id,
 void new_function_definition(State *state, std::string const &id, size_t line);
 void set_curr_function_type(State *state, type::Type *return_type, size_t line);
 void add_function_definition(State *state, std::string const &name,
-                             node::Block *body, size_t line);
+                             node::Node *body, size_t line);
 void add_function_declaration(State *state, size_t line);
 
 void begin_block(State *state);
-node::Block *end_block(State *state);
+node::Node *end_block(State *state);
 void add_instruction(State *state, node::Node *node);
 
 void new_return_expr(State *state, node::Node *expr, size_t line);
@@ -93,7 +93,7 @@ void new_otw_cnd(State *state, node::Node *cond, size_t line);
 node::Node * end_cnd(State *state);
 
 node::Node *new_for(State *state, node::Node *init, node::Node *condition,
-                    node::Node *step, node::Block *block, size_t line);
+                    node::Node *step, node::Node *block, size_t line);
 
 void new_shw(State *state, node::Node *expr, size_t line);
 

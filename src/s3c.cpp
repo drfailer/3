@@ -59,7 +59,7 @@ void enter_scope(State *state) {
     state->scopes.curr = scope;
 }
 
-void leave_scope(State *state, node::Block *block) {
+void leave_scope(State *state, node::Node *block) {
     auto scope = state->scopes.curr;
     state->scopes.curr = state->scopes.curr->parent;
     if (block != nullptr) {
@@ -108,7 +108,7 @@ void set_curr_function_type(State *state, type::Type *return_type,
 }
 
 void add_function_definition(State *state, std::string const &name,
-                             node::Block *body, size_t line) {
+                             node::Node *body, size_t line) {
     state->program.push_back(node::create_function_definition(
         LOCATION, name, state->curr_function.arguments, body));
     leave_scope(state, body);
@@ -123,17 +123,18 @@ void add_function_declaration(State *state, size_t line) {
 }
 
 void begin_block(State *state) {
-    state->curr_function.blocks.push(new node::Block());
+    state->curr_function.blocks.push(node::create_block(Location{},
+                std::vector<node::Node*>()));
 }
 
-node::Block *end_block(State *state) {
-    node::Block *lastBlock = state->curr_function.blocks.top();
+node::Node *end_block(State *state) {
+    node::Node *lastBlock = state->curr_function.blocks.top();
     state->curr_function.blocks.pop();
     return lastBlock;
 }
 
 void add_instruction(State *state, node::Node *node) {
-    state->curr_function.blocks.top()->nodes.push_back(node);
+    state->curr_function.blocks.top()->value.block->nodes.push_back(node);
 }
 
 void new_return_expr(State *state, node::Node *expr, size_t line) {
@@ -392,14 +393,15 @@ node::Node *end_cnd(State *state) {
     if (cur->value.cnd_stmt->block == nullptr) {
         cur->value.cnd_stmt->block = block;
     } else {
-        cur->value.cnd_stmt->otw = node::create_block(cur->location, block);
+        block->location = cur->location;
+        cur->value.cnd_stmt->otw = block;
     }
     state->parser_stack.pop();
     return cnd;
 }
 
 node::Node *new_for(State *state, node::Node *init, node::Node *end,
-                    node::Node *step, node::Block *block, size_t line) {
+                    node::Node *step, node::Node *block, size_t line) {
     auto location = LOCATION;
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back(
