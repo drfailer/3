@@ -201,7 +201,7 @@ struct Node {
         ArithmeticOperation *arithmetic_operation;
         BooleanOperation *boolean_operation;
         BuiltinFunction *builtin_function;
-    } value;
+    } data;
 };
 
 void delete_node(Location location, Node *node);

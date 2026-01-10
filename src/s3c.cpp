@@ -134,7 +134,7 @@ node::Node *end_block(State *state) {
 }
 
 void add_instruction(State *state, node::Node *node) {
-    state->curr_function.blocks.top()->value.block->nodes.push_back(node);
+    state->curr_function.blocks.top()->data.block->nodes.push_back(node);
 }
 
 void new_return_expr(State *state, node::Node *expr, size_t line) {
@@ -214,7 +214,7 @@ node::Node *new_function_call(State *state, std::string const &function_name,
     std::string file = state->curr_filename;
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back([scope, node, args]() -> bool {
-        auto function_name = node->value.function_call->name;
+        auto function_name = node->data.function_call->name;
         auto sym = lookup_id(scope, function_name);
 
         if (sym == nullptr) {
@@ -362,9 +362,9 @@ void new_otw(State *state) {
     auto block = s3c::end_block(state);
     s3c::leave_scope(state, block);
 
-    node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+    node::CndStmt *cur = state->parser_stack.top()->data.cnd_stmt;
     while (cur->block != nullptr) {
-        cur = cur->otw->value.cnd_stmt;
+        cur = cur->otw->data.cnd_stmt;
     }
     cur->block = block;
 
@@ -373,9 +373,9 @@ void new_otw(State *state) {
 }
 
 void new_otw_cnd(State *state, node::Node *cond, size_t line) {
-    node::CndStmt *cur = state->parser_stack.top()->value.cnd_stmt;
+    node::CndStmt *cur = state->parser_stack.top()->data.cnd_stmt;
     while (cur->otw != nullptr) {
-        cur = cur->otw->value.cnd_stmt;
+        cur = cur->otw->data.cnd_stmt;
     }
     cur->otw = node::create_cnd_stmt(
         location_create(state->curr_filename, line), cond, nullptr, nullptr);
@@ -387,14 +387,14 @@ node::Node *end_cnd(State *state) {
     s3c::leave_scope(state, block);
 
     node::Node *cur = cnd;
-    while (cur->value.cnd_stmt->otw != nullptr) {
-        cur = cur->value.cnd_stmt->otw;
+    while (cur->data.cnd_stmt->otw != nullptr) {
+        cur = cur->data.cnd_stmt->otw;
     }
-    if (cur->value.cnd_stmt->block == nullptr) {
-        cur->value.cnd_stmt->block = block;
+    if (cur->data.cnd_stmt->block == nullptr) {
+        cur->data.cnd_stmt->block = block;
     } else {
         block->location = cur->location;
-        cur->value.cnd_stmt->otw = block;
+        cur->data.cnd_stmt->otw = block;
     }
     state->parser_stack.pop();
     return cnd;
@@ -406,9 +406,9 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back(
         [location, scope, init, step]() -> bool {
-            auto idx_var = init->value.assignment->target;
+            auto idx_var = init->data.assignment->target;
             auto idx_sym =
-                lookup_id(scope, idx_var->value.variable_reference->name);
+                lookup_id(scope, idx_var->data.variable_reference->name);
             auto idx_var_type = idx_sym->type;
             auto step_type = lookup_node_type(scope, step);
 
@@ -425,7 +425,7 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
     // the syntax allow to just put the expression that is assigned to the loop
     // variable, therefore, we need to manually create the assignment
     auto step_assignment =
-        new_assignment(state, init->value.assignment->target, step, line);
+        new_assignment(state, init->data.assignment->target, step, line);
     return node::create_for_stmt(location, init, end, step_assignment, block);
 }
 

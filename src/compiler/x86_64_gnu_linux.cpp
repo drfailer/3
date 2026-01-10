@@ -43,7 +43,7 @@ void mov_result_to_register(CompilerState *state,
 
 Address create_tmp_str_value(CompilerState *state, node::Node *value,
                              Address addr) {
-    std::string value_str(value->value.value->value.string);
+    std::string value_str(value->data.value->value.string);
     Address result_addr;
 
     result_addr.addressing_mode = AddressingMode::Register;
@@ -68,7 +68,7 @@ void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
  * When this function is called, rax will always contain the value
  */
 void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
-    node::Value *value_node = node->value.value;
+    node::Value *value_node = node->data.value;
     type::Type *type = scope->node_types[node];
 
     switch (value_node->kind) {
@@ -99,7 +99,7 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
 
 void compile_variable_definition(CompilerState *state, node::Node *node,
                                  SymbolTable *scope) {
-    node::VariableDefinition *var_node = node->value.variable_definition;
+    node::VariableDefinition *var_node = node->data.variable_definition;
     auto type = lookup_id(scope, var_node->name)->type;
     auto size = type::get_type_size(type);
 
@@ -110,7 +110,7 @@ void compile_variable_definition(CompilerState *state, node::Node *node,
 
 void compile_assignement(CompilerState *state, node::Node *node,
                          SymbolTable *scope) {
-    node::Assignment *assignment_node = node->value.assignment;
+    node::Assignment *assignment_node = node->data.assignment;
     Address target;
     auto target_type = scope->node_types[assignment_node->target];
     auto value_type = scope->node_types[assignment_node->value];
@@ -164,7 +164,7 @@ void compile_assignement(CompilerState *state, node::Node *node,
             if (assignment_node->value->kind == node::NodeKind::Value) {
                 auto value_addr = state->last_expr_addr;
                 std::string value_str(
-                    assignment_node->value->value.value->value.string);
+                    assignment_node->value->data.value->value.string);
                 // nb bytes
                 asm_add_instruction(state->code, "mov", "rdx",
                                     std::to_string(value_str.size()));
@@ -213,7 +213,7 @@ void compile_assignement(CompilerState *state, node::Node *node,
 
 void compile_index_expression(CompilerState *state, node::Node *node,
                               SymbolTable *scope) {
-    node::IndexExpression *expr_node = node->value.index_expression;
+    node::IndexExpression *expr_node = node->data.index_expression;
     auto type = scope->node_types[node];
 
     // TODO: make sure that this works with float arrays
@@ -229,7 +229,7 @@ void compile_index_expression(CompilerState *state, node::Node *node,
 
 void compile_variable_reference(CompilerState *state, node::Node *node,
                                 SymbolTable *) {
-    node::VariableReference *var_ref_node = node->value.variable_reference;
+    node::VariableReference *var_ref_node = node->data.variable_reference;
     // TODO: the addressing mode might not be based all the time
     auto addr = get_address(state, var_ref_node->name);
     asm_addr_based(state, "rbp", addr.offset, addr.type);
@@ -303,7 +303,7 @@ void compile_arithmetic_operation_flt(CompilerState *state,
 
 void compile_arithmetic_operation(CompilerState *state, node::Node *node,
                                   SymbolTable *scope) {
-    node::ArithmeticOperation *op_node = node->value.arithmetic_operation;
+    node::ArithmeticOperation *op_node = node->data.arithmetic_operation;
     type::Type *op_type = scope->node_types[node];
     switch (op_node->kind) {
     case node::ArithmeticOperationKind::Add:
@@ -349,8 +349,8 @@ void compile_arithmetic_operation(CompilerState *state, node::Node *node,
 
 void compile_cmp(CompilerState *state, node::Node *node, SymbolTable *scope,
                  std::string const &jmp) {
-    node::Node *lhs = node->value.boolean_operation->lhs;
-    node::Node *rhs = node->value.boolean_operation->rhs;
+    node::Node *lhs = node->data.boolean_operation->lhs;
+    node::Node *rhs = node->data.boolean_operation->rhs;
 
     compile_node(state, lhs, scope);
     mov_result_to_register(state, "rax");
@@ -366,7 +366,7 @@ void compile_cmp(CompilerState *state, node::Node *node, SymbolTable *scope,
 void compile_boolean_operation(CompilerState *state, node::Node *node,
                                SymbolTable *scope) {
     // TODO: float?
-    node::BooleanOperation *op_node = node->value.boolean_operation;
+    node::BooleanOperation *op_node = node->data.boolean_operation;
     switch (op_node->kind) {
     case node::BooleanOperationKind::And:
         compile_node(state, op_node->lhs, scope);
@@ -440,12 +440,12 @@ void compile_boolean_operation(CompilerState *state, node::Node *node,
 // TODO: builtin function should not be compiled but linked !
 void compile_builtin_function(CompilerState *state, node::Node *node,
                               SymbolTable *scope) {
-    node::BuiltinFunction *fun_node = node->value.builtin_function;
+    node::BuiltinFunction *fun_node = node->data.builtin_function;
     switch (fun_node->kind) {
     case node::BuiltinFunctionKind::Shw: {
         // TODO: for now we only support text
         std::string msg_id = asm_create_data_id(state->code, "shw_msg");
-        std::string msg = fun_node->argument->value.value->value.string;
+        std::string msg = fun_node->argument->data.value->value.string;
         std::string msg_len = std::to_string(get_compiled_string_size(msg));
 
         asm_add_data(state->code, msg_id, ".string", msg);
@@ -469,8 +469,8 @@ void compile_function_call(CompilerState *state, node::Node *node,
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     type::Type *function_type =
-        lookup_id(scope, node->value.function_call->name)->type;
-    auto args = node->value.function_call->arguments;
+        lookup_id(scope, node->data.function_call->name)->type;
+    auto args = node->data.function_call->arguments;
     auto args_type = function_type->value.function->arguments_types;
     size_t int_idx = 0, flt_idx = 0;
     size_t stack_size_to_release = 0;
@@ -531,7 +531,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
     }
     // call the function
     asm_add_instruction(state->code, "xor", "rax", "rax");
-    asm_add_instruction(state->code, "call", node->value.function_call->name);
+    asm_add_instruction(state->code, "call", node->data.function_call->name);
     // make sure the compiler know that the result will be store in rax (if
     // the function returns a result).
     if (type::is_flt(function_type->value.function->return_type)) {
@@ -549,7 +549,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
 
 void compile_cnd_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    node::CndStmt *stmt = node->value.cnd_stmt;
+    node::CndStmt *stmt = node->data.cnd_stmt;
 
     compile_node(state, stmt->condition, scope->block_scopes[stmt->block]);
     asm_add_label(state->code, TRUE_LABEL(stmt->condition));
@@ -565,7 +565,7 @@ void compile_cnd_stmt(CompilerState *state, node::Node *node,
 
 void compile_for_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    node::ForStmt *stmt = node->value.for_stmt;
+    node::ForStmt *stmt = node->data.for_stmt;
     node::Node *cnd = stmt->condition;
 
     compile_node(state, stmt->init, scope);
@@ -580,7 +580,7 @@ void compile_for_stmt(CompilerState *state, node::Node *node,
 
 void compile_whl_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    node::WhlStmt *stmt = node->value.whl_stmt;
+    node::WhlStmt *stmt = node->data.whl_stmt;
     node::Node *cnd = stmt->condition;
 
     asm_add_label(state->code, BEGIN_LABEL(stmt));
@@ -593,7 +593,7 @@ void compile_whl_stmt(CompilerState *state, node::Node *node,
 
 void compile_ret_stmt(CompilerState *state, node::Node *node,
                       SymbolTable *scope) {
-    node::RetStmt *ret_node = node->value.ret_stmt;
+    node::RetStmt *ret_node = node->data.ret_stmt;
 
     compile_node(state, ret_node->expression, scope);
     if (ret_node->expression->kind != node::NodeKind::Value) {
@@ -612,7 +612,7 @@ void compile_ret_stmt(CompilerState *state, node::Node *node,
 
 void compile_block(CompilerState *state, node::Node *node,
                    SymbolTable *scope) {
-    node::Block *block_node = node->value.block;
+    node::Block *block_node = node->data.block;
     for (auto instruction : block_node->nodes) {
         compile_node(state, instruction, scope);
     }
@@ -628,11 +628,11 @@ void allocate_arguments(CompilerState *state, node::Node *node,
                         SymbolTable *scope) {
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
-    auto args = node->value.function_definition->arguments;
+    auto args = node->data.function_definition->arguments;
     size_t int_idx = 0, flt_idx = 0;
     for (size_t idx = 0; idx < args.size(); idx++) {
         // TODO: check the rules for structs
-        auto *var_node = args[idx]->value.variable_definition;
+        auto *var_node = args[idx]->data.variable_definition;
         auto type = lookup_id(scope, var_node->name)->type;
         std::string reg = "";
 
@@ -669,7 +669,7 @@ void allocate_arguments(CompilerState *state, node::Node *node,
 
 void compile_function_definition(CompilerState *state, node::Node *node,
                                  SymbolTable *scope) {
-    node::FunctionDefinition *fund_def_node = node->value.function_definition;
+    node::FunctionDefinition *fund_def_node = node->data.function_definition;
     SymbolTable *function_scope = scope->symbols[fund_def_node->name].scope;
     state->curr_function_id = fund_def_node->name;
     state->frame_offset = 8;
@@ -693,7 +693,7 @@ void compile_function_definition(CompilerState *state, node::Node *node,
 void compile_function_declaration(CompilerState *state, node::Node *node,
                                   SymbolTable *) {
     asm_add_instruction(state->code, ".extern",
-                        node->value.function_declaration->name);
+                        node->data.function_declaration->name);
 }
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {

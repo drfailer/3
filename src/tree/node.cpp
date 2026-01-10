@@ -6,7 +6,7 @@
     new Node{                                                                  \
         .location = location,                                                  \
         .kind = NodeKind::type,                                                \
-        .value =                                                               \
+        .data =                                                                \
             {                                                                  \
                 .value_name = new type{__VA_ARGS__},                           \
             },                                                                 \
@@ -109,10 +109,6 @@ Node *create_boolean_operation(Location location, BooleanOperationKind kind,
 Node *create_builtin_function(Location location, BuiltinFunctionKind kind,
                               Node *argument) {
     return new_node(BuiltinFunction, builtin_function, kind, argument);
-}
-
-void delete_node(Location location, Node *node) {
-    std::cerr << "error: delete_node not implemented" << std::endl;
 }
 
 void print_node(Node *node) {
