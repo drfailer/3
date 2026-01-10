@@ -185,22 +185,22 @@ struct Node {
     Location location;
     NodeKind kind;
     union {
-        Value *value;
-        VariableDefinition *variable_definition;
-        VariableReference *variable_reference;
-        Assignment *assignment;
-        IndexExpression *index_expression;
-        FunctionDefinition *function_definition;
-        FunctionDeclaration *function_declaration;
-        FunctionCall *function_call;
-        CndStmt *cnd_stmt;
-        WhlStmt *whl_stmt;
-        ForStmt *for_stmt;
-        RetStmt *ret_stmt;
-        Block *block;
-        ArithmeticOperation *arithmetic_operation;
-        BooleanOperation *boolean_operation;
-        BuiltinFunction *builtin_function;
+        Value value;
+        VariableDefinition variable_definition;
+        VariableReference variable_reference;
+        Assignment assignment;
+        IndexExpression index_expression;
+        FunctionDefinition function_definition;
+        FunctionDeclaration function_declaration;
+        FunctionCall function_call;
+        CndStmt cnd_stmt;
+        WhlStmt whl_stmt;
+        ForStmt for_stmt;
+        RetStmt ret_stmt;
+        Block block;
+        ArithmeticOperation arithmetic_operation;
+        BooleanOperation boolean_operation;
+        BuiltinFunction builtin_function;
     } data;
 };
 

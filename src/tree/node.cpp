@@ -8,7 +8,7 @@
         .kind = NodeKind::type,                                                \
         .data =                                                                \
             {                                                                  \
-                .value_name = new type{__VA_ARGS__},                           \
+                .value_name = type{__VA_ARGS__},                               \
             },                                                                 \
     };
 
