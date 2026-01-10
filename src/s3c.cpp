@@ -18,6 +18,7 @@ State *state_create() {
     state->scopes.global = scope;
     state->scopes.curr = scope;
     state->status = 0;
+    // mem::mem_pool_init(&state->node_pool, 100);
     return state;
 }
 

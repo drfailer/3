@@ -3,6 +3,7 @@
 #include "symbol_table.hpp"
 #include "tree/node.hpp"
 #include "type/type.hpp"
+#include "tools/mem.hpp"
 #include <cstring>
 #include <functional>
 #include <stack>
@@ -30,6 +31,7 @@ struct State {
     std::vector<std::vector<node::Node *>> funcall_parameters;
     std::vector<std::string> funcall_ids;
     std::stack<node::Node *> parser_stack; // node stack for complexe rules
+    // mem::MemPool<node::Node> node_pool; // TODO: the node should be default constructible!
 };
 
 State *state_create();
