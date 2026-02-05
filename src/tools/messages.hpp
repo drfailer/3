@@ -32,7 +32,7 @@ void warning(std::string const &msg);
 #define QUOTE(val) "'" BOLD << val << NORM "'"
 
 #define UNDEFINED_SYMBOL_ERROR(loc, symbol_id)                                 \
-    ERROR(loc, "undefined symbol " << QUOTE(symbol_id) << ".")
+    ERROR(loc, "undefined symbol " << QUOTE(symbol_id) << ". " << __FILE__ << ":" << __LINE__)
 #define MULTIPLE_DEFINITION_ERROR(loc, name, symbol_location)                  \
     ERROR(loc, "redifinition definition of symbol "                            \
                    << QUOTE(name) << " (previously defined here: '"            \

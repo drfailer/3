@@ -31,10 +31,11 @@ struct State {
     std::vector<std::vector<node::Node *>> funcall_parameters;
     std::vector<std::string> funcall_ids;
     std::stack<node::Node *> parser_stack; // node stack for complexe rules
-    // mem::MemPool<node::Node> node_pool; // TODO: the node should be default constructible!
+    MemPool<node::Node> node_pool; // TODO: the node should be default constructible!
 };
 
 State *state_create();
+void state_destroy(State *state);
 
 bool post_process(State *state);
 
@@ -103,22 +104,47 @@ bool try_verify_main_type(State *state);
 
 template <typename T>
 node::Node *new_value(State *state, T value, size_t line) {
-    auto node =
-        node::create_value(location_create(state->curr_filename, line), value);
+    node::Node *node = nullptr;
+    auto location = location_create(state->curr_filename, line);
 
-    if (std::is_same_v<T, long>) {
+    if constexpr (std::is_same_v<T, long>) {
+        node = new_node(&state->node_pool, location, node::NodeKind::Value,
+                        .value = node::Value{
+                            .kind = node::ValueKind::Integer,
+                            .value = { .integer = value },
+                        });
         state->scopes.curr->node_types.insert(
             {node, type::create_primitive_type(type::PrimitiveType::Int)});
-    } else if (std::is_same_v<T, double>) {
+    } else if constexpr (std::is_same_v<T, double>) {
+        node = new_node(&state->node_pool, location, node::NodeKind::Value,
+                        .value = node::Value{
+                            .kind = node::ValueKind::Integer,
+                            .value = { .real = value },
+                        });
         state->scopes.curr->node_types.insert(
             {node, type::create_primitive_type(type::PrimitiveType::Flt)});
-    } else if (std::is_same_v<T, char>) {
+    } else if constexpr (std::is_same_v<T, char>) {
+        node = new_node(&state->node_pool, location, node::NodeKind::Value,
+                        .value = node::Value{
+                            .kind = node::ValueKind::Integer,
+                            .value = { .character = value },
+                        });
         state->scopes.curr->node_types.insert(
             {node, type::create_primitive_type(type::PrimitiveType::Chr)});
-    } else if (std::is_same_v<T, std::string>) {
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        node = new_node(&state->node_pool, location, node::NodeKind::Value,
+                        .value = node::Value{
+                            .kind = node::ValueKind::Integer,
+                            .value = { .string = string_create(value) },
+                        });
         state->scopes.curr->node_types.insert(
             {node, type::create_primitive_type(type::PrimitiveType::Str)});
     } else {
+        node = new_node(&state->node_pool, location, node::NodeKind::Value,
+                        .value = node::Value{
+                            .kind = node::ValueKind::Integer,
+                            .value = { .integer = 0 },
+                        });
         state->scopes.curr->node_types.insert({node, type::create_nil_type()});
     }
     return node;

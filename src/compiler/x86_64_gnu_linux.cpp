@@ -2,7 +2,7 @@
 #include "compiler/compiler.hpp"
 #include "compiler/tools.hpp"
 #include "symbol_table.hpp"
-#include "tools/strings.hpp"
+#include "tools/string.hpp"
 #include "type/predicates.hpp"
 #include "type/type.hpp"
 #include <array>
@@ -43,7 +43,7 @@ void mov_result_to_register(CompilerState *state,
 
 Address create_tmp_str_value(CompilerState *state, node::Node *value,
                              Address addr) {
-    std::string value_str(value->data.value.value.string);
+    std::string value_str(value->data.value.value.string.ptr);
     Address result_addr;
 
     result_addr.addressing_mode = AddressingMode::Register;
@@ -91,7 +91,7 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
     } break;
     case node::ValueKind::String: {
         std::string label = asm_create_data_id(state->code, "value_");
-        asm_add_data(state->code, label, ".string", value_node->value.string);
+        asm_add_data(state->code, label, ".string", value_node->value.string.ptr);
         asm_addr_immediate_value(state, label, type);
     } break;
     }
@@ -100,12 +100,12 @@ void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
 void compile_variable_definition(CompilerState *state, node::Node *node,
                                  SymbolTable *scope) {
     node::VariableDefinition *var_node = &node->data.variable_definition;
-    auto type = lookup_id(scope, var_node->name)->type;
+    auto type = lookup_id(scope, var_node->name.ptr)->type;
     auto size = type::get_type_size(type);
 
-    allocate_stack_variable(state, var_node->name, size, type, "rbp");
+    allocate_stack_variable(state, var_node->name.ptr, size, type, "rbp");
     asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
-    asm_comment_last_instruction(state->code, var_node->name);
+    asm_comment_last_instruction(state->code, var_node->name.ptr);
 }
 
 void compile_assignement(CompilerState *state, node::Node *node,
@@ -164,7 +164,7 @@ void compile_assignement(CompilerState *state, node::Node *node,
             if (assignment_node->value->kind == node::NodeKind::Value) {
                 auto value_addr = state->last_expr_addr;
                 std::string value_str(
-                    assignment_node->value->data.value.value.string);
+                    assignment_node->value->data.value.value.string.ptr);
                 // nb bytes
                 asm_add_instruction(state->code, "mov", "rdx",
                                     std::to_string(value_str.size()));
@@ -231,7 +231,7 @@ void compile_variable_reference(CompilerState *state, node::Node *node,
                                 SymbolTable *) {
     node::VariableReference *var_ref_node = &node->data.variable_reference;
     // TODO: the addressing mode might not be based all the time
-    auto addr = get_address(state, var_ref_node->name);
+    auto addr = get_address(state, var_ref_node->name.ptr);
     asm_addr_based(state, "rbp", addr.offset, addr.type);
 }
 
@@ -445,7 +445,7 @@ void compile_builtin_function(CompilerState *state, node::Node *node,
     case node::BuiltinFunctionKind::Shw: {
         // TODO: for now we only support text
         std::string msg_id = asm_create_data_id(state->code, "shw_msg");
-        std::string msg = fun_node->argument->data.value.value.string;
+        std::string msg = fun_node->argument->data.value.value.string.ptr;
         std::string msg_len = std::to_string(get_compiled_string_size(msg));
 
         asm_add_data(state->code, msg_id, ".string", msg);
@@ -469,14 +469,14 @@ void compile_function_call(CompilerState *state, node::Node *node,
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     type::Type *function_type =
-        lookup_id(scope, node->data.function_call.name)->type;
+        lookup_id(scope, node->data.function_call.name.ptr)->type;
     auto args = node->data.function_call.arguments;
     auto args_type = function_type->value.function->arguments_types;
     size_t int_idx = 0, flt_idx = 0;
     size_t stack_size_to_release = 0;
     std::stack<Address> args_addr;
     // TODO: check the rules for structs
-    for (size_t i = 0; i < args.size(); i++) {
+    for (size_t i = 0; i < args.len; i++) {
         // compile the argument node
         compile_node(state, args[i], scope);
         auto value_addr = state->last_expr_addr;
@@ -531,7 +531,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
     }
     // call the function
     asm_add_instruction(state->code, "xor", "rax", "rax");
-    asm_add_instruction(state->code, "call", node->data.function_call.name);
+    asm_add_instruction(state->code, "call", node->data.function_call.name.ptr);
     // make sure the compiler know that the result will be store in rax (if
     // the function returns a result).
     if (type::is_flt(function_type->value.function->return_type)) {
@@ -630,10 +630,10 @@ void allocate_arguments(CompilerState *state, node::Node *node,
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     auto args = node->data.function_definition.arguments;
     size_t int_idx = 0, flt_idx = 0;
-    for (size_t idx = 0; idx < args.size(); idx++) {
+    for (size_t idx = 0; idx < args.len; idx++) {
         // TODO: check the rules for structs
         auto *var_node = &args[idx]->data.variable_definition;
-        auto type = lookup_id(scope, var_node->name)->type;
+        auto type = lookup_id(scope, var_node->name.ptr)->type;
         std::string reg = "";
 
         if (type::is_int(type) || type::is_chr(type)) {
@@ -663,18 +663,18 @@ void allocate_arguments(CompilerState *state, node::Node *node,
         }
         compile_variable_definition(state, args[idx], scope);
         asm_add_instruction(state->code, "mov",
-                            asm_addr(get_address(state, var_node->name)), reg);
+                            asm_addr(get_address(state, var_node->name.ptr)), reg);
     }
 }
 
 void compile_function_definition(CompilerState *state, node::Node *node,
                                  SymbolTable *scope) {
     node::FunctionDefinition *fund_def_node = &node->data.function_definition;
-    SymbolTable *function_scope = scope->symbols[fund_def_node->name].scope;
-    state->curr_function_id = fund_def_node->name;
+    SymbolTable *function_scope = scope->symbols[fund_def_node->name.ptr].scope;
+    state->curr_function_id = fund_def_node->name.ptr;
     state->frame_offset = 8;
 
-    asm_add_label(state->code, fund_def_node->name);
+    asm_add_label(state->code, fund_def_node->name.ptr);
     asm_add_instruction(state->code, "push", "rbp");
     asm_add_instruction(state->code, "mov", "rbp", "rsp");
 
@@ -684,7 +684,7 @@ void compile_function_definition(CompilerState *state, node::Node *node,
     // TODO: we want to go down the scope
     compile_block(state, fund_def_node->body, function_scope);
 
-    asm_add_label(state->code, "epilogue_" + fund_def_node->name);
+    asm_add_label(state->code, "epilogue_" + std::string(fund_def_node->name.ptr));
     asm_add_instruction(state->code, "mov", "rsp", "rbp");
     asm_add_instruction(state->code, "pop", "rbp");
     asm_add_instruction(state->code, "ret");
@@ -693,7 +693,7 @@ void compile_function_definition(CompilerState *state, node::Node *node,
 void compile_function_declaration(CompilerState *state, node::Node *node,
                                   SymbolTable *) {
     asm_add_instruction(state->code, ".extern",
-                        node->data.function_declaration.name);
+                        node->data.function_declaration.name.ptr);
 }
 
 void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {

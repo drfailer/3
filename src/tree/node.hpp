@@ -1,6 +1,9 @@
 #ifndef AST_NODE_H
 #define AST_NODE_H
 #include "location.hpp"
+#include "../tools/array.hpp"
+#include "../tools/string.hpp"
+#include "../tools/mem.hpp"
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -34,7 +37,7 @@ enum class NodeKind {
     BuiltinFunction,
 };
 
-enum ValueKind {
+enum class ValueKind {
     Character,
     Integer,
     Real,
@@ -46,73 +49,55 @@ struct Value {
         char character;
         long integer;
         double real;
-        const char *string;
+        String string;
     } value;
 };
-Node *create_value(Location location, char character);
-Node *create_value(Location location, long integer);
-Node *create_value(Location location, double real);
-Node *create_value(Location location, std::string const string);
 
 struct VariableDefinition {
-    std::string name;
+    String name;
 };
-Node *create_variable_definition(Location location, std::string const &name);
 
 struct VariableReference {
-    std::string name;
+    String name;
 };
-Node *create_variable_reference(Location location, std::string const &name);
 
 struct Assignment {
     Node *target;
     Node *value;
 };
-Node *create_assignment(Location location, Node *target, Node *value);
 
 struct IndexExpression {
     Node *element;
     Node *index;
 };
-Node *create_index_expression(Location location, Node *element, Node *index);
 
 struct FunctionDefinition {
-    std::string name;
-    std::vector<Node *> arguments;
+    String name;
+    Array<Node *> arguments = {};
     Node *body;
 };
-Node *create_function_definition(Location location, std::string const &name,
-                                 std::vector<Node *> const &arguments,
-                                 Node *body);
 
 // TODO: do we want to use this type in FunctionDefinition as well?
 struct FunctionDeclaration {
-    std::string name;
-    std::vector<Node *> arguments;
+    String name;
+    Array<Node *> arguments = {};
 };
-Node *create_function_declaration(Location location, std::string const &name,
-                                  std::vector<Node *> const &arguments);
 
 struct FunctionCall {
-    std::string name;
-    std::vector<Node *> arguments;
+    String name;
+    Array<Node *> arguments = {};
 };
-Node *create_function_call(Location location, std::string const &name,
-                           std::vector<Node *> const &arguments);
 
 struct CndStmt {
     Node *condition;
     Node *block;
     Node *otw;
 };
-Node *create_cnd_stmt(Location location, Node *condition, Node *block,
-                      Node *otw = nullptr);
 
 struct WhlStmt {
     Node *condition;
     Node *block;
 };
-Node *create_whl_stmt(Location location, Node *condition, Node *block);
 
 struct ForStmt {
     Node *init;
@@ -120,19 +105,14 @@ struct ForStmt {
     Node *step;
     Node *block;
 };
-Node *create_for_stmt(Location location, Node *init, Node *condition,
-                      Node *step, Node *block);
 
 struct RetStmt {
     Node *expression;
 };
-Node *create_ret_stmt(Location location, Node *expression);
 
 struct Block {
-    std::vector<Node *> nodes;
+    Array<Node *> nodes = {};
 };
-Node *create_block(Location location, std::vector<Node *> &&nodes);
-// Node *create_block(Location location, Node *block);
 
 enum ArithmeticOperationKind {
     Add,
@@ -145,9 +125,6 @@ struct ArithmeticOperation {
     Node *lhs;
     Node *rhs;
 };
-Node *create_arithmetic_operation(Location location,
-                                  ArithmeticOperationKind kind, Node *lhs,
-                                  Node *rhs);
 
 enum BooleanOperationKind {
     // arithmetic
@@ -167,8 +144,6 @@ struct BooleanOperation {
     Node *lhs;
     Node *rhs;
 };
-Node *create_boolean_operation(Location location, BooleanOperationKind kind,
-                               Node *lhs, Node *rhs);
 
 enum BuiltinFunctionKind {
     Shw,
@@ -178,35 +153,44 @@ struct BuiltinFunction {
     BuiltinFunctionKind kind;
     Node *argument;
 };
-Node *create_builtin_function(Location location, BuiltinFunctionKind kind,
-                              Node *argument);
+
+union NodeData {
+    Value value;
+    VariableDefinition variable_definition;
+    VariableReference variable_reference;
+    Assignment assignment;
+    IndexExpression index_expression;
+    FunctionDefinition function_definition;
+    FunctionDeclaration function_declaration;
+    FunctionCall function_call;
+    CndStmt cnd_stmt;
+    WhlStmt whl_stmt;
+    ForStmt for_stmt;
+    RetStmt ret_stmt;
+    Block block;
+    ArithmeticOperation arithmetic_operation;
+    BooleanOperation boolean_operation;
+    BuiltinFunction builtin_function;
+};
 
 struct Node {
     Location location;
     NodeKind kind;
-    union {
-        Value value;
-        VariableDefinition variable_definition;
-        VariableReference variable_reference;
-        Assignment assignment;
-        IndexExpression index_expression;
-        FunctionDefinition function_definition;
-        FunctionDeclaration function_declaration;
-        FunctionCall function_call;
-        CndStmt cnd_stmt;
-        WhlStmt whl_stmt;
-        ForStmt for_stmt;
-        RetStmt ret_stmt;
-        Block block;
-        ArithmeticOperation arithmetic_operation;
-        BooleanOperation boolean_operation;
-        BuiltinFunction builtin_function;
-    } data;
+    NodeData data;
 };
 
-void delete_node(Location location, Node *node);
 void print_node(Node *node);
 
+inline Node *new_node_(MemPool<Node> *pool, Location loc, NodeKind kind, NodeData data) {
+    return mem_pool_alloc(pool, node::Node{
+        .location = loc,
+        .kind = kind,
+        .data = data,
+    });
+}
+
 } // end namespace node
+
+#define new_node(pool, loc, kind, ...) node::new_node_((pool), (loc), (kind), node::NodeData{__VA_ARGS__})
 
 #endif

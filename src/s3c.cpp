@@ -18,8 +18,13 @@ State *state_create() {
     state->scopes.global = scope;
     state->scopes.curr = scope;
     state->status = 0;
-    // mem::mem_pool_init(&state->node_pool, 100);
+    mem_pool_init(&state->node_pool, 100);
     return state;
+}
+
+void state_destroy(State *state) {
+    mem_pool_destroy(&state->node_pool);
+    delete state;
 }
 
 bool post_process(State *state) {
@@ -81,7 +86,10 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
 node::Node *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line) {
     auto location = location_create(state->curr_filename, line);
-    auto node = node::create_variable_definition(location, id);
+    auto node = new_node(&state->node_pool, location, node::NodeKind::VariableDefinition,
+                         .variable_definition = node::VariableDefinition{
+                            .name = string_create(id),
+                         });
     add_symbol(state, id, type, location);
     state->curr_function.arguments.push_back(node);
     state->curr_function.arguments_types.push_back(type);
@@ -110,22 +118,29 @@ void set_curr_function_type(State *state, type::Type *return_type,
 
 void add_function_definition(State *state, std::string const &name,
                              node::Node *body, size_t line) {
-    state->program.push_back(node::create_function_definition(
-        LOCATION, name, state->curr_function.arguments, body));
+    state->program.push_back(new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionDefinition,
+                             .function_definition = node::FunctionDefinition{
+                                .name = string_create(name),
+                                .arguments = array_create_from_std_vector(state->curr_function.arguments),
+                                .body = body,
+                            }));
     leave_scope(state, body);
     reset_curr_function(state);
 }
 
 void add_function_declaration(State *state, size_t line) {
-    state->program.push_back(node::create_function_declaration(
-        LOCATION, state->curr_function.name, state->curr_function.arguments));
+    state->program.push_back(new_node(&state->node_pool, LOCATION,node::NodeKind::FunctionDeclaration,
+                             .function_declaration = node::FunctionDeclaration{
+                                .name = string_create(state->curr_function.name),
+                                .arguments = array_create_from_std_vector(state->curr_function.arguments),
+                            }));
     s3c::leave_scope(state, nullptr);
     s3c::reset_curr_function(state);
 }
 
 void begin_block(State *state) {
-    state->curr_function.blocks.push(node::create_block(Location{},
-                std::vector<node::Node*>()));
+    state->curr_function.blocks.push(new_node(&state->node_pool, Location{}, node::NodeKind::Block,
+                                              .block = { array_create<node::Node*>() }));
 }
 
 node::Node *end_block(State *state) {
@@ -135,14 +150,15 @@ node::Node *end_block(State *state) {
 }
 
 void add_instruction(State *state, node::Node *node) {
-    state->curr_function.blocks.top()->data.block.nodes.push_back(node);
+    array_append(&state->curr_function.blocks.top()->data.block.nodes, node);
 }
 
 void new_return_expr(State *state, node::Node *expr, size_t line) {
     std::ostringstream oss;
     Symbol *sym = lookup_id(state->scopes.curr, state->curr_function.name);
     auto expected_type = sym->type->value.function->return_type;
-    auto node = node::create_ret_stmt(LOCATION, expr);
+    auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::RetStmt,
+                         .ret_stmt = { expr });
 
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back([scope, node, expr, sym,
@@ -177,7 +193,8 @@ node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
                                      std::string const &operator_name) {
     // if one of the operand is undefined, the node should always have the nill
     // type
-    auto op_node = node::create_arithmetic_operation(LOCATION, kind, lhs, rhs);
+    auto op_node = new_node(&state->node_pool, LOCATION, node::NodeKind::ArithmeticOperation,
+                           .arithmetic_operation = node::ArithmeticOperation{ kind, lhs, rhs });
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back([op_node, scope, lhs, rhs,
                                              operator_name]() -> bool {
@@ -208,7 +225,11 @@ void begin_new_funcall(State *state) {
 node::Node *new_function_call(State *state, std::string const &function_name,
                               size_t line) {
     auto args = state->funcall_parameters.back();
-    auto *node = node::create_function_call(LOCATION, function_name, args);
+    auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionCall,
+                         .function_call = node::FunctionCall{
+                            .name = string_create(function_name),
+                            .arguments = array_create_from_std_vector(args),
+                         });
     state->funcall_parameters.pop_back();
 
     // setup type verification
@@ -216,21 +237,21 @@ node::Node *new_function_call(State *state, std::string const &function_name,
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back([scope, node, args]() -> bool {
         auto function_name = node->data.function_call.name;
-        auto sym = lookup_id(scope, function_name);
+        auto sym = lookup_id(scope, function_name.ptr);
 
         if (sym == nullptr) {
-            UNDEFINED_SYMBOL_ERROR(node->location, function_name);
+            UNDEFINED_SYMBOL_ERROR(node->location, function_name.ptr);
             return false;
         }
         if (sym->type->kind != type::TypeKind::Function) {
-            INVALID_CALL_ERROR(node->location, function_name);
+            INVALID_CALL_ERROR(node->location, function_name.ptr);
             return false;
         }
 
         auto function_type = sym->type->value.function;
         scope->node_types.insert({node, function_type->return_type});
         if (function_type->arguments_types.size() != args.size()) {
-            WRONG_NUMBER_OF_ARGUMENT_ERROR(node->location, function_name,
+            WRONG_NUMBER_OF_ARGUMENT_ERROR(node->location, function_name.ptr,
                                            sym->type);
             return false;
         }
@@ -242,7 +263,7 @@ node::Node *new_function_call(State *state, std::string const &function_name,
             auto expected_tpe = args_types[idx];
 
             if (!type::is_convertible(found_type, expected_tpe)) {
-                ARGUMENT_TYPE_ERROR(node->location, function_name, idx,
+                ARGUMENT_TYPE_ERROR(node->location, function_name.ptr, idx,
                                     found_type, expected_tpe);
                 res = false;
             }
@@ -263,13 +284,19 @@ void new_variable_declaration(State *state, std::string id, type::Type *type,
         state->status = 1;
     }
     insert_symbol(state->scopes.curr, id, type, nullptr, location);
-    add_instruction(state, node::create_variable_definition(location, id));
+    add_instruction(state, new_node(&state->node_pool, location, node::NodeKind::VariableDefinition,
+                         .variable_definition = node::VariableDefinition{
+                            .name = string_create(id),
+                         }));
 }
 
 node::Node *new_variable_reference(State *state, std::string const &name,
                                    size_t line) {
     auto sym = lookup_id(state->scopes.curr, name);
-    auto node = node::create_variable_reference(LOCATION, name);
+    auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::VariableReference,
+                         .variable_reference = node::VariableReference{
+                              .name = string_create(name),
+                         });
 
     if (!sym) {
         UNDEFINED_SYMBOL_ERROR(node->location, name);
@@ -284,8 +311,15 @@ node::Node *new_variable_reference(State *state, std::string const &name,
 node::Node *new_index_expr(State *state, std::string const &name, size_t line,
                            node::Node *index_node) {
     auto location = location_create(state->curr_filename, line);
-    auto variable = node::create_variable_reference(location, name);
-    auto node = node::create_index_expression(location, variable, index_node);
+    auto variable = new_node(&state->node_pool, LOCATION, node::NodeKind::VariableReference,
+                             .variable_reference = node::VariableReference{
+                                .name = string_create(name),
+                             });
+    auto node = new_node(&state->node_pool, location, node::NodeKind::IndexExpression,
+                         .index_expression = node::IndexExpression{
+                            .element = variable,
+                            .index = index_node,
+                         });
     auto sym = lookup_id(state->scopes.curr, name);
 
     if (!sym) {
@@ -319,7 +353,8 @@ node::Node *new_index_expr(State *state, std::string const &name, size_t line,
 node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
                            size_t line) {
     auto location = LOCATION;
-    auto node = node::create_assignment(location, target, expr);
+    auto node = new_node(&state->node_pool, location, node::NodeKind::Assignment,
+                         .assignment = node::Assignment{ target, expr });
     auto variable_name = get_lvalue_identifier(target);
     auto symbol = lookup_id(state->scopes.curr, variable_name);
 
@@ -354,9 +389,12 @@ node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
 }
 
 void new_cnd(State *state, node::Node *cond, size_t line) {
-    state->parser_stack.push(node::create_cnd_stmt(
-        location_create(state->curr_filename, line), cond, nullptr,
-        nullptr));
+    state->parser_stack.push(new_node(&state->node_pool, location_create(state->curr_filename, line),
+                node::NodeKind::CndStmt, .cnd_stmt = node::CndStmt{
+                    .condition = cond,
+                    .block = nullptr,
+                    .otw = nullptr,
+                }));
 }
 
 void new_otw(State *state) {
@@ -378,8 +416,12 @@ void new_otw_cnd(State *state, node::Node *cond, size_t line) {
     while (cur->otw != nullptr) {
         cur = &cur->otw->data.cnd_stmt;
     }
-    cur->otw = node::create_cnd_stmt(
-        location_create(state->curr_filename, line), cond, nullptr, nullptr);
+    cur->otw = new_node(&state->node_pool, location_create(state->curr_filename, line),
+                        node::NodeKind::CndStmt, .cnd_stmt = node::CndStmt{
+                            .condition = cond,
+                            .block = nullptr,
+                            .otw = nullptr,
+                        });
 }
 
 node::Node *end_cnd(State *state) {
@@ -409,7 +451,7 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
         [location, scope, init, step]() -> bool {
             auto idx_var = init->data.assignment.target;
             auto idx_sym =
-                lookup_id(scope, idx_var->data.variable_reference.name);
+                lookup_id(scope, idx_var->data.variable_reference.name.ptr);
             auto idx_var_type = idx_sym->type;
             auto step_type = lookup_node_type(scope, step);
 
@@ -427,14 +469,23 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
     // variable, therefore, we need to manually create the assignment
     auto step_assignment =
         new_assignment(state, init->data.assignment.target, step, line);
-    return node::create_for_stmt(location, init, end, step_assignment, block);
+    return new_node(&state->node_pool, location, node::NodeKind::ForStmt,
+                    .for_stmt = node::ForStmt{
+                        .init = init,
+                        .condition = end,
+                        .step = step_assignment,
+                        .block = block,
+                    });
 }
 
 void new_shw(State *state, node::Node *expr, size_t line) {
     auto scope = state->scopes.curr;
     auto location = LOCATION;
-    auto node = node::create_builtin_function(
-        location, node::BuiltinFunctionKind::Shw, expr);
+    auto node = new_node(&state->node_pool, location, node::NodeKind::BuiltinFunction,
+                         .builtin_function = node::BuiltinFunction{
+                            .kind = node::BuiltinFunctionKind::Shw,
+                            .argument = expr,
+                         });
 
     state->post_process_callbacks.push_back([scope, node, expr]() -> bool {
         auto expr_type = lookup_node_type(scope, expr);

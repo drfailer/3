@@ -5,7 +5,7 @@
 #include "preprocessor/preprocessor.hpp"
 #include "s3c.hpp"
 #include "tools/messages.hpp"
-#include "tools/strings.hpp"
+#include "tools/string.hpp"
 #include <filesystem>
 #include <cassert>
 #define PREPROCESSOR_OUTPUT_FILE "__main_pp__"
@@ -184,7 +184,7 @@ bool compile(Options const &opts) {
         }
     }
 
-    delete state;
+    state_destroy(state);
     return true;
 }
 
