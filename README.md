@@ -24,21 +24,23 @@ int fib(int n) bgn
     int fnn
     int fnn1
     int fnn2
-    set(fnn2, 1)
-    set(fnn1, 1)
+
+    mov(fnn2, 1)
+    mov(fnn1, 1)
 
     cnd ieq(n, 2) bgn
         ret n
-    end els bgn
+    otw
         int i
 
-        for i rng(2, n, 1) bgn
-            set(fnn, add(fnn1, fnn2))
-            set(fnn2, fnn1)
-            set(fnn1, fnn)
+        for mov(i, 2); inf(i, n); add(i, 1) bgn
+            mov(fnn, add(fnn1, fnn2))
+            mov(fnn2, fnn1)
+            mov(fnn1, fnn)
         end
         ret fnn
     end
+    ret 0
 end
 
 ~~~ entry point
@@ -47,7 +49,7 @@ nil main() bgn
     shw("Enter a number:\n")
     ipt(n)
     shw("fib of n is: ")
-    set(n, fib(n))
+    mov(n, fib(n))
     shw(n)
     shw("\n")
 end
