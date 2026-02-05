@@ -6,10 +6,6 @@
 
 #define ARENA_DEFAULT_ALIGH 2*sizeof(void*)
 
-namespace mem {
-
-// TODO: put implementation in a c file
-
 struct ArenaRegion {
     size_t pos = 0;
     size_t size = 0;
@@ -19,9 +15,9 @@ struct ArenaRegion {
 };
 
 // TODO: I may not need all of this
-ArenaRegion *arena_region_create(size_t size, ArenaRegion *prev = nullptr);
-void arena_region_destroy(ArenaRegion *region);
-void arena_region_alloc(ArenaRegion *region, size_t size, size_t align);
+ArenaRegion *arena_region_create(size_t size);
+void  arena_region_destroy(ArenaRegion *region);
+void *arena_region_alloc(ArenaRegion *region, size_t size, size_t align);
 
 // TODO: improve this implementation
 struct Arena {
@@ -80,7 +76,7 @@ void mem_pool_destroy(MemPool<T> *pool) {
 }
 
 template <typename T>
-T *mem_pool_alloc(MemPool<T> *pool) {
+T *mem_pool_alloc(MemPool<T> *pool, T const &value = {}) {
     MemPoolNode<T> *node = nullptr;
 
     if (pool->free_list_head == nullptr) {
@@ -93,6 +89,7 @@ T *mem_pool_alloc(MemPool<T> *pool) {
         node->next->prev = node;
     }
     pool->used_list_head = node;
+    node->data = value;
     return (T*)node;
 }
 
@@ -112,7 +109,5 @@ void mem_pool_release(MemPool<T> *pool, T *data) {
     node->next = pool->free_list_head;
     pool->free_list_head = node;
 }
-
-} // end namespace mem
 
 #endif
