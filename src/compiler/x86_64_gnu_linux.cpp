@@ -41,7 +41,7 @@ void mov_result_to_register(CompilerState *state,
     }
 }
 
-Address create_tmp_str_value(CompilerState *state, node::Node *value,
+Address create_tmp_str_value(CompilerState *state, Ast *value,
                              Address addr) {
     std::string value_str(value->data.value.value.string.ptr);
     Address result_addr;
@@ -60,62 +60,62 @@ Address create_tmp_str_value(CompilerState *state, node::Node *value,
     return result_addr;
 }
 
-void compile_block(CompilerState *state, node::Node *node, SymbolTable *scope);
+void compile_block(CompilerState *state, Ast *ast, SymbolTable *scope);
 
-void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope);
+void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope);
 
 /*
  * When this function is called, rax will always contain the value
  */
-void compile_value(CompilerState *state, node::Node *node, SymbolTable *scope) {
-    node::Value *value_node = &node->data.value;
-    type::Type *type = scope->node_types[node];
+void compile_value(CompilerState *state, Ast *ast, SymbolTable *scope) {
+    Value *value_ast = &ast->data.value;
+    type::Type *type = scope->ast_types[ast];
 
-    switch (value_node->kind) {
-    case node::ValueKind::Character:
+    switch (value_ast->kind) {
+    case ValueKind::Character:
         asm_add_instruction(state->code, "mov", "al",
-                            std::to_string(value_node->value.character));
+                            std::to_string(value_ast->value.character));
         asm_addr_register(state, "al", type);
         break;
-    case node::ValueKind::Integer:
+    case ValueKind::Integer:
         asm_add_instruction(state->code, "mov", "rax",
-                            std::to_string(value_node->value.integer));
+                            std::to_string(value_ast->value.integer));
         asm_addr_register(state, "rax", type);
         break;
-    case node::ValueKind::Real: {
+    case ValueKind::Real: {
         auto flt_id = asm_create_data_id(state->code, "flt");
         asm_add_data(state->code, flt_id, ".double",
-                     std::to_string(value_node->value.real));
+                     std::to_string(value_ast->value.real));
         asm_add_instruction(state->code, "movsd", "xmm0", flt_id);
         asm_addr_register(state, "xmm0", type);
     } break;
-    case node::ValueKind::String: {
+    case ValueKind::String: {
         std::string label = asm_create_data_id(state->code, "value_");
-        asm_add_data(state->code, label, ".string", value_node->value.string.ptr);
+        asm_add_data(state->code, label, ".string", value_ast->value.string.ptr);
         asm_addr_immediate_value(state, label, type);
     } break;
     }
 }
 
-void compile_variable_definition(CompilerState *state, node::Node *node,
+void compile_variable_definition(CompilerState *state, Ast *ast,
                                  SymbolTable *scope) {
-    node::VariableDefinition *var_node = &node->data.variable_definition;
-    auto type = lookup_id(scope, var_node->name.ptr)->type;
+    VariableDefinition *var_ast = &ast->data.variable_definition;
+    auto type = lookup_id(scope, var_ast->name.ptr)->type;
     auto size = type::get_type_size(type);
 
-    allocate_stack_variable(state, var_node->name.ptr, size, type, "rbp");
+    allocate_stack_variable(state, var_ast->name.ptr, size, type, "rbp");
     asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
-    asm_comment_last_instruction(state->code, var_node->name.ptr);
+    asm_comment_last_instruction(state->code, var_ast->name.ptr);
 }
 
-void compile_assignement(CompilerState *state, node::Node *node,
+void compile_assignement(CompilerState *state, Ast *ast,
                          SymbolTable *scope) {
-    node::Assignment *assignment_node = &node->data.assignment;
+    Assignment *assignment_ast = &ast->data.assignment;
     Address target;
-    auto target_type = scope->node_types[assignment_node->target];
-    auto value_type = scope->node_types[assignment_node->value];
+    auto target_type = scope->ast_types[assignment_ast->target];
+    auto value_type = scope->ast_types[assignment_ast->value];
 
-    compile_node(state, assignment_node->target, scope);
+    compile_ast(state, assignment_ast->target, scope);
     target = state->last_expr_addr;
 
     // TODO: handle float case
@@ -123,7 +123,7 @@ void compile_assignement(CompilerState *state, node::Node *node,
     // TODO: clean this function
     if (target.addressing_mode == AddressingMode::RegisterIndirect) {
         asm_add_instruction(state->code, "push", target.register_name);
-        compile_node(state, assignment_node->value, scope);
+        compile_ast(state, assignment_ast->value, scope);
         asm_add_instruction(state->code, "pop", "rdx");
         if (type::is_flt(target_type)) {
             std::string value_addr = asm_addr(state->last_expr_addr);
@@ -144,7 +144,7 @@ void compile_assignement(CompilerState *state, node::Node *node,
                                    type::type_to_string(target_type));
         }
     } else if (target.addressing_mode == AddressingMode::Based) {
-        compile_node(state, assignment_node->value, scope);
+        compile_ast(state, assignment_ast->value, scope);
         if (type::is_flt(target_type)) {
             auto value_addr = asm_addr(state->last_expr_addr);
             if (!type::is_flt(value_type)) {
@@ -161,10 +161,10 @@ void compile_assignement(CompilerState *state, node::Node *node,
             // str is store backward as followed on the stack:
             // [nb bytes] <- effective address of the string
             // [data ptr]
-            if (assignment_node->value->kind == node::NodeKind::Value) {
+            if (assignment_ast->value->kind == AstKind::Value) {
                 auto value_addr = state->last_expr_addr;
                 std::string value_str(
-                    assignment_node->value->data.value.value.string.ptr);
+                    assignment_ast->value->data.value.value.string.ptr);
                 // nb bytes
                 asm_add_instruction(state->code, "mov", "rdx",
                                     std::to_string(value_str.size()));
@@ -211,15 +211,15 @@ void compile_assignement(CompilerState *state, node::Node *node,
     }
 }
 
-void compile_index_expression(CompilerState *state, node::Node *node,
+void compile_index_expression(CompilerState *state, Ast *ast,
                               SymbolTable *scope) {
-    node::IndexExpression *expr_node = &node->data.index_expression;
-    auto type = scope->node_types[node];
+    IndexExpression *expr_ast = &ast->data.index_expression;
+    auto type = scope->ast_types[ast];
 
     // TODO: make sure that this works with float arrays
-    compile_node(state, expr_node->element, scope);
+    compile_ast(state, expr_ast->element, scope);
     auto element_addr = state->last_expr_addr;
-    compile_node(state, expr_node->index, scope);
+    compile_ast(state, expr_ast->index, scope);
     auto index_result_addr = state->last_expr_addr;
     asm_add_instruction(state->code, "mov", "rdi", asm_addr(index_result_addr));
     asm_add_instruction(state->code, "lea", "rax", asm_addr(element_addr));
@@ -227,19 +227,19 @@ void compile_index_expression(CompilerState *state, node::Node *node,
     asm_addr_register_indirect(state, "rax", type);
 }
 
-void compile_variable_reference(CompilerState *state, node::Node *node,
+void compile_variable_reference(CompilerState *state, Ast *ast,
                                 SymbolTable *) {
-    node::VariableReference *var_ref_node = &node->data.variable_reference;
+    VariableReference *var_ref_ast = &ast->data.variable_reference;
     // TODO: the addressing mode might not be based all the time
-    auto addr = get_address(state, var_ref_node->name.ptr);
+    auto addr = get_address(state, var_ref_ast->name.ptr);
     asm_addr_based(state, "rbp", addr.offset, addr.type);
 }
 
-void compile_add_sub_int(CompilerState *state, node::ArithmeticOperation *node,
+void compile_add_sub_int(CompilerState *state, ArithmeticOperation *ast,
                          SymbolTable *scope, bool sub, type::Type *type) {
-    compile_node(state, node->rhs, scope);
+    compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
-    compile_node(state, node->lhs, scope);
+    compile_ast(state, ast->lhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "pop", "rdx");
     if (sub) {
@@ -250,11 +250,11 @@ void compile_add_sub_int(CompilerState *state, node::ArithmeticOperation *node,
     asm_addr_register(state, "rax", type);
 }
 
-void compile_mul_int(CompilerState *state, node::ArithmeticOperation *node,
+void compile_mul_int(CompilerState *state, ArithmeticOperation *ast,
                      SymbolTable *scope, type::Type *type) {
-    compile_node(state, node->rhs, scope);
+    compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
-    compile_node(state, node->lhs, scope);
+    compile_ast(state, ast->lhs, scope);
     asm_add_instruction(state->code, "pop", "rdx");
     // note: in 64 bits mode imul's 2 operands should be 32 bits long, and
     // the result is 64 bits.
@@ -263,11 +263,11 @@ void compile_mul_int(CompilerState *state, node::ArithmeticOperation *node,
     asm_addr_register(state, "rax", type);
 }
 
-void compile_div_int(CompilerState *state, node::ArithmeticOperation *node,
+void compile_div_int(CompilerState *state, ArithmeticOperation *ast,
                      SymbolTable *scope, type::Type *type) {
-    compile_node(state, node->rhs, scope);
+    compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
-    compile_node(state, node->lhs, scope);
+    compile_ast(state, ast->lhs, scope);
     asm_add_instruction(state->code, "pop", "rdi");
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "xor", "rdx", "rdx"); // zero rdx
@@ -276,12 +276,12 @@ void compile_div_int(CompilerState *state, node::ArithmeticOperation *node,
 }
 
 void compile_arithmetic_operation_flt(CompilerState *state,
-                                      node::ArithmeticOperation *node,
+                                      ArithmeticOperation *ast,
                                       SymbolTable *scope, std::string const &op,
                                       type::Type *type) {
-    compile_node(state, node->rhs, scope);
+    compile_ast(state, ast->rhs, scope);
     // implicit convertion to double
-    if (type::is_flt(scope->node_types[node->rhs])) {
+    if (type::is_flt(scope->ast_types[ast->rhs])) {
         asm_add_instruction(state->code, "movsd", "[rsp-8]",
                             asm_addr(state->last_expr_addr));
     } else {
@@ -289,8 +289,8 @@ void compile_arithmetic_operation_flt(CompilerState *state,
                             asm_addr(state->last_expr_addr));
         asm_add_instruction(state->code, "movsd", "[rsp-8]", "xmm0");
     }
-    compile_node(state, node->lhs, scope);
-    if (type::is_flt(scope->node_types[node->lhs])) {
+    compile_ast(state, ast->lhs, scope);
+    if (type::is_flt(scope->ast_types[ast->lhs])) {
         mov_result_to_register(state, "xmm0");
     } else {
         asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
@@ -301,151 +301,151 @@ void compile_arithmetic_operation_flt(CompilerState *state,
     asm_addr_register(state, "xmm0", type);
 }
 
-void compile_arithmetic_operation(CompilerState *state, node::Node *node,
+void compile_arithmetic_operation(CompilerState *state, Ast *ast,
                                   SymbolTable *scope) {
-    node::ArithmeticOperation *op_node = &node->data.arithmetic_operation;
-    type::Type *op_type = scope->node_types[node];
-    switch (op_node->kind) {
-    case node::ArithmeticOperationKind::Add:
-        if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "addsd",
+    ArithmeticOperation *op_ast = &ast->data.arithmetic_operation;
+    type::Type *op_type = scope->ast_types[ast];
+    switch (op_ast->kind) {
+    case ArithmeticOperationKind::Add:
+        if (type::is_flt(lookup_ast_type(scope, ast))) {
+            compile_arithmetic_operation_flt(state, op_ast, scope, "addsd",
                                              op_type);
         } else {
-            compile_add_sub_int(state, op_node, scope, false, op_type);
+            compile_add_sub_int(state, op_ast, scope, false, op_type);
         }
         break;
-    case node::ArithmeticOperationKind::Sub:
-        if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "subsd",
+    case ArithmeticOperationKind::Sub:
+        if (type::is_flt(lookup_ast_type(scope, ast))) {
+            compile_arithmetic_operation_flt(state, op_ast, scope, "subsd",
                                              op_type);
         } else {
-            compile_add_sub_int(state, op_node, scope, true, op_type);
+            compile_add_sub_int(state, op_ast, scope, true, op_type);
         }
         break;
-    case node::ArithmeticOperationKind::Mul:
-        if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "mulsd",
+    case ArithmeticOperationKind::Mul:
+        if (type::is_flt(lookup_ast_type(scope, ast))) {
+            compile_arithmetic_operation_flt(state, op_ast, scope, "mulsd",
                                              op_type);
         } else {
-            compile_mul_int(state, op_node, scope, op_type);
+            compile_mul_int(state, op_ast, scope, op_type);
         }
         break;
-    case node::ArithmeticOperationKind::Div:
-        if (type::is_flt(lookup_node_type(scope, node))) {
-            compile_arithmetic_operation_flt(state, op_node, scope, "divsd",
+    case ArithmeticOperationKind::Div:
+        if (type::is_flt(lookup_ast_type(scope, ast))) {
+            compile_arithmetic_operation_flt(state, op_ast, scope, "divsd",
                                              op_type);
         } else {
-            compile_div_int(state, op_node, scope, op_type);
+            compile_div_int(state, op_ast, scope, op_type);
         }
         break;
     }
 }
 
-#define LABEL(node, suffix) "label_" + ptr_to_string(node) + suffix
-#define TRUE_LABEL(node) LABEL(node, "_true")
-#define FALSE_LABEL(node) LABEL(node, "_false")
-#define BEGIN_LABEL(node) LABEL(node, "_begin")
-#define END_LABEL(node) LABEL(node, "_end")
+#define LABEL(ast, suffix) "label_" + ptr_to_string(ast) + suffix
+#define TRUE_LABEL(ast) LABEL(ast, "_true")
+#define FALSE_LABEL(ast) LABEL(ast, "_false")
+#define BEGIN_LABEL(ast) LABEL(ast, "_begin")
+#define END_LABEL(ast) LABEL(ast, "_end")
 
-void compile_cmp(CompilerState *state, node::Node *node, SymbolTable *scope,
+void compile_cmp(CompilerState *state, Ast *ast, SymbolTable *scope,
                  std::string const &jmp) {
-    node::Node *lhs = node->data.boolean_operation.lhs;
-    node::Node *rhs = node->data.boolean_operation.rhs;
+    Ast *lhs = ast->data.boolean_operation.lhs;
+    Ast *rhs = ast->data.boolean_operation.rhs;
 
-    compile_node(state, lhs, scope);
+    compile_ast(state, lhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "push", "rax");
-    compile_node(state, rhs, scope);
+    compile_ast(state, rhs, scope);
     mov_result_to_register(state, "rax");
     asm_add_instruction(state->code, "pop", "rdx");
     asm_add_instruction(state->code, "cmp", "rdx", "rax");
-    asm_add_instruction(state->code, jmp, TRUE_LABEL(node));
-    asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+    asm_add_instruction(state->code, jmp, TRUE_LABEL(ast));
+    asm_add_instruction(state->code, "jmp", FALSE_LABEL(ast));
 }
 
-void compile_boolean_operation(CompilerState *state, node::Node *node,
+void compile_boolean_operation(CompilerState *state, Ast *ast,
                                SymbolTable *scope) {
     // TODO: float?
-    node::BooleanOperation *op_node = &node->data.boolean_operation;
-    switch (op_node->kind) {
-    case node::BooleanOperationKind::And:
-        compile_node(state, op_node->lhs, scope);
-        asm_add_label(state->code, TRUE_LABEL(op_node->lhs));
-        compile_node(state, op_node->rhs, scope);
-        asm_add_label(state->code, TRUE_LABEL(op_node->rhs));
-        asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
-        asm_add_label(state->code, FALSE_LABEL(op_node->lhs));
-        asm_add_label(state->code, FALSE_LABEL(op_node->rhs));
-        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+    BooleanOperation *op_ast = &ast->data.boolean_operation;
+    switch (op_ast->kind) {
+    case BooleanOperationKind::And:
+        compile_ast(state, op_ast->lhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(op_ast->lhs));
+        compile_ast(state, op_ast->rhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(op_ast->rhs));
+        asm_add_instruction(state->code, "jmp", TRUE_LABEL(ast));
+        asm_add_label(state->code, FALSE_LABEL(op_ast->lhs));
+        asm_add_label(state->code, FALSE_LABEL(op_ast->rhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(ast));
         break;
-    case node::BooleanOperationKind::Lor:
-        compile_node(state, op_node->lhs, scope);
-        asm_add_label(state->code, FALSE_LABEL(op_node->lhs));
-        compile_node(state, op_node->rhs, scope);
-        asm_add_label(state->code, FALSE_LABEL(op_node->rhs));
-        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
-        asm_add_label(state->code, TRUE_LABEL(op_node->lhs));
-        asm_add_label(state->code, TRUE_LABEL(op_node->rhs));
-        asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
+    case BooleanOperationKind::Lor:
+        compile_ast(state, op_ast->lhs, scope);
+        asm_add_label(state->code, FALSE_LABEL(op_ast->lhs));
+        compile_ast(state, op_ast->rhs, scope);
+        asm_add_label(state->code, FALSE_LABEL(op_ast->rhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(ast));
+        asm_add_label(state->code, TRUE_LABEL(op_ast->lhs));
+        asm_add_label(state->code, TRUE_LABEL(op_ast->rhs));
+        asm_add_instruction(state->code, "jmp", TRUE_LABEL(ast));
         break;
-    case node::BooleanOperationKind::Xor:
+    case BooleanOperationKind::Xor:
         // evaluate lhs
-        compile_node(state, op_node->lhs, scope);
-        asm_add_label(state->code, TRUE_LABEL(op_node->lhs));
+        compile_ast(state, op_ast->lhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(op_ast->lhs));
         asm_add_instruction(state->code, "push", "1");
-        asm_add_instruction(state->code, "jmp", LABEL(node, "_rhs"));
-        asm_add_label(state->code, FALSE_LABEL(op_node->lhs));
+        asm_add_instruction(state->code, "jmp", LABEL(ast, "_rhs"));
+        asm_add_label(state->code, FALSE_LABEL(op_ast->lhs));
         asm_add_instruction(state->code, "push", "0");
         // evaluate rhs
-        asm_add_label(state->code, LABEL(node, "_rhs"));
-        compile_node(state, op_node->rhs, scope);
-        asm_add_label(state->code, TRUE_LABEL(op_node->rhs));
+        asm_add_label(state->code, LABEL(ast, "_rhs"));
+        compile_ast(state, op_ast->rhs, scope);
+        asm_add_label(state->code, TRUE_LABEL(op_ast->rhs));
         asm_add_instruction(state->code, "mov", "rax", "1");
-        asm_add_instruction(state->code, "jmp", LABEL(node, "_xor"));
-        asm_add_label(state->code, FALSE_LABEL(op_node->rhs));
+        asm_add_instruction(state->code, "jmp", LABEL(ast, "_xor"));
+        asm_add_label(state->code, FALSE_LABEL(op_ast->rhs));
         asm_add_instruction(state->code, "mov", "rax", "0");
         // xor
-        asm_add_label(state->code, LABEL(node, "_xor"));
+        asm_add_label(state->code, LABEL(ast, "_xor"));
         asm_add_instruction(state->code, "pop", "rdx");
         asm_add_instruction(state->code, "xor", "rax", "rdx");
-        asm_add_instruction(state->code, "jnz", TRUE_LABEL(node));
-        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+        asm_add_instruction(state->code, "jnz", TRUE_LABEL(ast));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(ast));
         break;
-    case node::BooleanOperationKind::Not:
-        compile_node(state, op_node->lhs, scope);
-        asm_add_label(state->code, FALSE_LABEL(op_node->lhs));
-        asm_add_instruction(state->code, "jmp", TRUE_LABEL(node));
-        asm_add_label(state->code, TRUE_LABEL(op_node->lhs));
-        asm_add_instruction(state->code, "jmp", FALSE_LABEL(node));
+    case BooleanOperationKind::Not:
+        compile_ast(state, op_ast->lhs, scope);
+        asm_add_label(state->code, FALSE_LABEL(op_ast->lhs));
+        asm_add_instruction(state->code, "jmp", TRUE_LABEL(ast));
+        asm_add_label(state->code, TRUE_LABEL(op_ast->lhs));
+        asm_add_instruction(state->code, "jmp", FALSE_LABEL(ast));
         break;
         // TODO: be carefull with unsigned in the future
-    case node::BooleanOperationKind::Eql:
-        compile_cmp(state, node, scope, "je");
+    case BooleanOperationKind::Eql:
+        compile_cmp(state, ast, scope, "je");
         break;
-    case node::BooleanOperationKind::Inf:
-        compile_cmp(state, node, scope, "jl");
+    case BooleanOperationKind::Inf:
+        compile_cmp(state, ast, scope, "jl");
         break;
-    case node::BooleanOperationKind::Sup:
-        compile_cmp(state, node, scope, "jg");
+    case BooleanOperationKind::Sup:
+        compile_cmp(state, ast, scope, "jg");
         break;
-    case node::BooleanOperationKind::Ieq:
-        compile_cmp(state, node, scope, "jle");
+    case BooleanOperationKind::Ieq:
+        compile_cmp(state, ast, scope, "jle");
         break;
-    case node::BooleanOperationKind::Seq:
-        compile_cmp(state, node, scope, "jge");
+    case BooleanOperationKind::Seq:
+        compile_cmp(state, ast, scope, "jge");
         break;
     }
 }
 
 // TODO: builtin function should not be compiled but linked !
-void compile_builtin_function(CompilerState *state, node::Node *node,
+void compile_builtin_function(CompilerState *state, Ast *ast,
                               SymbolTable *) {
-    node::BuiltinFunction *fun_node = &node->data.builtin_function;
-    switch (fun_node->kind) {
-    case node::BuiltinFunctionKind::Shw: {
+    BuiltinFunction *fun_ast = &ast->data.builtin_function;
+    switch (fun_ast->kind) {
+    case BuiltinFunctionKind::Shw: {
         // TODO: for now we only support text
         std::string msg_id = asm_create_data_id(state->code, "shw_msg");
-        std::string msg = fun_node->argument->data.value.value.string.ptr;
+        std::string msg = fun_ast->argument->data.value.value.string.ptr;
         std::string msg_len = std::to_string(get_compiled_string_size(msg));
 
         asm_add_data(state->code, msg_id, ".string", msg);
@@ -456,29 +456,29 @@ void compile_builtin_function(CompilerState *state, node::Node *node,
         asm_add_instruction(state->code, "mov", "rdx", msg_len);
         asm_add_instruction(state->code, "syscall");
     } break;
-    case node::BuiltinFunctionKind::Ipt:
+    case BuiltinFunctionKind::Ipt:
         // TODO
         break;
     }
 }
 
-void compile_function_call(CompilerState *state, node::Node *node,
+void compile_function_call(CompilerState *state, Ast *ast,
                            SymbolTable *scope) {
     // WARN: make sure to put the number of float arguments in `al` before
     // calling C variadic functions
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     type::Type *function_type =
-        lookup_id(scope, node->data.function_call.name.ptr)->type;
-    auto args = node->data.function_call.arguments;
+        lookup_id(scope, ast->data.function_call.name.ptr)->type;
+    auto args = ast->data.function_call.arguments;
     auto args_type = function_type->value.function->arguments_types;
     size_t int_idx = 0, flt_idx = 0;
     size_t stack_size_to_release = 0;
     std::stack<Address> args_addr;
     // TODO: check the rules for structs
     for (size_t i = 0; i < args.len; i++) {
-        // compile the argument node
-        compile_node(state, args[i], scope);
+        // compile the argument ast
+        compile_ast(state, args[i], scope);
         auto value_addr = state->last_expr_addr;
 
         if (type::is_flt(args_type[i])) {
@@ -531,7 +531,7 @@ void compile_function_call(CompilerState *state, node::Node *node,
     }
     // call the function
     asm_add_instruction(state->code, "xor", "rax", "rax");
-    asm_add_instruction(state->code, "call", node->data.function_call.name.ptr);
+    asm_add_instruction(state->code, "call", ast->data.function_call.name.ptr);
     // make sure the compiler know that the result will be store in rax (if
     // the function returns a result).
     if (type::is_flt(function_type->value.function->return_type)) {
@@ -547,57 +547,57 @@ void compile_function_call(CompilerState *state, node::Node *node,
     }
 }
 
-void compile_cnd_stmt(CompilerState *state, node::Node *node,
+void compile_cnd_stmt(CompilerState *state, Ast *ast,
                       SymbolTable *scope) {
-    node::CndStmt *stmt = &node->data.cnd_stmt;
+    CndStmt *stmt = &ast->data.cnd_stmt;
 
-    compile_node(state, stmt->condition, scope->block_scopes[stmt->block]);
+    compile_ast(state, stmt->condition, scope->block_scopes[stmt->block]);
     asm_add_label(state->code, TRUE_LABEL(stmt->condition));
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
     asm_add_instruction(state->code, "jmp", END_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(stmt->condition));
     if (stmt->otw) {
         // TODO: check that nested conditions are compiled correctly
-        compile_node(state, stmt->otw, scope);
+        compile_ast(state, stmt->otw, scope);
     }
     asm_add_label(state->code, END_LABEL(stmt));
 }
 
-void compile_for_stmt(CompilerState *state, node::Node *node,
+void compile_for_stmt(CompilerState *state, Ast *ast,
                       SymbolTable *scope) {
-    node::ForStmt *stmt = &node->data.for_stmt;
-    node::Node *cnd = stmt->condition;
+    ForStmt *stmt = &ast->data.for_stmt;
+    Ast *cnd = stmt->condition;
 
-    compile_node(state, stmt->init, scope);
+    compile_ast(state, stmt->init, scope);
     asm_add_label(state->code, BEGIN_LABEL(stmt));
-    compile_node(state, stmt->condition, scope);
+    compile_ast(state, stmt->condition, scope);
     asm_add_label(state->code, TRUE_LABEL(cnd));
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
-    compile_node(state, stmt->step, scope);
+    compile_ast(state, stmt->step, scope);
     asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(cnd));
 }
 
-void compile_whl_stmt(CompilerState *state, node::Node *node,
+void compile_whl_stmt(CompilerState *state, Ast *ast,
                       SymbolTable *scope) {
-    node::WhlStmt *stmt = &node->data.whl_stmt;
-    node::Node *cnd = stmt->condition;
+    WhlStmt *stmt = &ast->data.whl_stmt;
+    Ast *cnd = stmt->condition;
 
     asm_add_label(state->code, BEGIN_LABEL(stmt));
-    compile_node(state, stmt->condition, scope);
+    compile_ast(state, stmt->condition, scope);
     asm_add_label(state->code, TRUE_LABEL(cnd));
     compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
     asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(cnd));
 }
 
-void compile_ret_stmt(CompilerState *state, node::Node *node,
+void compile_ret_stmt(CompilerState *state, Ast *ast,
                       SymbolTable *scope) {
-    node::RetStmt *ret_node = &node->data.ret_stmt;
+    RetStmt *ret_ast = &ast->data.ret_stmt;
 
-    compile_node(state, ret_node->expression, scope);
-    if (ret_node->expression->kind != node::NodeKind::Value) {
-        if (type::is_flt(lookup_node_type(scope, ret_node->expression))) {
+    compile_ast(state, ret_ast->expression, scope);
+    if (ret_ast->expression->kind != AstKind::Value) {
+        if (type::is_flt(lookup_ast_type(scope, ret_ast->expression))) {
             asm_add_instruction(state->code, "movsd", "xmm0",
                                 asm_addr(state->last_expr_addr));
         } else {
@@ -610,11 +610,11 @@ void compile_ret_stmt(CompilerState *state, node::Node *node,
                         "epilogue_" + state->curr_function_id);
 }
 
-void compile_block(CompilerState *state, node::Node *node,
+void compile_block(CompilerState *state, Ast *ast,
                    SymbolTable *scope) {
-    node::Block *block_node = &node->data.block;
-    for (auto instruction : block_node->nodes) {
-        compile_node(state, instruction, scope);
+    Block *block_ast = &ast->data.block;
+    for (auto instruction : block_ast->asts) {
+        compile_ast(state, instruction, scope);
     }
 }
 
@@ -624,16 +624,16 @@ void compile_block(CompilerState *state, node::Node *node,
  * should be implemented in the state to avoid systematically using the statck
  * for local variables when it's not necessary.
  */
-void allocate_arguments(CompilerState *state, node::Node *node,
+void allocate_arguments(CompilerState *state, Ast *ast,
                         SymbolTable *scope) {
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
-    auto args = node->data.function_definition.arguments;
+    auto args = ast->data.function_definition.arguments;
     size_t int_idx = 0, flt_idx = 0;
     for (size_t idx = 0; idx < args.len; idx++) {
         // TODO: check the rules for structs
-        auto *var_node = &args[idx]->data.variable_definition;
-        auto type = lookup_id(scope, var_node->name.ptr)->type;
+        auto *var_ast = &args[idx]->data.variable_definition;
+        auto type = lookup_id(scope, var_ast->name.ptr)->type;
         std::string reg = "";
 
         if (type::is_int(type) || type::is_chr(type)) {
@@ -663,88 +663,88 @@ void allocate_arguments(CompilerState *state, node::Node *node,
         }
         compile_variable_definition(state, args[idx], scope);
         asm_add_instruction(state->code, "mov",
-                            asm_addr(get_address(state, var_node->name.ptr)), reg);
+                            asm_addr(get_address(state, var_ast->name.ptr)), reg);
     }
 }
 
-void compile_function_definition(CompilerState *state, node::Node *node,
+void compile_function_definition(CompilerState *state, Ast *ast,
                                  SymbolTable *scope) {
-    node::FunctionDefinition *fund_def_node = &node->data.function_definition;
-    SymbolTable *function_scope = scope->symbols[fund_def_node->name.ptr].scope;
-    state->curr_function_id = fund_def_node->name.ptr;
+    FunctionDefinition *fund_def_ast = &ast->data.function_definition;
+    SymbolTable *function_scope = scope->symbols[fund_def_ast->name.ptr].scope;
+    state->curr_function_id = fund_def_ast->name.ptr;
     state->frame_offset = 8;
 
-    asm_add_label(state->code, fund_def_node->name.ptr);
+    asm_add_label(state->code, fund_def_ast->name.ptr);
     asm_add_instruction(state->code, "push", "rbp");
     asm_add_instruction(state->code, "mov", "rbp", "rsp");
 
     // TODO: optimize this
-    allocate_arguments(state, node, function_scope);
+    allocate_arguments(state, ast, function_scope);
 
     // TODO: we want to go down the scope
-    compile_block(state, fund_def_node->body, function_scope);
+    compile_block(state, fund_def_ast->body, function_scope);
 
-    asm_add_label(state->code, "epilogue_" + std::string(fund_def_node->name.ptr));
+    asm_add_label(state->code, "epilogue_" + std::string(fund_def_ast->name.ptr));
     asm_add_instruction(state->code, "mov", "rsp", "rbp");
     asm_add_instruction(state->code, "pop", "rbp");
     asm_add_instruction(state->code, "ret");
 }
 
-void compile_function_declaration(CompilerState *state, node::Node *node,
+void compile_function_declaration(CompilerState *state, Ast *ast,
                                   SymbolTable *) {
     asm_add_instruction(state->code, ".extern",
-                        node->data.function_declaration.name.ptr);
+                        ast->data.function_declaration.name.ptr);
 }
 
-void compile_node(CompilerState *state, node::Node *node, SymbolTable *scope) {
-    switch (node->kind) {
-    case node::NodeKind::Value:
-        compile_value(state, node, scope);
+void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope) {
+    switch (ast->kind) {
+    case AstKind::Value:
+        compile_value(state, ast, scope);
         break;
-    case node::NodeKind::VariableDefinition:
-        compile_variable_definition(state, node, scope);
+    case AstKind::VariableDefinition:
+        compile_variable_definition(state, ast, scope);
         break;
-    case node::NodeKind::VariableReference:
-        compile_variable_reference(state, node, scope);
+    case AstKind::VariableReference:
+        compile_variable_reference(state, ast, scope);
         break;
-    case node::NodeKind::Assignment:
-        compile_assignement(state, node, scope);
+    case AstKind::Assignment:
+        compile_assignement(state, ast, scope);
         break;
-    case node::NodeKind::IndexExpression:
-        compile_index_expression(state, node, scope);
+    case AstKind::IndexExpression:
+        compile_index_expression(state, ast, scope);
         break;
-    case node::NodeKind::FunctionDefinition:
-        compile_function_definition(state, node, scope);
+    case AstKind::FunctionDefinition:
+        compile_function_definition(state, ast, scope);
         break;
-    case node::NodeKind::FunctionDeclaration:
-        compile_function_declaration(state, node, scope);
+    case AstKind::FunctionDeclaration:
+        compile_function_declaration(state, ast, scope);
         break;
-    case node::NodeKind::FunctionCall:
-        compile_function_call(state, node, scope);
+    case AstKind::FunctionCall:
+        compile_function_call(state, ast, scope);
         break;
-    case node::NodeKind::CndStmt:
-        compile_cnd_stmt(state, node, scope);
+    case AstKind::CndStmt:
+        compile_cnd_stmt(state, ast, scope);
         break;
-    case node::NodeKind::WhlStmt:
-        compile_whl_stmt(state, node, scope);
+    case AstKind::WhlStmt:
+        compile_whl_stmt(state, ast, scope);
         break;
-    case node::NodeKind::ForStmt:
-        compile_for_stmt(state, node, scope);
+    case AstKind::ForStmt:
+        compile_for_stmt(state, ast, scope);
         break;
-    case node::NodeKind::RetStmt:
-        compile_ret_stmt(state, node, scope);
+    case AstKind::RetStmt:
+        compile_ret_stmt(state, ast, scope);
         break;
-    case node::NodeKind::Block:
-        compile_block(state, node, scope->block_scopes[node]);
+    case AstKind::Block:
+        compile_block(state, ast, scope->block_scopes[ast]);
         break;
-    case node::NodeKind::ArithmeticOperation:
-        compile_arithmetic_operation(state, node, scope);
+    case AstKind::ArithmeticOperation:
+        compile_arithmetic_operation(state, ast, scope);
         break;
-    case node::NodeKind::BooleanOperation:
-        compile_boolean_operation(state, node, scope);
+    case AstKind::BooleanOperation:
+        compile_boolean_operation(state, ast, scope);
         break;
-    case node::NodeKind::BuiltinFunction:
-        compile_builtin_function(state, node, scope);
+    case AstKind::BuiltinFunction:
+        compile_builtin_function(state, ast, scope);
         break;
     }
 }
@@ -762,8 +762,8 @@ void make_start(CompilerState *state) {
 }
 
 void compile(CompilerState *state, Program const &program) {
-    for (auto node : program.code) {
-        compile_node(state, node, program.scope);
+    for (auto ast : program.code) {
+        compile_ast(state, ast, program.scope);
     }
     if (lookup_id(program.scope, "main")) {
         make_start(state);

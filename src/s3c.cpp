@@ -2,8 +2,7 @@
 #include "symbol_table.hpp"
 #include "tools/messages.hpp"
 #include "tools/type_utilities.hpp"
-#include "tree/location.hpp"
-#include "tree/node.hpp"
+#include "ast.hpp"
 #include "type/predicates.hpp"
 #include "type/type.hpp"
 #include <sstream>
@@ -20,12 +19,12 @@ State *state_create() {
     state->status = 0;
     state->arena = arena_create();
     state->allocator = arena_allocator(&state->arena);
-    mem_pool_init(&state->node_pool, 100);
+    mem_pool_init(&state->ast_pool, 100);
     return state;
 }
 
 void state_destroy(State *state) {
-    mem_pool_destroy(&state->node_pool);
+    mem_pool_destroy(&state->ast_pool);
     arena_destroy(&state->arena);
     delete state;
 }
@@ -68,7 +67,7 @@ void enter_scope(State *state) {
     state->scopes.curr = scope;
 }
 
-void leave_scope(State *state, node::Node *block) {
+void leave_scope(State *state, Ast *block) {
     auto scope = state->scopes.curr;
     state->scopes.curr = state->scopes.curr->parent;
     if (block != nullptr) {
@@ -86,17 +85,17 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
     insert_symbol(state->scopes.global, id, type, scope, location);
 }
 
-node::Node *new_argument_declaration(State *state, std::string const &id,
+Ast *new_argument_declaration(State *state, std::string const &id,
                                      type::Type *type, size_t line) {
     auto location = location_create(state->curr_filename, line);
-    auto node = new_node(&state->node_pool, location, node::NodeKind::VariableDefinition,
-                         .variable_definition = node::VariableDefinition{
+    auto ast = new_ast(&state->ast_pool, location, AstKind::VariableDefinition,
+                         .variable_definition = VariableDefinition{
                             .name = string_create(id, state->allocator),
                          });
     add_symbol(state, id, type, location);
-    state->curr_function.arguments.push_back(node);
+    state->curr_function.arguments.push_back(ast);
     state->curr_function.arguments_types.push_back(type);
-    return node;
+    return ast;
 }
 
 void new_function_definition(State *state, std::string const &id, size_t line) {
@@ -120,9 +119,9 @@ void set_curr_function_type(State *state, type::Type *return_type,
 }
 
 void add_function_definition(State *state, std::string const &name,
-                             node::Node *body, size_t line) {
-    state->program.push_back(new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionDefinition,
-                             .function_definition = node::FunctionDefinition{
+                             Ast *body, size_t line) {
+    state->program.push_back(new_ast(&state->ast_pool, LOCATION, AstKind::FunctionDefinition,
+                             .function_definition = FunctionDefinition{
                                 .name = string_create(name, state->allocator),
                                 .arguments = array_create_from_std_vector(
                                         state->curr_function.arguments,
@@ -134,8 +133,8 @@ void add_function_definition(State *state, std::string const &name,
 }
 
 void add_function_declaration(State *state, size_t line) {
-    state->program.push_back(new_node(&state->node_pool, LOCATION,node::NodeKind::FunctionDeclaration,
-                             .function_declaration = node::FunctionDeclaration{
+    state->program.push_back(new_ast(&state->ast_pool, LOCATION,AstKind::FunctionDeclaration,
+                             .function_declaration = FunctionDeclaration{
                                 .name = string_create(state->curr_function.name, state->allocator),
                                 .arguments = array_create_from_std_vector(
                                         state->curr_function.arguments,
@@ -146,97 +145,97 @@ void add_function_declaration(State *state, size_t line) {
 }
 
 void begin_block(State *state) {
-    state->curr_function.blocks.push(new_node(
-                &state->node_pool,
+    state->curr_function.blocks.push(new_ast(
+                &state->ast_pool,
                 Location{},
-                node::NodeKind::Block,
-                .block = { array_create<node::Node*>(0, 0, state->allocator) }));
+                AstKind::Block,
+                .block = { array_create<Ast*>(0, 0, state->allocator) }));
 }
 
-node::Node *end_block(State *state) {
-    node::Node *lastBlock = state->curr_function.blocks.top();
+Ast *end_block(State *state) {
+    Ast *lastBlock = state->curr_function.blocks.top();
     state->curr_function.blocks.pop();
     return lastBlock;
 }
 
-void add_instruction(State *state, node::Node *node) {
-    array_append(&state->curr_function.blocks.top()->data.block.nodes, node);
+void add_instruction(State *state, Ast *ast) {
+    array_append(&state->curr_function.blocks.top()->data.block.asts, ast);
 }
 
-void new_return_expr(State *state, node::Node *expr, size_t line) {
+void new_return_expr(State *state, Ast *expr, size_t line) {
     std::ostringstream oss;
     Symbol *sym = lookup_id(state->scopes.curr, state->curr_function.name);
     auto expected_type = sym->type->value.function->return_type;
-    auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::RetStmt,
+    auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
                          .ret_stmt = { expr });
 
     auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, node, expr, sym,
+    state->post_process_callbacks.push_back([scope, ast, expr, sym,
                                              expected_type]() -> bool {
         if (expr == nullptr) {
             if (!type::is_nil(expected_type)) {
                 INVALID_RETURN_TYPE_ERROR(
-                    node->location, sym->id,
+                    ast->location, sym->id,
                     sym->type->value.function->return_type, expected_type);
                 return false;
             }
             return true;
         }
-        auto expr_type = lookup_node_type(scope, expr);
+        auto expr_type = lookup_ast_type(scope, expr);
         if (!type::is_convertible(expr_type, expected_type)) {
-            INVALID_RETURN_TYPE_ERROR(node->location, sym->id, expr_type,
+            INVALID_RETURN_TYPE_ERROR(ast->location, sym->id, expr_type,
                                       sym->type->value.function->return_type);
             return false;
         } else if (!type::equal(expr_type, expected_type)) {
-            IMPLICIT_CONVERTION_WARNING(node->location, expr_type,
+            IMPLICIT_CONVERTION_WARNING(ast->location, expr_type,
                                         sym->type->value.function->return_type);
         }
         return true;
     });
-    add_instruction(state, node);
+    add_instruction(state, ast);
 }
 
-node::Node *new_arithmetic_operation(State *state, node::Node *lhs,
-                                     node::Node *rhs,
-                                     node::ArithmeticOperationKind kind,
+Ast *new_arithmetic_operation(State *state, Ast *lhs,
+                                     Ast *rhs,
+                                     ArithmeticOperationKind kind,
                                      size_t line,
                                      std::string const &operator_name) {
-    // if one of the operand is undefined, the node should always have the nill
+    // if one of the operand is undefined, the ast should always have the nill
     // type
-    auto op_node = new_node(&state->node_pool, LOCATION, node::NodeKind::ArithmeticOperation,
-                           .arithmetic_operation = node::ArithmeticOperation{ kind, lhs, rhs });
+    auto op_ast = new_ast(&state->ast_pool, LOCATION, AstKind::ArithmeticOperation,
+                           .arithmetic_operation = ArithmeticOperation{ kind, lhs, rhs });
     auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([op_node, scope, lhs, rhs,
+    state->post_process_callbacks.push_back([op_ast, scope, lhs, rhs,
                                              operator_name]() -> bool {
-        auto lhs_type = lookup_node_type(scope, lhs);
-        auto rhs_type = lookup_node_type(scope, rhs);
+        auto lhs_type = lookup_ast_type(scope, lhs);
+        auto rhs_type = lookup_ast_type(scope, rhs);
 
         if (!type::supports_arithmetic(lhs_type) ||
             !type::supports_arithmetic(rhs_type)) {
-            ARITHMETIC_OPERATOR_ERROR(op_node->location, operator_name)
+            ARITHMETIC_OPERATOR_ERROR(op_ast->location, operator_name)
             return false;
         }
-        scope->node_types.insert(
-            {op_node,
+        scope->ast_types.insert(
+            {op_ast,
              type::select_most_precise_arithmetic_type(lhs_type, rhs_type)});
         return true;
     });
-    return op_node;
+    return op_ast;
 }
 
-void save_function_call_argument(State *state, node::Node *node) {
-    state->funcall_parameters.back().push_back(node);
+void save_function_call_argument(State *state, Ast *ast) {
+    state->funcall_parameters.back().push_back(ast);
 }
 
 void begin_new_funcall(State *state) {
     state->funcall_parameters.push_back({});
 }
 
-node::Node *new_function_call(State *state, std::string const &function_name,
+Ast *new_function_call(State *state, std::string const &function_name,
                               size_t line) {
     auto args = state->funcall_parameters.back();
-    auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionCall,
-                         .function_call = node::FunctionCall{
+    auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::FunctionCall,
+                         .function_call = FunctionCall{
                             .name = string_create(function_name, state->allocator),
                             .arguments = array_create_from_std_vector(args, state->allocator),
                          });
@@ -245,23 +244,23 @@ node::Node *new_function_call(State *state, std::string const &function_name,
     // setup type verification
     std::string file = state->curr_filename;
     auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, node, args]() -> bool {
-        auto function_name = node->data.function_call.name;
+    state->post_process_callbacks.push_back([scope, ast, args]() -> bool {
+        auto function_name = ast->data.function_call.name;
         auto sym = lookup_id(scope, function_name.ptr);
 
         if (sym == nullptr) {
-            UNDEFINED_SYMBOL_ERROR(node->location, function_name.ptr);
+            UNDEFINED_SYMBOL_ERROR(ast->location, function_name.ptr);
             return false;
         }
         if (sym->type->kind != type::TypeKind::Function) {
-            INVALID_CALL_ERROR(node->location, function_name.ptr);
+            INVALID_CALL_ERROR(ast->location, function_name.ptr);
             return false;
         }
 
         auto function_type = sym->type->value.function;
-        scope->node_types.insert({node, function_type->return_type});
+        scope->ast_types.insert({ast, function_type->return_type});
         if (function_type->arguments_types.size() != args.size()) {
-            WRONG_NUMBER_OF_ARGUMENT_ERROR(node->location, function_name.ptr,
+            WRONG_NUMBER_OF_ARGUMENT_ERROR(ast->location, function_name.ptr,
                                            sym->type);
             return false;
         }
@@ -269,18 +268,18 @@ node::Node *new_function_call(State *state, std::string const &function_name,
         bool res = true;
         auto args_types = function_type->arguments_types;
         for (size_t idx = 0; idx < args.size(); ++idx) {
-            auto found_type = lookup_node_type(scope, args[idx]);
+            auto found_type = lookup_ast_type(scope, args[idx]);
             auto expected_tpe = args_types[idx];
 
             if (!type::is_convertible(found_type, expected_tpe)) {
-                ARGUMENT_TYPE_ERROR(node->location, function_name.ptr, idx,
+                ARGUMENT_TYPE_ERROR(ast->location, function_name.ptr, idx,
                                     found_type, expected_tpe);
                 res = false;
             }
         }
         return res;
     });
-    return node;
+    return ast;
 }
 
 void new_variable_declaration(State *state, std::string id, type::Type *type,
@@ -294,113 +293,113 @@ void new_variable_declaration(State *state, std::string id, type::Type *type,
         state->status = 1;
     }
     insert_symbol(state->scopes.curr, id, type, nullptr, location);
-    add_instruction(state, new_node(&state->node_pool, location, node::NodeKind::VariableDefinition,
-                         .variable_definition = node::VariableDefinition{
+    add_instruction(state, new_ast(&state->ast_pool, location, AstKind::VariableDefinition,
+                         .variable_definition = VariableDefinition{
                             .name = string_create(id, state->allocator),
                          }));
 }
 
-node::Node *new_variable_reference(State *state, std::string const &name,
+Ast *new_variable_reference(State *state, std::string const &name,
                                    size_t line) {
     auto sym = lookup_id(state->scopes.curr, name);
-    auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::VariableReference,
-                         .variable_reference = node::VariableReference{
+    auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::VariableReference,
+                         .variable_reference = VariableReference{
                               .name = string_create(name, state->allocator),
                          });
 
     if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(node->location, name);
-        state->scopes.curr->node_types.insert({node, type::create_nil_type()});
+        UNDEFINED_SYMBOL_ERROR(ast->location, name);
+        state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
         state->status = 1;
     } else {
-        state->scopes.curr->node_types.insert({node, sym->type});
+        state->scopes.curr->ast_types.insert({ast, sym->type});
     }
-    return node;
+    return ast;
 }
 
-node::Node *new_index_expr(State *state, std::string const &name, size_t line,
-                           node::Node *index_node) {
+Ast *new_index_expr(State *state, std::string const &name, size_t line,
+                           Ast *index_ast) {
     auto location = location_create(state->curr_filename, line);
-    auto variable = new_node(&state->node_pool, LOCATION, node::NodeKind::VariableReference,
-                             .variable_reference = node::VariableReference{
+    auto variable = new_ast(&state->ast_pool, LOCATION, AstKind::VariableReference,
+                             .variable_reference = VariableReference{
                                 .name = string_create(name, state->allocator),
                              });
-    auto node = new_node(&state->node_pool, location, node::NodeKind::IndexExpression,
-                         .index_expression = node::IndexExpression{
+    auto ast = new_ast(&state->ast_pool, location, AstKind::IndexExpression,
+                         .index_expression = IndexExpression{
                             .element = variable,
-                            .index = index_node,
+                            .index = index_ast,
                          });
     auto sym = lookup_id(state->scopes.curr, name);
 
     if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(node->location, name);
+        UNDEFINED_SYMBOL_ERROR(ast->location, name);
         state->status = 1;
-        state->scopes.curr->node_types.insert({node, type::create_nil_type()});
-        return node;
+        state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
+        return ast;
     } else if (sym->type->kind != type::TypeKind::Array) {
-        INDEX_NON_ARRAY_TYPE_ERROR(node->location, name);
+        INDEX_NON_ARRAY_TYPE_ERROR(ast->location, name);
         state->status = 1;
-        state->scopes.curr->node_types.insert({node, sym->type});
-        state->scopes.curr->node_types.insert({variable, sym->type});
+        state->scopes.curr->ast_types.insert({ast, sym->type});
+        state->scopes.curr->ast_types.insert({variable, sym->type});
     } else {
-        state->scopes.curr->node_types.insert(
-            {node, sym->type->value.array->type});
+        state->scopes.curr->ast_types.insert(
+            {ast, sym->type->value.array->type});
         // this may not be usefull
-        state->scopes.curr->node_types.insert({variable, sym->type});
+        state->scopes.curr->ast_types.insert({variable, sym->type});
         auto scope = state->scopes.curr;
-        state->post_process_callbacks.push_back([scope, index_node]() -> bool {
-            auto index_type = lookup_node_type(scope, index_node);
+        state->post_process_callbacks.push_back([scope, index_ast]() -> bool {
+            auto index_type = lookup_ast_type(scope, index_ast);
             if (!type::is_int(index_type)) {
-                INVALID_INDEX_TYPE_ERROR(index_node->location, index_type);
+                INVALID_INDEX_TYPE_ERROR(index_ast->location, index_type);
                 return false;
             }
             return true;
         });
     }
-    return node;
+    return ast;
 }
 
-node::Node *new_assignment(State *state, node::Node *target, node::Node *expr,
+Ast *new_assignment(State *state, Ast *target, Ast *expr,
                            size_t line) {
     auto location = LOCATION;
-    auto node = new_node(&state->node_pool, location, node::NodeKind::Assignment,
-                         .assignment = node::Assignment{ target, expr });
+    auto ast = new_ast(&state->ast_pool, location, AstKind::Assignment,
+                         .assignment = Assignment{ target, expr });
     auto variable_name = get_lvalue_identifier(target);
     auto symbol = lookup_id(state->scopes.curr, variable_name);
 
     if (!symbol) {
         UNDEFINED_SYMBOL_ERROR(location, variable_name);
         state->status = 1;
-        return node;
+        return ast;
     }
 
-    auto target_type = lookup_node_type(state->scopes.curr, target);
+    auto target_type = lookup_ast_type(state->scopes.curr, target);
     if (!type::is_primitive(target_type)) {
         INVALID_MOV_ERROR(location, target_type);
         state->status = 1;
-        return node;
+        return ast;
     }
 
     auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, node, target_type,
+    state->post_process_callbacks.push_back([scope, ast, target_type,
                                              expr]() -> bool {
-        auto expr_type = lookup_node_type(scope, expr);
+        auto expr_type = lookup_ast_type(scope, expr);
         // TOOD: warning?
         if (!type::is_convertible(expr_type, target_type)) {
-            BAD_ASSIGNMENT_ERROR(node->location, expr_type, target_type);
+            BAD_ASSIGNMENT_ERROR(ast->location, expr_type, target_type);
             return false;
         }
         if (!type::equal(expr_type, target_type)) {
-            IMPLICIT_CONVERTION_WARNING(node->location, expr_type, target_type);
+            IMPLICIT_CONVERTION_WARNING(ast->location, expr_type, target_type);
         }
         return true;
     });
-    return node;
+    return ast;
 }
 
-void new_cnd(State *state, node::Node *cond, size_t line) {
-    state->parser_stack.push(new_node(&state->node_pool, location_create(state->curr_filename, line),
-                node::NodeKind::CndStmt, .cnd_stmt = node::CndStmt{
+void new_cnd(State *state, Ast *cond, size_t line) {
+    state->parser_stack.push(new_ast(&state->ast_pool, location_create(state->curr_filename, line),
+                AstKind::CndStmt, .cnd_stmt = CndStmt{
                     .condition = cond,
                     .block = nullptr,
                     .otw = nullptr,
@@ -411,7 +410,7 @@ void new_otw(State *state) {
     auto block = s3c::end_block(state);
     s3c::leave_scope(state, block);
 
-    node::CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
+    CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
     while (cur->block != nullptr) {
         cur = &cur->otw->data.cnd_stmt;
     }
@@ -421,25 +420,25 @@ void new_otw(State *state) {
     s3c::enter_scope(state);
 }
 
-void new_otw_cnd(State *state, node::Node *cond, size_t line) {
-    node::CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
+void new_otw_cnd(State *state, Ast *cond, size_t line) {
+    CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
     while (cur->otw != nullptr) {
         cur = &cur->otw->data.cnd_stmt;
     }
-    cur->otw = new_node(&state->node_pool, location_create(state->curr_filename, line),
-                        node::NodeKind::CndStmt, .cnd_stmt = node::CndStmt{
+    cur->otw = new_ast(&state->ast_pool, location_create(state->curr_filename, line),
+                        AstKind::CndStmt, .cnd_stmt = CndStmt{
                             .condition = cond,
                             .block = nullptr,
                             .otw = nullptr,
                         });
 }
 
-node::Node *end_cnd(State *state) {
+Ast *end_cnd(State *state) {
     auto cnd = state->parser_stack.top();
     auto block = s3c::end_block(state);
     s3c::leave_scope(state, block);
 
-    node::Node *cur = cnd;
+    Ast *cur = cnd;
     while (cur->data.cnd_stmt.otw != nullptr) {
         cur = cur->data.cnd_stmt.otw;
     }
@@ -453,8 +452,8 @@ node::Node *end_cnd(State *state) {
     return cnd;
 }
 
-node::Node *new_for(State *state, node::Node *init, node::Node *end,
-                    node::Node *step, node::Node *block, size_t line) {
+Ast *new_for(State *state, Ast *init, Ast *end,
+                    Ast *step, Ast *block, size_t line) {
     auto location = LOCATION;
     auto scope = state->scopes.curr;
     state->post_process_callbacks.push_back(
@@ -463,7 +462,7 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
             auto idx_sym =
                 lookup_id(scope, idx_var->data.variable_reference.name.ptr);
             auto idx_var_type = idx_sym->type;
-            auto step_type = lookup_node_type(scope, step);
+            auto step_type = lookup_ast_type(scope, step);
 
             if (!type::equal(idx_var_type, step_type)) {
                 if (!type::is_convertible(idx_var_type, step_type)) {
@@ -479,8 +478,8 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
     // variable, therefore, we need to manually create the assignment
     auto step_assignment =
         new_assignment(state, init->data.assignment.target, step, line);
-    return new_node(&state->node_pool, location, node::NodeKind::ForStmt,
-                    .for_stmt = node::ForStmt{
+    return new_ast(&state->ast_pool, location, AstKind::ForStmt,
+                    .for_stmt = ForStmt{
                         .init = init,
                         .condition = end,
                         .step = step_assignment,
@@ -488,26 +487,26 @@ node::Node *new_for(State *state, node::Node *init, node::Node *end,
                     });
 }
 
-void new_shw(State *state, node::Node *expr, size_t line) {
+void new_shw(State *state, Ast *expr, size_t line) {
     auto scope = state->scopes.curr;
     auto location = LOCATION;
-    auto node = new_node(&state->node_pool, location, node::NodeKind::BuiltinFunction,
-                         .builtin_function = node::BuiltinFunction{
-                            .kind = node::BuiltinFunctionKind::Shw,
+    auto ast = new_ast(&state->ast_pool, location, AstKind::BuiltinFunction,
+                         .builtin_function = BuiltinFunction{
+                            .kind = BuiltinFunctionKind::Shw,
                             .argument = expr,
                          });
 
-    state->post_process_callbacks.push_back([scope, node, expr]() -> bool {
-        auto expr_type = lookup_node_type(scope, expr);
+    state->post_process_callbacks.push_back([scope, ast, expr]() -> bool {
+        auto expr_type = lookup_ast_type(scope, expr);
         if (!type::is_str(expr_type)) {
-            ERROR(node->location, "shw takes a string as argument.");
+            ERROR(ast->location, "shw takes a string as argument.");
             return false;
         }
         // TODO: this may change if in the future implementation of shw
         // support variable display
         return true;
     });
-    add_instruction(state, node);
+    add_instruction(state, ast);
 }
 
 bool try_verify_main_type(State *state) {

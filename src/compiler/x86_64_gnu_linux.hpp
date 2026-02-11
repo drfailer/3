@@ -3,7 +3,7 @@
 
 #include "compiler/compiler.hpp"
 #include "symbol_table.hpp"
-#include "tree/node.hpp"
+#include "ast.hpp"
 
 namespace compiler {
 

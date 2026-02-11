@@ -27,12 +27,12 @@ Symbol *lookup_id(SymbolTable *table, std::string const &id) {
     return nullptr;
 }
 
-type::Type *lookup_node_type(SymbolTable *table, node::Node *node) {
-    auto maybe_type = table->node_types.find(node);
-    if (maybe_type != table->node_types.end()) {
+type::Type *lookup_ast_type(SymbolTable *table, Ast *ast) {
+    auto maybe_type = table->ast_types.find(ast);
+    if (maybe_type != table->ast_types.end()) {
         return maybe_type->second;
     } else if (table->parent != nullptr) {
-        return lookup_node_type(table->parent, node);
+        return lookup_ast_type(table->parent, ast);
     }
     return nullptr;
 }

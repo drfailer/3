@@ -1,19 +1,27 @@
 #ifndef AST_NODE_H
 #define AST_NODE_H
-#include "location.hpp"
-#include "../tools/array.hpp"
-#include "../tools/string.hpp"
-#include "../tools/mem.hpp"
+#include "tools/array.hpp"
+#include "tools/string.hpp"
+#include "tools/mem.hpp"
 #include <cstddef>
 #include <string>
 #include <vector>
+#include <ostream>
 
-namespace node {
+struct Location {
+    size_t row;
+    size_t col;
+    std::string filename;
+};
 
-struct Node;
+Location location_create(std::string const &filename, size_t row,
+                         size_t col = 0);
+std::ostream &operator<<(std::ostream &os, Location const &location);
+
+struct Ast;
 struct Block;
 
-enum class NodeKind {
+enum class AstKind {
     Value,
     // variable
     VariableDefinition,
@@ -62,56 +70,56 @@ struct VariableReference {
 };
 
 struct Assignment {
-    Node *target;
-    Node *value;
+    Ast *target;
+    Ast *value;
 };
 
 struct IndexExpression {
-    Node *element;
-    Node *index;
+    Ast *element;
+    Ast *index;
 };
 
 struct FunctionDefinition {
     String name;
-    Array<Node *> arguments = {};
-    Node *body;
+    Array<Ast *> arguments = {};
+    Ast *body;
 };
 
 // TODO: do we want to use this type in FunctionDefinition as well?
 struct FunctionDeclaration {
     String name;
-    Array<Node *> arguments = {};
+    Array<Ast *> arguments = {};
 };
 
 struct FunctionCall {
     String name;
-    Array<Node *> arguments = {};
+    Array<Ast *> arguments = {};
 };
 
 struct CndStmt {
-    Node *condition;
-    Node *block;
-    Node *otw;
+    Ast *condition;
+    Ast *block;
+    Ast *otw;
 };
 
 struct WhlStmt {
-    Node *condition;
-    Node *block;
+    Ast *condition;
+    Ast *block;
 };
 
 struct ForStmt {
-    Node *init;
-    Node *condition;
-    Node *step;
-    Node *block;
+    Ast *init;
+    Ast *condition;
+    Ast *step;
+    Ast *block;
 };
 
 struct RetStmt {
-    Node *expression;
+    Ast *expression;
 };
 
 struct Block {
-    Array<Node *> nodes = {};
+    Array<Ast *> asts = {};
 };
 
 enum ArithmeticOperationKind {
@@ -122,8 +130,8 @@ enum ArithmeticOperationKind {
 };
 struct ArithmeticOperation {
     ArithmeticOperationKind kind;
-    Node *lhs;
-    Node *rhs;
+    Ast *lhs;
+    Ast *rhs;
 };
 
 enum BooleanOperationKind {
@@ -141,8 +149,8 @@ enum BooleanOperationKind {
 };
 struct BooleanOperation {
     BooleanOperationKind kind;
-    Node *lhs;
-    Node *rhs;
+    Ast *lhs;
+    Ast *rhs;
 };
 
 enum BuiltinFunctionKind {
@@ -151,10 +159,10 @@ enum BuiltinFunctionKind {
 };
 struct BuiltinFunction {
     BuiltinFunctionKind kind;
-    Node *argument;
+    Ast *argument;
 };
 
-union NodeData {
+union AstData {
     Value value;
     VariableDefinition variable_definition;
     VariableReference variable_reference;
@@ -173,24 +181,21 @@ union NodeData {
     BuiltinFunction builtin_function;
 };
 
-struct Node {
+struct Ast {
     Location location;
-    NodeKind kind;
-    NodeData data;
+    AstKind kind;
+    AstData data;
 };
 
-void print_node(Node *node);
+void print_ast(Ast *ast);
 
-inline Node *new_node_(MemPool<Node> *pool, Location loc, NodeKind kind, NodeData data) {
-    return mem_pool_alloc(pool, node::Node{
+inline Ast *new_ast_(MemPool<Ast> *pool, Location loc, AstKind kind, AstData data) {
+    return mem_pool_alloc(pool, Ast{
         .location = loc,
         .kind = kind,
         .data = data,
     });
 }
-
-} // end namespace node
-
-#define new_node(pool, loc, kind, ...) node::new_node_((pool), (loc), (kind), node::NodeData{__VA_ARGS__})
+#define new_ast(pool, loc, kind, ...) new_ast_((pool), (loc), (kind), AstData{__VA_ARGS__})
 
 #endif

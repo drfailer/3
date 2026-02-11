@@ -1,7 +1,6 @@
 #ifndef SYMTABLE_SYMBOL_TABLE_H
 #define SYMTABLE_SYMBOL_TABLE_H
-#include "tree/location.hpp"
-#include "tree/node.hpp"
+#include "ast.hpp"
 #include "type/type.hpp"
 #include <map>
 #include <string>
@@ -22,15 +21,15 @@ struct SymbolTable {
     SymbolTable *parent;
     std::map<std::string, Symbol> symbols;
     std::vector<SymbolTable *> childs_scopes;
-    std::map<node::Node*, SymbolTable*> block_scopes;
-    std::map<node::Node*, type::Type*> node_types; // evaluated type of
-                                                   // expression nodes
+    std::map<Ast*, SymbolTable*> block_scopes;
+    std::map<Ast*, type::Type*> ast_types; // evaluated type of
+                                                   // expression asts
 };
 
 SymbolTable *symbol_table_create(SymbolTable *parent);
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
                    SymbolTable *scope, Location const &location);
 Symbol *lookup_id(SymbolTable *table, std::string const &id);
-type::Type *lookup_node_type(SymbolTable *table, node::Node *node);
+type::Type *lookup_ast_type(SymbolTable *table, Ast *ast);
 
 #endif

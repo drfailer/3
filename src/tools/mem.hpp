@@ -101,16 +101,16 @@ T *arena_alloc(Arena *arena, size_t size = 1, size_t align = DEFAULT_ALIGN) {
 }
 
 template <typename T>
-struct MemPoolNode {
+struct MemPoolAst {
     T data = {};
-    MemPoolNode<T> *prev = nullptr;
-    MemPoolNode<T> *next = nullptr;
+    MemPoolAst<T> *prev = nullptr;
+    MemPoolAst<T> *next = nullptr;
 };
 
 template <typename T>
 struct MemPool {
-    MemPoolNode<T> *free_list_head = nullptr;
-    MemPoolNode<T> *used_list_head = nullptr;
+    MemPoolAst<T> *free_list_head = nullptr;
+    MemPoolAst<T> *used_list_head = nullptr;
 };
 
 template <typename T, typename ...Args>
@@ -118,15 +118,15 @@ void mem_pool_init(MemPool<T> *pool, size_t default_capacity = 0) {
     pool->free_list_head = nullptr;
     pool->used_list_head = nullptr;
     for (size_t i = 0; i < default_capacity; ++i) {
-        auto node = new MemPoolNode<T>();
-        node->next = pool->free_list_head;
-        pool->free_list_head = node;
+        auto ast = new MemPoolAst<T>();
+        ast->next = pool->free_list_head;
+        pool->free_list_head = ast;
     }
 }
 
 template <typename T>
 void mem_pool_destroy(MemPool<T> *pool) {
-    auto delete_list = [](MemPoolNode<T> *head) {
+    auto delete_list = [](MemPoolAst<T> *head) {
         while (head != nullptr) {
             auto next = head->next;
             delete head;
@@ -139,37 +139,37 @@ void mem_pool_destroy(MemPool<T> *pool) {
 
 template <typename T>
 T *mem_pool_alloc(MemPool<T> *pool, T const &value = {}) {
-    MemPoolNode<T> *node = nullptr;
+    MemPoolAst<T> *ast = nullptr;
 
     if (pool->free_list_head == nullptr) {
-        pool->free_list_head = new MemPoolNode<T>();
+        pool->free_list_head = new MemPoolAst<T>();
     }
-    node = pool->free_list_head;
-    pool->free_list_head = node->next;
-    node->next = pool->used_list_head;
-    if (node->next != nullptr) {
-        node->next->prev = node;
+    ast = pool->free_list_head;
+    pool->free_list_head = ast->next;
+    ast->next = pool->used_list_head;
+    if (ast->next != nullptr) {
+        ast->next->prev = ast;
     }
-    pool->used_list_head = node;
-    node->data = value;
-    return (T*)node;
+    pool->used_list_head = ast;
+    ast->data = value;
+    return (T*)ast;
 }
 
 template <typename T>
 void mem_pool_release(MemPool<T> *pool, T *data) {
-    auto node = (MemPoolNode<T>*)data;
-    if (node->prev != nullptr) {
-        node->prev->next = node->next;
+    auto ast = (MemPoolAst<T>*)data;
+    if (ast->prev != nullptr) {
+        ast->prev->next = ast->next;
     } else {
-        assert(pool->used_list_head = node);
-        pool->used_list_head = node->next;
+        assert(pool->used_list_head = ast);
+        pool->used_list_head = ast->next;
     }
-    if (node->next != nullptr) {
-        node->next->prev = node->prev;
+    if (ast->next != nullptr) {
+        ast->next->prev = ast->prev;
     }
-    node->prev = nullptr;
-    node->next = pool->free_list_head;
-    pool->free_list_head = node;
+    ast->prev = nullptr;
+    ast->next = pool->free_list_head;
+    pool->free_list_head = ast;
 }
 
 #endif

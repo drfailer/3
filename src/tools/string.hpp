@@ -7,7 +7,7 @@
 // TODO: add support for arena alocator so that the memory get's released
 // TODO?: replace std::string with this struct
 
-// a trivialy copyable/constructible type to use in the nodes
+// a trivialy copyable/constructible type to use in the asts
 struct String {
     char *ptr;
     size_t len;

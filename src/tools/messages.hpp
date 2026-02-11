@@ -1,6 +1,5 @@
 #ifndef TOOLS_MESSAGES
 #define TOOLS_MESSAGES
-#include "../tree/location.hpp"
 #include "type/type.hpp"
 #include <sstream>
 #include <string>

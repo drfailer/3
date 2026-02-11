@@ -28,7 +28,7 @@
 
 %code requires
 {
-    #include "tree/node.hpp"
+    #include "ast.hpp"
     #include "s3c.hpp"
     namespace parser {
         class Scanner;
@@ -64,18 +64,18 @@
 
 %nterm <type::Type*> type
 %nterm <type::Type*> returnTypeSpecifier
-%nterm <node::Node*> parameterDeclaration
-%nterm <node::Node*> value
-%nterm <node::Node*> assignment
-%nterm <node::Node*> expression
-%nterm <node::Node*> variable
-%nterm <node::Node*> arithmeticOperation
-%nterm <node::Node*> functionCall
-%nterm <node::Node*> booleanOperation
-%nterm <node::Node*> block
-%nterm <node::Node*> cnd
-%nterm <node::Node*> for
-%nterm <node::Node*> whl
+%nterm <Ast*> parameterDeclaration
+%nterm <Ast*> value
+%nterm <Ast*> assignment
+%nterm <Ast*> expression
+%nterm <Ast*> variable
+%nterm <Ast*> arithmeticOperation
+%nterm <Ast*> functionCall
+%nterm <Ast*> booleanOperation
+%nterm <Ast*> block
+%nterm <Ast*> cnd
+%nterm <Ast*> for
+%nterm <Ast*> whl
 
 %start start
 
@@ -199,9 +199,9 @@ ipt:
     IPT'('variable[c]')' {
         DEBUG("ipt var");
         s3c::add_instruction(state,
-            new_node(&state->node_pool, location_create(state->curr_filename, @c.begin.line),
-                node::NodeKind::BuiltinFunction, .builtin_function = node::BuiltinFunction{
-                        .kind = node::BuiltinFunctionKind::Ipt,
+            new_ast(&state->ast_pool, location_create(state->curr_filename, @c.begin.line),
+                AstKind::BuiltinFunction, .builtin_function = BuiltinFunction{
+                        .kind = BuiltinFunctionKind::Ipt,
                         .argument = $c,
                     }
                 ));
@@ -237,103 +237,103 @@ arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            node::ArithmeticOperationKind::Add, @1.begin.line, "add");
+            ArithmeticOperationKind::Add, @1.begin.line, "add");
     }
     | SUB'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            node::ArithmeticOperationKind::Sub, @1.begin.line, "sub");
+            ArithmeticOperationKind::Sub, @1.begin.line, "sub");
     }
     | MUL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            node::ArithmeticOperationKind::Mul, @1.begin.line, "mul");
+            ArithmeticOperationKind::Mul, @1.begin.line, "mul");
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            node::ArithmeticOperationKind::Div, @1.begin.line, "div");
+            ArithmeticOperationKind::Div, @1.begin.line, "div");
     }
     ;
 
 booleanOperation:
     EQL'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("EqlOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Eql,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Eql,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SupOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Sup,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Sup,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | INF'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("InfOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Inf,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Inf,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("SeqOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Seq,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Seq,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
         DEBUG("IeqOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Ieq,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Ieq,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("AndOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::And,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::And,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("LorOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Lor,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Lor,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
         DEBUG("XorOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Xor,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Xor,
                           .lhs = $lhs,
                           .rhs = $rhs,
                       });
     }
     | NOT'('booleanOperation[op]')' {
         DEBUG("NotOP");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::BooleanOperation, .boolean_operation = node::BooleanOperation{
-                          .kind = node::BooleanOperationKind::Not,
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
+                          .kind = BooleanOperationKind::Not,
                           .lhs = $op,
                           .rhs = nullptr,
                       });
@@ -446,8 +446,8 @@ whl:
         s3c::enter_scope(state);
     } block[ops] {
         DEBUG("in whl");
-        $$ = new_node(&state->node_pool, location_create(state->curr_filename, @1.begin.line),
-                      node::NodeKind::WhlStmt, .whl_stmt = node::WhlStmt{
+        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
+                      AstKind::WhlStmt, .whl_stmt = WhlStmt{
                           .condition = $cond,
                           .block = $ops,
                       });

@@ -38,8 +38,7 @@ set(files
     src/tools/string.cpp
     src/tools/mem.cpp
     src/tools/type_utilities.cpp
-    src/tree/node.cpp
-    src/tree/location.cpp
+    src/ast.cpp
     src/type/predicates.cpp
     src/type/type.cpp
 )
