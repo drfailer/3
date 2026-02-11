@@ -3,8 +3,53 @@
 #include <cassert>
 #include <cstring>
 #include <cstdint>
+#include <cstdlib>
 
-#define ARENA_DEFAULT_ALIGH 2*sizeof(void*)
+#define DEFAULT_ALIGN 2*sizeof(void*)
+#define DEFAULT_ALLOCATOR Allocator{   \
+        .alloc = heap_allocator_alloc, \
+        .free = heap_allocator_free,   \
+        .data = nullptr,               \
+    }
+
+/******************************************************************************/
+/*                                 allocator                                  */
+/******************************************************************************/
+
+struct Allocator {
+    void *(*alloc)(void*, size_t, size_t);
+    void (*free)(void*, void*);
+    void *data;
+};
+
+inline void *alloc(Allocator &allocator, size_t size, size_t align = DEFAULT_ALIGN) {
+    return allocator.alloc(allocator.data, size, align);
+}
+
+template <typename T>
+inline T *alloc(Allocator &allocator, size_t size = 1, size_t align = DEFAULT_ALIGN) {
+    return (T*)allocator.alloc(allocator.data, sizeof(T) * size, align);
+}
+
+inline void free(Allocator &allocator, void *ptr) {
+    allocator.free(allocator.data, ptr);
+}
+
+/******************************************************************************/
+/*                               heap allocator                               */
+/******************************************************************************/
+
+inline void *heap_allocator_alloc(void*, size_t size, size_t) {
+    return malloc(size);
+}
+
+inline void heap_allocator_free(void*, void *ptr) {
+    free(ptr);
+}
+
+/******************************************************************************/
+/*                                   arena                                    */
+/******************************************************************************/
 
 struct ArenaRegion {
     size_t pos = 0;
@@ -26,15 +71,32 @@ struct Arena {
     size_t default_region_size = 0;
 };
 
-Arena arena_create(size_t default_region_size);
-void arena_destory(Arena *arena);
+#define ARENA_DEFAULT_REGION_SIZE (1024*1024)
+Arena arena_create(size_t default_region_size = ARENA_DEFAULT_REGION_SIZE);
+void arena_destroy(Arena *arena);
 void *arena_alloc(Arena *arena, size_t size, size_t align);
+
+inline void  arena_allocator_free(void*, void*) {} // TODO: we may want to be able to free the last element
+inline void *arena_allocator_alloc(void *arena, size_t size, size_t align) {
+    return arena_alloc((Arena*)arena, size, align);
+}
+inline Allocator arena_allocator(Arena *arena) {
+    return Allocator{
+        .alloc = arena_allocator_alloc,
+        .free = arena_allocator_free,
+        .data = arena,
+    };
+}
+
+/******************************************************************************/
+/*                                    pool                                    */
+/******************************************************************************/
 
 /*
  * Helper function used to allocate elements of specific types.
  */
 template <typename T>
-T *arena_alloc(Arena *arena, size_t size = 1, size_t align = ARENA_DEFAULT_ALIGH) {
+T *arena_alloc(Arena *arena, size_t size = 1, size_t align = DEFAULT_ALIGN) {
     return (T*)arena_alloc(arena, size, align);
 }
 

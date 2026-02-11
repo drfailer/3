@@ -2,6 +2,10 @@
 #include <cassert>
 #include <algorithm>
 
+/******************************************************************************/
+/*                                   arena                                    */
+/******************************************************************************/
+
 static bool is_power_of_two(uintptr_t x) {
     return (x & (x-1)) == 0;
 }
@@ -67,7 +71,7 @@ void arena_destroy(Arena *arena) {
 // TODO: the current implemantation loops through all the regions to find the
 //       first one that has sufficient space for the allocation. It would be
 //       better if the head pointer was moved whenever a region is full.
-void *arena_alloc(Arena *arena, size_t size, size_t align = ARENA_DEFAULT_ALIGH) {
+void *arena_alloc(Arena *arena, size_t size, size_t align = DEFAULT_ALIGN) {
     ArenaRegion *region = nullptr;
 
     // look for a region that can hold this size
