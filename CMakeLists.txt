@@ -10,7 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 # compiler options
-add_compile_options(-Wall -Wextra -Wuninitialized -g)
+add_compile_options(-Wall -Wextra -Wuninitialized -Wconversion -g)
 
 include_directories(src)
 
