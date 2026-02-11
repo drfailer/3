@@ -18,12 +18,15 @@ State *state_create() {
     state->scopes.global = scope;
     state->scopes.curr = scope;
     state->status = 0;
+    state->arena = arena_create();
+    state->allocator = arena_allocator(&state->arena);
     mem_pool_init(&state->node_pool, 100);
     return state;
 }
 
 void state_destroy(State *state) {
     mem_pool_destroy(&state->node_pool);
+    arena_destroy(&state->arena);
     delete state;
 }
 
@@ -121,7 +124,9 @@ void add_function_definition(State *state, std::string const &name,
     state->program.push_back(new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionDefinition,
                              .function_definition = node::FunctionDefinition{
                                 .name = string_create(name),
-                                .arguments = array_create_from_std_vector(state->curr_function.arguments),
+                                .arguments = array_create_from_std_vector(
+                                        state->curr_function.arguments,
+                                        state->allocator),
                                 .body = body,
                             }));
     leave_scope(state, body);
@@ -132,15 +137,20 @@ void add_function_declaration(State *state, size_t line) {
     state->program.push_back(new_node(&state->node_pool, LOCATION,node::NodeKind::FunctionDeclaration,
                              .function_declaration = node::FunctionDeclaration{
                                 .name = string_create(state->curr_function.name),
-                                .arguments = array_create_from_std_vector(state->curr_function.arguments),
+                                .arguments = array_create_from_std_vector(
+                                        state->curr_function.arguments,
+                                        state->allocator),
                             }));
     s3c::leave_scope(state, nullptr);
     s3c::reset_curr_function(state);
 }
 
 void begin_block(State *state) {
-    state->curr_function.blocks.push(new_node(&state->node_pool, Location{}, node::NodeKind::Block,
-                                              .block = { array_create<node::Node*>() }));
+    state->curr_function.blocks.push(new_node(
+                &state->node_pool,
+                Location{},
+                node::NodeKind::Block,
+                .block = { array_create<node::Node*>(0, 0, state->allocator) }));
 }
 
 node::Node *end_block(State *state) {
@@ -228,7 +238,7 @@ node::Node *new_function_call(State *state, std::string const &function_name,
     auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionCall,
                          .function_call = node::FunctionCall{
                             .name = string_create(function_name),
-                            .arguments = array_create_from_std_vector(args),
+                            .arguments = array_create_from_std_vector(args, state->allocator),
                          });
     state->funcall_parameters.pop_back();
 

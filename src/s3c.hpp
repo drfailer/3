@@ -32,6 +32,8 @@ struct State {
     std::vector<std::string> funcall_ids;
     std::stack<node::Node *> parser_stack; // node stack for complexe rules
     MemPool<node::Node> node_pool; // TODO: the node should be default constructible!
+    Arena arena;
+    Allocator allocator;
 };
 
 State *state_create();
