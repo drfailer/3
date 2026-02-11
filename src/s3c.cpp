@@ -91,7 +91,7 @@ node::Node *new_argument_declaration(State *state, std::string const &id,
     auto location = location_create(state->curr_filename, line);
     auto node = new_node(&state->node_pool, location, node::NodeKind::VariableDefinition,
                          .variable_definition = node::VariableDefinition{
-                            .name = string_create(id),
+                            .name = string_create(id, state->allocator),
                          });
     add_symbol(state, id, type, location);
     state->curr_function.arguments.push_back(node);
@@ -123,7 +123,7 @@ void add_function_definition(State *state, std::string const &name,
                              node::Node *body, size_t line) {
     state->program.push_back(new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionDefinition,
                              .function_definition = node::FunctionDefinition{
-                                .name = string_create(name),
+                                .name = string_create(name, state->allocator),
                                 .arguments = array_create_from_std_vector(
                                         state->curr_function.arguments,
                                         state->allocator),
@@ -136,7 +136,7 @@ void add_function_definition(State *state, std::string const &name,
 void add_function_declaration(State *state, size_t line) {
     state->program.push_back(new_node(&state->node_pool, LOCATION,node::NodeKind::FunctionDeclaration,
                              .function_declaration = node::FunctionDeclaration{
-                                .name = string_create(state->curr_function.name),
+                                .name = string_create(state->curr_function.name, state->allocator),
                                 .arguments = array_create_from_std_vector(
                                         state->curr_function.arguments,
                                         state->allocator),
@@ -237,7 +237,7 @@ node::Node *new_function_call(State *state, std::string const &function_name,
     auto args = state->funcall_parameters.back();
     auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::FunctionCall,
                          .function_call = node::FunctionCall{
-                            .name = string_create(function_name),
+                            .name = string_create(function_name, state->allocator),
                             .arguments = array_create_from_std_vector(args, state->allocator),
                          });
     state->funcall_parameters.pop_back();
@@ -296,7 +296,7 @@ void new_variable_declaration(State *state, std::string id, type::Type *type,
     insert_symbol(state->scopes.curr, id, type, nullptr, location);
     add_instruction(state, new_node(&state->node_pool, location, node::NodeKind::VariableDefinition,
                          .variable_definition = node::VariableDefinition{
-                            .name = string_create(id),
+                            .name = string_create(id, state->allocator),
                          }));
 }
 
@@ -305,7 +305,7 @@ node::Node *new_variable_reference(State *state, std::string const &name,
     auto sym = lookup_id(state->scopes.curr, name);
     auto node = new_node(&state->node_pool, LOCATION, node::NodeKind::VariableReference,
                          .variable_reference = node::VariableReference{
-                              .name = string_create(name),
+                              .name = string_create(name, state->allocator),
                          });
 
     if (!sym) {
@@ -323,7 +323,7 @@ node::Node *new_index_expr(State *state, std::string const &name, size_t line,
     auto location = location_create(state->curr_filename, line);
     auto variable = new_node(&state->node_pool, LOCATION, node::NodeKind::VariableReference,
                              .variable_reference = node::VariableReference{
-                                .name = string_create(name),
+                                .name = string_create(name, state->allocator),
                              });
     auto node = new_node(&state->node_pool, location, node::NodeKind::IndexExpression,
                          .index_expression = node::IndexExpression{

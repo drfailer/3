@@ -2,21 +2,17 @@
 #define TOOLS_STRINGS
 #include <string>
 #include <cassert>
+#include "mem.hpp"
 
-// TODO: rename this file to `string` and create a custom string type
-// TODO: finish arena implementation
-// TODO: add a custom array type for the ast
-//
-//
-// BUG: we need a function to convert String std::string because the store string is not null terminated.
-// NODE: at some point, std::string migh get completely replaced with String.
+// TODO: add support for arena alocator so that the memory get's released
+// TODO?: replace std::string with this struct
 
 // a trivialy copyable/constructible type to use in the nodes
 struct String {
     char *ptr;
     size_t len;
-    // if we need to append to the string we need a cap
-    // TODO: allocator
+    // TODO: if we need to append to the string we need a cap
+    Allocator allocator;
 
     char &operator[](size_t i) {
         assert(i < len && "error: index out of bound.");
@@ -29,7 +25,7 @@ struct String {
     }
 };
 
-String string_create(std::string const &str);
+String string_create(std::string const &str, Allocator allocator = DEFAULT_ALLOCATOR);
 String string_create(char const *cstr);
 void   string_destroy(String *str);
 

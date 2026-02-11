@@ -1,11 +1,12 @@
 #include "string.hpp"
 #include <cstring>
 
-String string_create(std::string const &std_str) {
+String string_create(std::string const &std_str, Allocator allocator) {
     size_t len = std_str.size();
     String str = {
-        .ptr = new char[len + 1],
+        .ptr = alloc<char>(allocator, len + 1),
         .len = len,
+        .allocator = allocator,
     };
     assert(str.ptr != nullptr && "error: failed to allocated string buffer.");
     memcpy(str.ptr, std_str.data(), len);
@@ -14,7 +15,7 @@ String string_create(std::string const &std_str) {
 }
 
 void string_destroy(String *str) {
-    delete[] str->ptr;
+    free(str->allocator, str->ptr);
 }
 
 bool starts_with(std::string const &str, std::string const &pattern) {

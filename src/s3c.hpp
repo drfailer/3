@@ -137,7 +137,7 @@ node::Node *new_value(State *state, T value, size_t line) {
         node = new_node(&state->node_pool, location, node::NodeKind::Value,
                         .value = node::Value{
                             .kind = node::ValueKind::Integer,
-                            .value = { .string = string_create(value) },
+                            .value = { .string = string_create(value, state->allocator) },
                         });
         state->scopes.curr->node_types.insert(
             {node, type::create_primitive_type(type::PrimitiveType::Str)});
