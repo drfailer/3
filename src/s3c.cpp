@@ -264,17 +264,8 @@ Ast *new_index_expr(State *state, std::string const &name, size_t line,
     } else {
         state->scopes.curr->ast_types.insert(
             {ast, sym->type->value.array->type});
-        // this may not be usefull
+        // this may not be useful
         state->scopes.curr->ast_types.insert({variable, sym->type});
-        auto scope = state->scopes.curr;
-        state->post_process_callbacks.push_back([scope, index_ast]() -> bool {
-            auto index_type = lookup_ast_type(scope, index_ast);
-            if (!type::is_int(index_type)) {
-                INVALID_INDEX_TYPE_ERROR(index_ast->location, index_type);
-                return false;
-            }
-            return true;
-        });
     }
     return ast;
 }

@@ -30,8 +30,19 @@ bool check_assignment(CheckState *state, Ast *ast, SymbolTable *scope) {
     return true;
 }
 
-bool check_index_expr(CheckState *, Ast *, SymbolTable *) {
-    // TODO
+bool check_index_expr(CheckState *state, Ast *ast, SymbolTable *scope) {
+    Ast *variable_ast = ast->data.index_expression.element;
+    Ast *index_ast = ast->data.index_expression.index;
+
+    if (!check(state, variable_ast, scope) || !check(state, index_ast, scope)) {
+        return false;
+    }
+
+    auto index_type = lookup_ast_type(scope, index_ast);
+    if (!type::is_int(index_type)) {
+        INVALID_INDEX_TYPE_ERROR(index_ast->location, index_type);
+        return false;
+    }
     return true;
 }
 
