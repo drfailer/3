@@ -215,6 +215,25 @@ bool check_boolean_operation(CheckState *state, Ast *ast, SymbolTable *scope) {
     return true;
 }
 
+bool check_builtin_function(CheckState *state, Ast *ast, SymbolTable *scope) {
+    Ast *arg = ast->data.builtin_function.argument;
+
+    if (!check(state, arg, scope)) {
+        return false;
+    }
+
+    if (ast->data.builtin_function.kind == BuiltinFunctionKind::Shw) {
+        auto expr_type = lookup_ast_type(scope, arg);
+        if (!type::is_str(expr_type)) {
+            ERROR(ast->location, "shw takes a string as argument.");
+            return false;
+        }
+        // TODO: this may change if in the future implementation of shw
+        // support variable display
+    }
+    return true;
+}
+
 bool check(CheckState *state, Ast *ast, SymbolTable *scope) {
     bool ok = true;
 
@@ -261,7 +280,9 @@ bool check(CheckState *state, Ast *ast, SymbolTable *scope) {
     case AstKind::BooleanOperation:
         ok = check_boolean_operation(state, ast, scope);
         break;
-    case AstKind::BuiltinFunction: break;
+    case AstKind::BuiltinFunction:
+        ok = check_builtin_function(state, ast, scope);
+        break;
     }
     return ok;
 }

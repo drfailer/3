@@ -165,7 +165,6 @@ void add_instruction(State *state, Ast *ast) {
 void new_return_expr(State *state, Ast *expr, size_t line) {
     std::ostringstream oss;
     Symbol *sym = lookup_id(state->scopes.curr, state->curr_function.name);
-    auto expected_type = sym->type->value.function->return_type;
     auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
                          .ret_stmt = { expr });
     add_instruction(state, ast);
@@ -376,24 +375,12 @@ Ast *new_for(State *state, Ast *init, Ast *end,
 }
 
 void new_shw(State *state, Ast *expr, size_t line) {
-    auto scope = state->scopes.curr;
     auto location = LOCATION;
     auto ast = new_ast(&state->ast_pool, location, AstKind::BuiltinFunction,
                          .builtin_function = BuiltinFunction{
                             .kind = BuiltinFunctionKind::Shw,
                             .argument = expr,
                          });
-
-    state->post_process_callbacks.push_back([scope, ast, expr]() -> bool {
-        auto expr_type = lookup_ast_type(scope, expr);
-        if (!type::is_str(expr_type)) {
-            ERROR(ast->location, "shw takes a string as argument.");
-            return false;
-        }
-        // TODO: this may change if in the future implementation of shw
-        // support variable display
-        return true;
-    });
     add_instruction(state, ast);
 }
 
