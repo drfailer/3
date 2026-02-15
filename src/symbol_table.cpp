@@ -1,9 +1,20 @@
 #include "symbol_table.hpp"
+#include <iostream>
 
 SymbolTable *symbol_table_create(SymbolTable *parent) {
     auto *table = new SymbolTable();
     table->parent = parent;
+    if (parent != nullptr) {
+        parent->childs_scopes.push_back(table);
+    }
     return table;
+}
+
+void symbol_table_destroy(SymbolTable *table) {
+    for (SymbolTable *child : table->childs_scopes) {
+        symbol_table_destroy(child);
+    }
+    delete table;
 }
 
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,

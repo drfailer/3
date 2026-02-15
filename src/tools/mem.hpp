@@ -71,7 +71,7 @@ struct Arena {
     size_t default_region_size = 0;
 };
 
-#define ARENA_DEFAULT_REGION_SIZE (1024*1024)
+#define ARENA_DEFAULT_REGION_SIZE (32*1024)
 Arena arena_create(size_t default_region_size = ARENA_DEFAULT_REGION_SIZE);
 void arena_destroy(Arena *arena);
 void *arena_alloc(Arena *arena, size_t size, size_t align);

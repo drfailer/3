@@ -121,21 +121,16 @@ bool preprocess(Options const &opts) {
     return true;
 }
 
-// FIXME: bison is generating a lot of invalid reads/writes on the scanner and
-//        the state. I really don't understand what it's doing under the hood.
 bool parse(Options const &opts, s3c::State *state) {
     // BUG: when declaring a string here, its destructor ends up crashing???
-    std::string pp_file = opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE;
-    std::ifstream is(pp_file, std::ios::in);
+    // std::string pp_file = opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE;
+    std::ifstream is(opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE, std::ios::in);
     assert(is.good());
     assert(state != nullptr);
-    parser::Scanner *scanner = new parser::Scanner(is, std::cerr);
-    parser::Parser *parser = new parser::Parser(scanner, state);
-    int err = parser->parse();
+    parser::Scanner scanner(is, std::cerr);
+    parser::Parser parser(scanner, state);
+    int err = parser.parse();
     bool result = !(err || state->status);
-    // BUG: this results in a double free but why?
-    // delete scanner;
-    delete parser;
     return result;
 }
 

@@ -2,6 +2,7 @@
 #define SYMTABLE_SYMBOL_TABLE_H
 #include "ast.hpp"
 #include "type/type.hpp"
+#include "tools/mem.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -19,14 +20,14 @@ struct Symbol {
 
 struct SymbolTable {
     SymbolTable *parent;
-    std::map<std::string, Symbol> symbols;
     std::vector<SymbolTable *> childs_scopes;
+    std::map<std::string, Symbol> symbols;
     std::map<Ast*, SymbolTable*> block_scopes;
-    std::map<Ast*, type::Type*> ast_types; // evaluated type of
-                                                   // expression asts
+    std::map<Ast*, type::Type*> ast_types; // evaluated type of expression asts
 };
 
 SymbolTable *symbol_table_create(SymbolTable *parent);
+void symbol_table_destroy(SymbolTable *table);
 void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
                    SymbolTable *scope, Location const &location);
 Symbol *lookup_id(SymbolTable *table, std::string const &id);

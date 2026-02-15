@@ -24,7 +24,7 @@
 %define api.namespace {parser}
 %define api.value.type variant
 %locations
-%parse-param {Scanner *scanner} {s3c::State *state}
+%parse-param {Scanner &scanner} {s3c::State *state}
 
 %code requires
 {
@@ -40,8 +40,8 @@
     #include "lexer.hpp"
     #include <memory>
     #include <functional>
-    // #define yylex(x) scanner->lex(x)
-    #define yylex(x, y) scanner->lex(x, y) // now we use yylval and yylloc
+    // #define yylex(x) scanner.lex(x)
+    #define yylex(x, y) scanner.lex(x, y) // now we use yylval and yylloc
 }
 
 %token <long long>  INT

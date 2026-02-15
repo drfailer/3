@@ -13,9 +13,8 @@ namespace s3c {
 
 State *state_create() {
     auto *state = new State();
-    auto *scope = symbol_table_create(nullptr);
-    state->scopes.global = scope;
-    state->scopes.curr = scope;
+    state->scopes.global = symbol_table_create(nullptr);
+    state->scopes.curr = state->scopes.global;
     state->status = 0;
     state->arena = arena_create();
     state->allocator = arena_allocator(&state->arena);
@@ -24,6 +23,8 @@ State *state_create() {
 }
 
 void state_destroy(State *state) {
+    // BUG: does not work, the memory must get corrupted somewhere
+    symbol_table_destroy(state->scopes.global);
     mem_pool_destroy(&state->ast_pool);
     arena_destroy(&state->arena);
     delete state;
@@ -54,7 +55,6 @@ void enter_function(State *state, std::string const &function_name) {
 
 void enter_scope(State *state) {
     auto scope = symbol_table_create(state->scopes.curr);
-    state->scopes.curr->childs_scopes.push_back(scope);
     state->scopes.curr = scope;
 }
 
@@ -155,7 +155,6 @@ void add_instruction(State *state, Ast *ast) {
 
 void new_return_expr(State *state, Ast *expr, size_t line) {
     std::ostringstream oss;
-    Symbol *sym = lookup_id(state->scopes.curr, state->curr_function.name);
     auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
                          .ret_stmt = { expr });
     add_instruction(state, ast);
