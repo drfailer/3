@@ -27,7 +27,6 @@ struct State {
         SymbolTable *global;
     } scopes;
     std::vector<Ast *> program;
-    std::vector<std::function<bool(void)>> post_process_callbacks;
     std::vector<std::vector<Ast *>> funcall_parameters;
     std::vector<std::string> funcall_ids;
     std::stack<Ast *> parser_stack; // ast stack for complexe rules
@@ -38,8 +37,6 @@ struct State {
 
 State *state_create();
 void state_destroy(State *state);
-
-bool post_process(State *state);
 
 void reset_curr_function(State *state);
 

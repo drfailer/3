@@ -152,10 +152,6 @@ bool compile(Options const &opts) {
         return false;
     }
 
-    if (!s3c::post_process(state)) {
-        return false;
-    }
-
     if (!check(state->program, state->scopes.global)) {
         return false;
     }

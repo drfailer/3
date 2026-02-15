@@ -29,15 +29,6 @@ void state_destroy(State *state) {
     delete state;
 }
 
-bool post_process(State *state) {
-    for (auto callback : state->post_process_callbacks) {
-        if (!callback()) {
-            return false;
-        }
-    }
-    return true;
-}
-
 void reset_curr_function(State *state) {
     state->curr_function.name.clear();
     state->curr_function.arguments.clear();
