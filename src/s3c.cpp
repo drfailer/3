@@ -168,30 +168,6 @@ void new_return_expr(State *state, Ast *expr, size_t line) {
     auto expected_type = sym->type->value.function->return_type;
     auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
                          .ret_stmt = { expr });
-
-    auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, ast, expr, sym,
-                                             expected_type]() -> bool {
-        if (expr == nullptr) {
-            if (!type::is_nil(expected_type)) {
-                INVALID_RETURN_TYPE_ERROR(
-                    ast->location, sym->id,
-                    sym->type->value.function->return_type, expected_type);
-                return false;
-            }
-            return true;
-        }
-        auto expr_type = lookup_ast_type(scope, expr);
-        if (!type::is_convertible(expr_type, expected_type)) {
-            INVALID_RETURN_TYPE_ERROR(ast->location, sym->id, expr_type,
-                                      sym->type->value.function->return_type);
-            return false;
-        } else if (!type::equal(expr_type, expected_type)) {
-            IMPLICIT_CONVERTION_WARNING(ast->location, expr_type,
-                                        sym->type->value.function->return_type);
-        }
-        return true;
-    });
     add_instruction(state, ast);
 }
 
@@ -204,22 +180,6 @@ Ast *new_arithmetic_operation(State *state, Ast *lhs,
     // type
     auto op_ast = new_ast(&state->ast_pool, LOCATION, AstKind::ArithmeticOperation,
                            .arithmetic_operation = ArithmeticOperation{ kind, lhs, rhs });
-    auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([op_ast, scope, lhs, rhs,
-                                             operator_name]() -> bool {
-        auto lhs_type = lookup_ast_type(scope, lhs);
-        auto rhs_type = lookup_ast_type(scope, rhs);
-
-        if (!type::supports_arithmetic(lhs_type) ||
-            !type::supports_arithmetic(rhs_type)) {
-            ARITHMETIC_OPERATOR_ERROR(op_ast->location, operator_name)
-            return false;
-        }
-        scope->ast_types.insert(
-            {op_ast,
-             type::select_most_precise_arithmetic_type(lhs_type, rhs_type)});
-        return true;
-    });
     return op_ast;
 }
 
@@ -240,45 +200,6 @@ Ast *new_function_call(State *state, std::string const &function_name,
                             .arguments = array_create_from_std_vector(args, state->allocator),
                          });
     state->funcall_parameters.pop_back();
-
-    // setup type verification
-    std::string file = state->curr_filename;
-    auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, ast, args]() -> bool {
-        auto function_name = ast->data.function_call.name;
-        auto sym = lookup_id(scope, function_name.ptr);
-
-        if (sym == nullptr) {
-            UNDEFINED_SYMBOL_ERROR(ast->location, function_name.ptr);
-            return false;
-        }
-        if (sym->type->kind != type::TypeKind::Function) {
-            INVALID_CALL_ERROR(ast->location, function_name.ptr);
-            return false;
-        }
-
-        auto function_type = sym->type->value.function;
-        scope->ast_types.insert({ast, function_type->return_type});
-        if (function_type->arguments_types.size() != args.size()) {
-            WRONG_NUMBER_OF_ARGUMENT_ERROR(ast->location, function_name.ptr,
-                                           sym->type);
-            return false;
-        }
-
-        bool res = true;
-        auto args_types = function_type->arguments_types;
-        for (size_t idx = 0; idx < args.size(); ++idx) {
-            auto found_type = lookup_ast_type(scope, args[idx]);
-            auto expected_tpe = args_types[idx];
-
-            if (!type::is_convertible(found_type, expected_tpe)) {
-                ARGUMENT_TYPE_ERROR(ast->location, function_name.ptr, idx,
-                                    found_type, expected_tpe);
-                res = false;
-            }
-        }
-        return res;
-    });
     return ast;
 }
 
@@ -379,21 +300,6 @@ Ast *new_assignment(State *state, Ast *target, Ast *expr,
         state->status = 1;
         return ast;
     }
-
-    auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back([scope, ast, target_type,
-                                             expr]() -> bool {
-        auto expr_type = lookup_ast_type(scope, expr);
-        // TOOD: warning?
-        if (!type::is_convertible(expr_type, target_type)) {
-            BAD_ASSIGNMENT_ERROR(ast->location, expr_type, target_type);
-            return false;
-        }
-        if (!type::equal(expr_type, target_type)) {
-            IMPLICIT_CONVERTION_WARNING(ast->location, expr_type, target_type);
-        }
-        return true;
-    });
     return ast;
 }
 
@@ -455,24 +361,6 @@ Ast *end_cnd(State *state) {
 Ast *new_for(State *state, Ast *init, Ast *end,
                     Ast *step, Ast *block, size_t line) {
     auto location = LOCATION;
-    auto scope = state->scopes.curr;
-    state->post_process_callbacks.push_back(
-        [location, scope, init, step]() -> bool {
-            auto idx_var = init->data.assignment.target;
-            auto idx_sym =
-                lookup_id(scope, idx_var->data.variable_reference.name.ptr);
-            auto idx_var_type = idx_sym->type;
-            auto step_type = lookup_ast_type(scope, step);
-
-            if (!type::equal(idx_var_type, step_type)) {
-                if (!type::is_convertible(idx_var_type, step_type)) {
-                    FOR_STEP_TYPE_ERROR(location, step_type, idx_var_type);
-                } else {
-                    FOR_STEP_TYPE_WARNING(location, step_type, idx_var_type);
-                }
-            }
-            return true;
-        });
     leave_scope(state, block);
     // the syntax allow to just put the expression that is assigned to the loop
     // variable, therefore, we need to manually create the assignment

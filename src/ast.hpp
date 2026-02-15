@@ -1,5 +1,5 @@
-#ifndef AST_NODE_H
-#define AST_NODE_H
+#ifndef AST_H
+#define AST_H
 #include "tools/array.hpp"
 #include "tools/string.hpp"
 #include "tools/mem.hpp"

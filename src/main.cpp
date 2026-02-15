@@ -4,6 +4,7 @@
 #include "parser/parser.hpp"
 #include "preprocessor/preprocessor.hpp"
 #include "s3c.hpp"
+#include "checks.hpp"
 #include "tools/messages.hpp"
 #include "tools/string.hpp"
 #include <filesystem>
@@ -152,6 +153,10 @@ bool compile(Options const &opts) {
     }
 
     if (!s3c::post_process(state)) {
+        return false;
+    }
+
+    if (!check(state->program, state->scopes.global)) {
         return false;
     }
 

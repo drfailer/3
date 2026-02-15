@@ -39,6 +39,7 @@ set(files
     src/tools/mem.cpp
     src/tools/type_utilities.cpp
     src/ast.cpp
+    src/checks.cpp
     src/type/predicates.cpp
     src/type/type.cpp
 )
