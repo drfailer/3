@@ -118,7 +118,7 @@ Ast *new_value(State *state, T value, size_t line) {
     } else if constexpr (std::is_same_v<T, double>) {
         ast = new_ast(&state->ast_pool, location, AstKind::Value,
                         .value = Value{
-                            .kind = ValueKind::Integer,
+                            .kind = ValueKind::Real,
                             .value = { .real = value },
                         });
         state->scopes.curr->ast_types.insert(
@@ -126,7 +126,7 @@ Ast *new_value(State *state, T value, size_t line) {
     } else if constexpr (std::is_same_v<T, char>) {
         ast = new_ast(&state->ast_pool, location, AstKind::Value,
                         .value = Value{
-                            .kind = ValueKind::Integer,
+                            .kind = ValueKind::Character,
                             .value = { .character = value },
                         });
         state->scopes.curr->ast_types.insert(
@@ -134,7 +134,7 @@ Ast *new_value(State *state, T value, size_t line) {
     } else if constexpr (std::is_same_v<T, std::string>) {
         ast = new_ast(&state->ast_pool, location, AstKind::Value,
                         .value = Value{
-                            .kind = ValueKind::Integer,
+                            .kind = ValueKind::String,
                             .value = { .string = string_create(value, state->allocator) },
                         });
         state->scopes.curr->ast_types.insert(
