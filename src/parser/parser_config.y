@@ -63,7 +63,6 @@
 %token <std::string> PREPROCESSOR_LOCATION
 
 %nterm <type::Type*> type
-%nterm <type::Type*> returnTypeSpecifier
 %nterm <Ast*> parameterDeclaration
 %nterm <Ast*> value
 %nterm <Ast*> assignment
@@ -90,17 +89,8 @@ programUnit:
     | PREPROCESSOR_LOCATION { s3c::enter_file(state, $1); }
     ;
 
-returnTypeSpecifier:
-    type[rt] {
-        $$ = $rt;
-    }
-    | NIL {
-        $$ = type::create_nil_type();
-    }
-    ;
-
 functionSignature:
-    returnTypeSpecifier[rt] IDENTIFIER[name] {
+    type[rt] IDENTIFIER[name] {
         s3c::new_function_definition(state, $name, @name.begin.line);
     } '('parameterDeclarationList')' {
         s3c::set_curr_function_type(state, $rt, @rt.begin.line);
@@ -151,7 +141,10 @@ parameter:
     ;
 
 type:
-    INTT {
+    NIL {
+        $$ = type::create_nil_type();
+    }
+    | INTT {
         $$ = type::create_primitive_type(type::PrimitiveType::Int);
     }
     | FLTT {
