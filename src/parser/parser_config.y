@@ -410,7 +410,6 @@ statement:
 
 cnd:
     CND {
-        s3c::enter_scope(state);
         s3c::begin_block(state);
     } booleanOperation[cond] BGN {
         s3c::new_cnd(state, $cond, @1.begin.line);
@@ -438,25 +437,20 @@ optOtw:
     ;
 
 for:
-    FOR assignment[b] SEMI booleanOperation[e] SEMI expression[s] {
-        s3c::enter_scope(state);
-    } block[ops] {
+    FOR assignment[b] SEMI booleanOperation[e] SEMI expression[s] block[ops] {
         DEBUG("in for");
         $$ = s3c::new_for(state, $b, $e, $s, $ops, @1.begin.line);
     }
     ;
 
 whl:
-    WHL booleanOperation[cond] {
-        s3c::enter_scope(state);
-    } block[ops] {
+    WHL booleanOperation[cond] block[ops] {
         DEBUG("in whl");
         $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
                       AstKind::WhlStmt, .whl_stmt = WhlStmt{
                           .condition = $cond,
                           .block = $ops,
                       });
-        s3c::leave_scope(state, $ops);
     }
     ;
 %%

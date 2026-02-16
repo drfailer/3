@@ -13,8 +13,7 @@ namespace s3c {
 
 State *state_create() {
     auto *state = new State();
-    state->scopes.global = symbol_table_create(nullptr);
-    state->scopes.curr = state->scopes.global;
+    state->symtable = symbol_table_create(nullptr);
     state->status = 0;
     state->arena = arena_create();
     state->allocator = arena_allocator(&state->arena);
@@ -24,7 +23,7 @@ State *state_create() {
 
 void state_destroy(State *state) {
     // BUG: does not work, the memory must get corrupted somewhere
-    symbol_table_destroy(state->scopes.global);
+    symbol_table_destroy(state->symtable);
     mem_pool_destroy(&state->ast_pool);
     arena_destroy(&state->arena);
     delete state;
@@ -53,29 +52,6 @@ void enter_function(State *state, std::string const &function_name) {
     state->curr_function.name = function_name;
 }
 
-void enter_scope(State *state) {
-    auto scope = symbol_table_create(state->scopes.curr);
-    state->scopes.curr = scope;
-}
-
-void leave_scope(State *state, Ast *block) {
-    auto scope = state->scopes.curr;
-    state->scopes.curr = state->scopes.curr->parent;
-    if (block != nullptr) {
-        state->scopes.curr->block_scopes[block] = scope;
-    }
-}
-
-void add_symbol(State *state, std::string const &id, type::Type *type,
-                Location const &location) {
-    insert_symbol(state->scopes.curr, id, type, nullptr, location);
-}
-
-void add_global_symbol(State *state, std::string const &id, type::Type *type,
-                       SymbolTable *scope, Location const &location) {
-    insert_symbol(state->scopes.global, id, type, scope, location);
-}
-
 Ast *new_argument_declaration(State *state, std::string const &id,
                               TypeSpecifier type, size_t line) {
     auto location = location_create(state->curr_filename, line);
@@ -90,18 +66,10 @@ Ast *new_argument_declaration(State *state, std::string const &id,
 
 void new_function_definition(State *state, std::string const &id, size_t line) {
     state->curr_function.name = id;
-    Symbol *sym = lookup_id(state->scopes.global, id);
-
-    if (sym) {
-        MULTIPLE_DEFINITION_ERROR(LOCATION, id, sym->location);
-        state->status = 1;
-    }
-    enter_scope(state);
 }
 
 void add_function(State *state, Ast *ast) {
     state->program.push_back(ast);
-    leave_scope(state, ast->data.function.body);
     reset_curr_function(state);
 }
 
@@ -130,12 +98,8 @@ void new_return_expr(State *state, Ast *expr, size_t line) {
     add_instruction(state, ast);
 }
 
-Ast *new_arithmetic_operation(State *state, Ast *lhs,
-                                     Ast *rhs,
-                                     ArithmeticOperationKind kind,
-                                     size_t line) {
-    // if one of the operand is undefined, the ast should always have the nill
-    // type
+Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
+                              ArithmeticOperationKind kind, size_t line) {
     auto op_ast = new_ast(&state->ast_pool, LOCATION, AstKind::ArithmeticOperation,
                            .arithmetic_operation = ArithmeticOperation{ kind, lhs, rhs });
     return op_ast;
@@ -163,94 +127,59 @@ Ast *new_function_call(State *state, std::string const &function_name,
 
 void new_variable_definition(State *state, std::string id, TypeSpecifier type,
                              size_t line) {
-    // auto symbol = state->scopes.curr->symbols.find(id);
     auto location = location_create(state->curr_filename, line);
-
-    // // redefinitions are not allowed:
-    // if (symbol != state->scopes.curr->symbols.end()) {
-    //     MULTIPLE_DEFINITION_ERROR(location, id, symbol->second.location)
-    //     state->status = 1;
-    // }
-    // insert_symbol(state->scopes.curr, id, type, nullptr, location);
-    add_instruction(state, new_ast(&state->ast_pool, location, AstKind::VariableDefinition,
-                         .variable_definition = VariableDefinition{
-                            .type_specifier = type,
-                            .name = string_create(id, state->allocator),
-                         }));
+    add_instruction(
+        state,
+        new_ast(
+            &state->ast_pool,
+            location,
+            AstKind::VariableDefinition,
+            .variable_definition = VariableDefinition{
+                .type_specifier = type,
+                .name = string_create(id, state->allocator),
+            }
+        )
+    );
 }
 
 Ast *new_variable_reference(State *state, std::string const &name,
-                                   size_t line) {
-    // auto sym = lookup_id(state->scopes.curr, name);
-    auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::VariableReference,
-                         .variable_reference = VariableReference{
-                              .name = string_create(name, state->allocator),
-                         });
-    //
-    // if (!sym) {
-    //     UNDEFINED_SYMBOL_ERROR(ast->location, name);
-    //     state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
-    //     state->status = 1;
-    // } else {
-    //     state->scopes.curr->ast_types.insert({ast, sym->type});
-    // }
-    return ast;
+                            size_t line) {
+    return new_ast(
+        &state->ast_pool,
+        LOCATION,
+        AstKind::VariableReference,
+        .variable_reference = VariableReference{
+            .name = string_create(name, state->allocator),
+        }
+    );
 }
 
 Ast *new_index_expr(State *state, std::string const &name, size_t line,
-                           Ast *index_ast) {
+                    Ast *index_ast) {
     auto location = location_create(state->curr_filename, line);
-    auto variable = new_ast(&state->ast_pool, LOCATION, AstKind::VariableReference,
-                             .variable_reference = VariableReference{
-                                .name = string_create(name, state->allocator),
-                             });
-    auto ast = new_ast(&state->ast_pool, location, AstKind::IndexExpression,
-                         .index_expression = IndexExpression{
-                            .element = variable,
-                            .index = index_ast,
-                         });
-    // auto sym = lookup_id(state->scopes.curr, name);
-
-    // if (!sym) {
-    //     UNDEFINED_SYMBOL_ERROR(ast->location, name);
-    //     state->status = 1;
-    //     state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
-    //     return ast;
-    // } else if (sym->type->kind != type::TypeKind::Array) {
-    //     INDEX_NON_ARRAY_TYPE_ERROR(ast->location, name);
-    //     state->status = 1;
-    //     state->scopes.curr->ast_types.insert({ast, sym->type});
-    //     state->scopes.curr->ast_types.insert({variable, sym->type});
-    // } else {
-    //     state->scopes.curr->ast_types.insert(
-    //         {ast, sym->type->value.array->type});
-    //     // this may not be useful
-    //     state->scopes.curr->ast_types.insert({variable, sym->type});
-    // }
-    return ast;
+    auto variable = new_ast(
+        &state->ast_pool,
+        location,
+        AstKind::VariableReference,
+        .variable_reference = VariableReference{
+            .name = string_create(name, state->allocator),
+        }
+    );
+    return new_ast(
+        &state->ast_pool,
+        location,
+        AstKind::IndexExpression,
+        .index_expression = IndexExpression{
+            .element = variable,
+            .index = index_ast,
+        }
+    );
 }
 
 Ast *new_assignment(State *state, Ast *target, Ast *expr,
                            size_t line) {
     auto location = LOCATION;
-    auto ast = new_ast(&state->ast_pool, location, AstKind::Assignment,
-                         .assignment = Assignment{ target, expr });
-    // auto variable_name = get_lvalue_identifier(target);
-    // auto symbol = lookup_id(state->scopes.curr, variable_name);
-    //
-    // if (!symbol) {
-    //     UNDEFINED_SYMBOL_ERROR(location, variable_name);
-    //     state->status = 1;
-    //     return ast;
-    // }
-    //
-    // auto target_type = lookup_ast_type(state->scopes.curr, target);
-    // if (!type::is_primitive(target_type)) {
-    //     INVALID_MOV_ERROR(location, target_type);
-    //     state->status = 1;
-    //     return ast;
-    // }
-    return ast;
+    return new_ast(&state->ast_pool, location, AstKind::Assignment, .assignment = Assignment{ target, expr });
 }
 
 void new_cnd(State *state, Ast *cond, size_t line) {
@@ -264,16 +193,13 @@ void new_cnd(State *state, Ast *cond, size_t line) {
 
 void new_otw(State *state) {
     auto block = s3c::end_block(state);
-    s3c::leave_scope(state, block);
 
     CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
     while (cur->block != nullptr) {
         cur = &cur->otw->data.cnd_stmt;
     }
     cur->block = block;
-
     s3c::begin_block(state);
-    s3c::enter_scope(state);
 }
 
 void new_otw_cnd(State *state, Ast *cond, size_t line) {
@@ -292,7 +218,6 @@ void new_otw_cnd(State *state, Ast *cond, size_t line) {
 Ast *end_cnd(State *state) {
     auto cnd = state->parser_stack.top();
     auto block = s3c::end_block(state);
-    s3c::leave_scope(state, block);
 
     Ast *cur = cnd;
     while (cur->data.cnd_stmt.otw != nullptr) {
@@ -311,7 +236,6 @@ Ast *end_cnd(State *state) {
 Ast *new_for(State *state, Ast *init, Ast *end,
                     Ast *step, Ast *block, size_t line) {
     auto location = LOCATION;
-    leave_scope(state, block);
     // the syntax allow to just put the expression that is assigned to the loop
     // variable, therefore, we need to manually create the assignment
     auto step_assignment =
@@ -336,7 +260,7 @@ void new_shw(State *state, Ast *expr, size_t line) {
 }
 
 bool try_verify_main_type(State *state) {
-    auto sym = lookup_id(state->scopes.global, "main");
+    auto sym = lookup_id(state->symtable, "main");
 
     if (!sym) {
         return true; // when compiling libraries or object files

@@ -411,7 +411,14 @@ type::Type *function_type_from_ast(Ast *ast) {
 bool process_global_symbols(std::vector<Ast *> program, SymbolTable *global_scope) {
     for (Ast *ast : program) {
         assert(ast->kind == AstKind::Function);
-        insert_symbol(global_scope, std::string(ast->data.function.name.ptr),
+        std::string function_name = std::string(ast->data.function.name.ptr);
+        Symbol *sym = lookup_id(global_scope, function_name);
+
+        if (sym != nullptr) {
+            MULTIPLE_DEFINITION_ERROR(ast->location, function_name, sym->location);
+            return false;
+        }
+        insert_symbol(global_scope, function_name,
                 function_type_from_ast(ast), nullptr, ast->location);
     }
     return true;
