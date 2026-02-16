@@ -65,8 +65,7 @@ void add_instruction(State *state, Ast *ast);
 void new_return_expr(State *state, Ast *expr, size_t line);
 
 Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
-                              ArithmeticOperationKind kind, size_t line,
-                              std::string const &operatorName);
+                              ArithmeticOperationKind kind, size_t line);
 
 void begin_new_funcall(State *state);
 void save_function_call_argument(State *state, Ast *ast);

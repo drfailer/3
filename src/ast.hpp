@@ -187,6 +187,7 @@ struct Ast {
     AstData data;
 };
 
+std::string operator_name(ArithmeticOperationKind kind);
 void print_ast(Ast *ast);
 
 inline Ast *new_ast_(MemPool<Ast> *pool, Location loc, AstKind kind, AstData data) {

@@ -237,22 +237,22 @@ arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
         DEBUG("addOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            ArithmeticOperationKind::Add, @1.begin.line, "add");
+            ArithmeticOperationKind::Add, @1.begin.line);
     }
     | SUB'(' expression[left] COMMA expression[right] ')' {
         DEBUG("mnsOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            ArithmeticOperationKind::Sub, @1.begin.line, "sub");
+            ArithmeticOperationKind::Sub, @1.begin.line);
     }
     | MUL'(' expression[left] COMMA expression[right] ')' {
         DEBUG("tmsOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            ArithmeticOperationKind::Mul, @1.begin.line, "mul");
+            ArithmeticOperationKind::Mul, @1.begin.line);
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
         DEBUG("divOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
-            ArithmeticOperationKind::Div, @1.begin.line, "div");
+            ArithmeticOperationKind::Div, @1.begin.line);
     }
     ;
 

@@ -163,8 +163,7 @@ void new_return_expr(State *state, Ast *expr, size_t line) {
 Ast *new_arithmetic_operation(State *state, Ast *lhs,
                                      Ast *rhs,
                                      ArithmeticOperationKind kind,
-                                     size_t line,
-                                     std::string const &operator_name) {
+                                     size_t line) {
     // if one of the operand is undefined, the ast should always have the nill
     // type
     auto op_ast = new_ast(&state->ast_pool, LOCATION, AstKind::ArithmeticOperation,

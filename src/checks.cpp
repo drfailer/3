@@ -190,10 +190,9 @@ bool check_arithmetic_operation(CheckState *state, Ast *ast, SymbolTable *scope)
 
     auto lhs_type = lookup_ast_type(scope, lhs);
     auto rhs_type = lookup_ast_type(scope, rhs);
-    std::string operator_name = "TODO";
 
     if (!type::supports_arithmetic(lhs_type) || !type::supports_arithmetic(rhs_type)) {
-        ARITHMETIC_OPERATOR_ERROR(ast->location, operator_name)
+        ARITHMETIC_OPERATOR_ERROR(ast->location, operator_name(ast->data.arithmetic_operation.kind))
         return false;
     }
     scope->ast_types.insert({
