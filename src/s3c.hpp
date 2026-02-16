@@ -51,12 +51,9 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
                        SymbolTable *scope, Location const &location);
 
 Ast *new_argument_declaration(State *state, std::string const &id,
-                                     type::Type *type, size_t line);
+                                     TypeSpecifier type, size_t line);
 void new_function_definition(State *state, std::string const &id, size_t line);
-void set_curr_function_type(State *state, type::Type *return_type, size_t line);
-void add_function_definition(State *state, std::string const &name,
-                             Ast *body, size_t line);
-void add_function_declaration(State *state, size_t line);
+void add_function(State *state, Ast *function);
 
 void begin_block(State *state);
 Ast *end_block(State *state);
@@ -72,7 +69,7 @@ void save_function_call_argument(State *state, Ast *ast);
 Ast *new_function_call(State *state, std::string const &function_name,
                               size_t line);
 
-void new_variable_definition(State *state, std::string id, type::Type *type,
+void new_variable_definition(State *state, std::string id, TypeSpecifier type,
                              size_t line);
 Ast *new_variable_reference(State *state, std::string const &name,
                                    size_t line);

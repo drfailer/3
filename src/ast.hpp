@@ -18,6 +18,20 @@ Location location_create(std::string const &filename, size_t row,
                          size_t col = 0);
 std::ostream &operator<<(std::ostream &os, Location const &location);
 
+enum class TypeSpecifierKind {
+    Nil,
+    Chr,
+    Int,
+    Flt,
+    Str,
+    Obj,
+};
+struct TypeSpecifier {
+    TypeSpecifierKind kind;
+    String obj_id;
+    size_t size; // size used for arrays (we only support 1D static arrays for now)
+};
+
 struct Ast;
 struct Block;
 
@@ -61,6 +75,7 @@ struct Value {
 };
 
 struct VariableDefinition {
+    TypeSpecifier type_specifier;
     String name;
 };
 
@@ -79,6 +94,7 @@ struct IndexExpression {
 };
 
 struct Function {
+    TypeSpecifier return_type_specifier;
     String name;
     Array<Ast *> arguments = {};
     Ast *body;

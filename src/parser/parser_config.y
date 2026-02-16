@@ -62,7 +62,8 @@
 %token TEXT
 %token <std::string> PREPROCESSOR_LOCATION
 
-%nterm <type::Type*> type
+%nterm <TypeSpecifier> type
+%nterm <Ast*> functionSignature
 %nterm <Ast*> parameterDeclaration
 %nterm <Ast*> value
 %nterm <Ast*> assignment
@@ -91,22 +92,33 @@ programUnit:
 
 functionSignature:
     type[rt] IDENTIFIER[name] {
+        // enter scope v (will be removed)
         s3c::new_function_definition(state, $name, @name.begin.line);
     } '('parameterDeclarationList')' {
-        s3c::set_curr_function_type(state, $rt, @rt.begin.line);
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @name.begin.line),
+            AstKind::Function,
+            .function = Function{
+                .return_type_specifier = $rt,
+                .name = string_create($name, state->allocator),
+                .arguments = array_create_from_std_vector(state->curr_function.arguments, state->allocator),
+                .body = nullptr,
+            }
+        );
     }
     ;
 
 functionDeclaration:
-    DCL functionSignature {
-        s3c::add_function_declaration(state, @1.begin.line);
+    DCL functionSignature[function] {
+        s3c::add_function(state, $function);
     }
     ;
 
 functionDefinition:
-    functionSignature block[body] {
-        s3c::add_function_definition(state, state->curr_function.name,
-                                     $body, @1.begin.line);
+    functionSignature[function] block[body] {
+        $function->data.function.body = $body;
+        s3c::add_function(state, $function);
     }
     ;
 
@@ -123,8 +135,8 @@ parameterDeclaration:
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
         DEBUG("new param: " << $2);
-        $$ = s3c::new_argument_declaration(state, $2,
-            type::create_static_array_type($t, $size), @2.begin.line);
+        $t.size = $size;
+        $$ = s3c::new_argument_declaration(state, $2, $t, @2.begin.line);
     }
     ;
 
@@ -142,19 +154,19 @@ parameter:
 
 type:
     NIL {
-        $$ = type::create_nil_type();
+        $$ = TypeSpecifier{TypeSpecifierKind::Nil, {}, 0};
     }
     | INTT {
-        $$ = type::create_primitive_type(type::PrimitiveType::Int);
+        $$ = TypeSpecifier{TypeSpecifierKind::Int, {}, 0};
     }
     | FLTT {
-        $$ = type::create_primitive_type(type::PrimitiveType::Flt);
+        $$ = TypeSpecifier{TypeSpecifierKind::Flt, {}, 0};
     }
     | CHRT {
-        $$ = type::create_primitive_type(type::PrimitiveType::Chr);
+        $$ = TypeSpecifier{TypeSpecifierKind::Chr, {}, 0};
     }
     | STRT {
-        $$ =  type::create_primitive_type(type::PrimitiveType::Str);
+        $$ = TypeSpecifier{TypeSpecifierKind::Str, {}, 0};
     }
     ;
 
@@ -350,8 +362,8 @@ variableDefinition:
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
-        s3c::new_variable_definition(state, $name,
-            type::create_static_array_type($t, $size), @name.begin.line);
+        $t.size = $size;
+        s3c::new_variable_definition(state, $name, $t, @name.begin.line);
     }
     ;
 

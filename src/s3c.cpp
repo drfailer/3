@@ -77,15 +77,14 @@ void add_global_symbol(State *state, std::string const &id, type::Type *type,
 }
 
 Ast *new_argument_declaration(State *state, std::string const &id,
-                                     type::Type *type, size_t line) {
+                              TypeSpecifier type, size_t line) {
     auto location = location_create(state->curr_filename, line);
     auto ast = new_ast(&state->ast_pool, location, AstKind::VariableDefinition,
                          .variable_definition = VariableDefinition{
+                            .type_specifier = type,
                             .name = string_create(id, state->allocator),
                          });
-    add_symbol(state, id, type, location);
     state->curr_function.arguments.push_back(ast);
-    state->curr_function.arguments_types.push_back(type);
     return ast;
 }
 
@@ -100,40 +99,10 @@ void new_function_definition(State *state, std::string const &id, size_t line) {
     enter_scope(state);
 }
 
-void set_curr_function_type(State *state, type::Type *return_type,
-                            size_t line) {
-    add_global_symbol(state, state->curr_function.name,
-                      type::create_function_type(
-                          state->curr_function.name, return_type,
-                          std::move(state->curr_function.arguments_types)),
-                      state->scopes.curr, LOCATION);
-}
-
-void add_function_definition(State *state, std::string const &name,
-                             Ast *body, size_t line) {
-    state->program.push_back(new_ast(&state->ast_pool, LOCATION, AstKind::Function,
-                             .function = Function{
-                                .name = string_create(name, state->allocator),
-                                .arguments = array_create_from_std_vector(
-                                        state->curr_function.arguments,
-                                        state->allocator),
-                                .body = body,
-                            }));
-    leave_scope(state, body);
+void add_function(State *state, Ast *ast) {
+    state->program.push_back(ast);
+    leave_scope(state, ast->data.function.body);
     reset_curr_function(state);
-}
-
-void add_function_declaration(State *state, size_t line) {
-    state->program.push_back(new_ast(&state->ast_pool, LOCATION,AstKind::Function,
-                             .function = Function{
-                                .name = string_create(state->curr_function.name, state->allocator),
-                                .arguments = array_create_from_std_vector(
-                                        state->curr_function.arguments,
-                                        state->allocator),
-                                .body = nullptr,
-                            }));
-    s3c::leave_scope(state, nullptr);
-    s3c::reset_curr_function(state);
 }
 
 void begin_block(State *state) {
@@ -192,38 +161,39 @@ Ast *new_function_call(State *state, std::string const &function_name,
     return ast;
 }
 
-void new_variable_definition(State *state, std::string id, type::Type *type,
+void new_variable_definition(State *state, std::string id, TypeSpecifier type,
                              size_t line) {
-    auto symbol = state->scopes.curr->symbols.find(id);
+    // auto symbol = state->scopes.curr->symbols.find(id);
     auto location = location_create(state->curr_filename, line);
 
-    // redefinitions are not allowed:
-    if (symbol != state->scopes.curr->symbols.end()) {
-        MULTIPLE_DEFINITION_ERROR(location, id, symbol->second.location)
-        state->status = 1;
-    }
-    insert_symbol(state->scopes.curr, id, type, nullptr, location);
+    // // redefinitions are not allowed:
+    // if (symbol != state->scopes.curr->symbols.end()) {
+    //     MULTIPLE_DEFINITION_ERROR(location, id, symbol->second.location)
+    //     state->status = 1;
+    // }
+    // insert_symbol(state->scopes.curr, id, type, nullptr, location);
     add_instruction(state, new_ast(&state->ast_pool, location, AstKind::VariableDefinition,
                          .variable_definition = VariableDefinition{
+                            .type_specifier = type,
                             .name = string_create(id, state->allocator),
                          }));
 }
 
 Ast *new_variable_reference(State *state, std::string const &name,
                                    size_t line) {
-    auto sym = lookup_id(state->scopes.curr, name);
+    // auto sym = lookup_id(state->scopes.curr, name);
     auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::VariableReference,
                          .variable_reference = VariableReference{
                               .name = string_create(name, state->allocator),
                          });
-
-    if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(ast->location, name);
-        state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
-        state->status = 1;
-    } else {
-        state->scopes.curr->ast_types.insert({ast, sym->type});
-    }
+    //
+    // if (!sym) {
+    //     UNDEFINED_SYMBOL_ERROR(ast->location, name);
+    //     state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
+    //     state->status = 1;
+    // } else {
+    //     state->scopes.curr->ast_types.insert({ast, sym->type});
+    // }
     return ast;
 }
 
@@ -239,24 +209,24 @@ Ast *new_index_expr(State *state, std::string const &name, size_t line,
                             .element = variable,
                             .index = index_ast,
                          });
-    auto sym = lookup_id(state->scopes.curr, name);
+    // auto sym = lookup_id(state->scopes.curr, name);
 
-    if (!sym) {
-        UNDEFINED_SYMBOL_ERROR(ast->location, name);
-        state->status = 1;
-        state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
-        return ast;
-    } else if (sym->type->kind != type::TypeKind::Array) {
-        INDEX_NON_ARRAY_TYPE_ERROR(ast->location, name);
-        state->status = 1;
-        state->scopes.curr->ast_types.insert({ast, sym->type});
-        state->scopes.curr->ast_types.insert({variable, sym->type});
-    } else {
-        state->scopes.curr->ast_types.insert(
-            {ast, sym->type->value.array->type});
-        // this may not be useful
-        state->scopes.curr->ast_types.insert({variable, sym->type});
-    }
+    // if (!sym) {
+    //     UNDEFINED_SYMBOL_ERROR(ast->location, name);
+    //     state->status = 1;
+    //     state->scopes.curr->ast_types.insert({ast, type::create_nil_type()});
+    //     return ast;
+    // } else if (sym->type->kind != type::TypeKind::Array) {
+    //     INDEX_NON_ARRAY_TYPE_ERROR(ast->location, name);
+    //     state->status = 1;
+    //     state->scopes.curr->ast_types.insert({ast, sym->type});
+    //     state->scopes.curr->ast_types.insert({variable, sym->type});
+    // } else {
+    //     state->scopes.curr->ast_types.insert(
+    //         {ast, sym->type->value.array->type});
+    //     // this may not be useful
+    //     state->scopes.curr->ast_types.insert({variable, sym->type});
+    // }
     return ast;
 }
 
@@ -265,21 +235,21 @@ Ast *new_assignment(State *state, Ast *target, Ast *expr,
     auto location = LOCATION;
     auto ast = new_ast(&state->ast_pool, location, AstKind::Assignment,
                          .assignment = Assignment{ target, expr });
-    auto variable_name = get_lvalue_identifier(target);
-    auto symbol = lookup_id(state->scopes.curr, variable_name);
-
-    if (!symbol) {
-        UNDEFINED_SYMBOL_ERROR(location, variable_name);
-        state->status = 1;
-        return ast;
-    }
-
-    auto target_type = lookup_ast_type(state->scopes.curr, target);
-    if (!type::is_primitive(target_type)) {
-        INVALID_MOV_ERROR(location, target_type);
-        state->status = 1;
-        return ast;
-    }
+    // auto variable_name = get_lvalue_identifier(target);
+    // auto symbol = lookup_id(state->scopes.curr, variable_name);
+    //
+    // if (!symbol) {
+    //     UNDEFINED_SYMBOL_ERROR(location, variable_name);
+    //     state->status = 1;
+    //     return ast;
+    // }
+    //
+    // auto target_type = lookup_ast_type(state->scopes.curr, target);
+    // if (!type::is_primitive(target_type)) {
+    //     INVALID_MOV_ERROR(location, target_type);
+    //     state->status = 1;
+    //     return ast;
+    // }
     return ast;
 }
 
