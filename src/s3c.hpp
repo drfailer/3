@@ -72,8 +72,8 @@ void save_function_call_argument(State *state, Ast *ast);
 Ast *new_function_call(State *state, std::string const &function_name,
                               size_t line);
 
-void new_variable_declaration(State *state, std::string id, type::Type *type,
-                              size_t line);
+void new_variable_definition(State *state, std::string id, type::Type *type,
+                             size_t line);
 Ast *new_variable_reference(State *state, std::string const &name,
                                    size_t line);
 Ast *new_index_expr(State *state, std::string const &name, size_t line,

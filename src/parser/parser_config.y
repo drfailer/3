@@ -190,7 +190,7 @@ code:
 instruction:
     shw
     | ipt
-    | variableDeclaration
+    | variableDefinition
     | assignment { s3c::add_instruction(state, $1); }
     | functionCall { s3c::add_instruction(state, $1); }
     ;
@@ -350,14 +350,14 @@ functionCall:
     }
     ;
 
-variableDeclaration:
+variableDefinition:
     type[t] IDENTIFIER[name] {
         DEBUG("new declaration: " << $name);
-        s3c::new_variable_declaration(state, $name, $t, @name.begin.line);
+        s3c::new_variable_definition(state, $name, $t, @name.begin.line);
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
         DEBUG("new array declaration: " << $2);
-        s3c::new_variable_declaration(state, $name,
+        s3c::new_variable_definition(state, $name,
             type::create_static_array_type($t, $size), @name.begin.line);
     }
     ;

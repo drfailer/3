@@ -191,8 +191,8 @@ Ast *new_function_call(State *state, std::string const &function_name,
     return ast;
 }
 
-void new_variable_declaration(State *state, std::string id, type::Type *type,
-                              size_t line) {
+void new_variable_definition(State *state, std::string id, type::Type *type,
+                             size_t line) {
     auto symbol = state->scopes.curr->symbols.find(id);
     auto location = location_create(state->curr_filename, line);
 
