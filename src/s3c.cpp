@@ -111,8 +111,8 @@ void set_curr_function_type(State *state, type::Type *return_type,
 
 void add_function_definition(State *state, std::string const &name,
                              Ast *body, size_t line) {
-    state->program.push_back(new_ast(&state->ast_pool, LOCATION, AstKind::FunctionDefinition,
-                             .function_definition = FunctionDefinition{
+    state->program.push_back(new_ast(&state->ast_pool, LOCATION, AstKind::Function,
+                             .function = Function{
                                 .name = string_create(name, state->allocator),
                                 .arguments = array_create_from_std_vector(
                                         state->curr_function.arguments,
@@ -124,12 +124,13 @@ void add_function_definition(State *state, std::string const &name,
 }
 
 void add_function_declaration(State *state, size_t line) {
-    state->program.push_back(new_ast(&state->ast_pool, LOCATION,AstKind::FunctionDeclaration,
-                             .function_declaration = FunctionDeclaration{
+    state->program.push_back(new_ast(&state->ast_pool, LOCATION,AstKind::Function,
+                             .function = Function{
                                 .name = string_create(state->curr_function.name, state->allocator),
                                 .arguments = array_create_from_std_vector(
                                         state->curr_function.arguments,
                                         state->allocator),
+                                .body = nullptr,
                             }));
     s3c::leave_scope(state, nullptr);
     s3c::reset_curr_function(state);

@@ -47,9 +47,9 @@ bool check_index_expr(CheckState *state, Ast *ast, SymbolTable *scope) {
 }
 
 bool check_function_definition(CheckState *state, Ast *ast, SymbolTable *scope) {
-    state->current_function = std::string(ast->data.function_definition.name.ptr);
+    state->current_function = std::string(ast->data.function.name.ptr);
     SymbolTable *function_scope = scope->symbols.at(state->current_function).scope;
-    return check_block(state, ast->data.function_definition.body, function_scope);
+    return check_block(state, ast->data.function.body, function_scope);
 }
 
 bool check_function_call(CheckState *state, Ast *ast, SymbolTable *scope) {
@@ -262,10 +262,11 @@ bool check(CheckState *state, Ast *ast, SymbolTable *scope) {
     case AstKind::IndexExpression:
         ok = check_index_expr(state, ast, scope);
         break;
-    case AstKind::FunctionDefinition:
-        ok = check_function_definition(state, ast, scope);
+    case AstKind::Function:
+        if (ast->data.function.body != nullptr) {
+            ok = check_function_definition(state, ast, scope);
+        }
         break;
-    case AstKind::FunctionDeclaration: break;
     case AstKind::FunctionCall:
         ok = check_function_call(state, ast, scope);
         break;
@@ -307,4 +308,11 @@ bool check(std::vector<Ast *> program, SymbolTable *symtable) {
         }
     }
     return ok;
+}
+
+/*
+ * TODO: First pass in which global symbols are added to the symbol table.
+ */
+bool process_global_symbols(std::vector<Ast *> program, SymbolTable *symtable) {
+    return true;
 }

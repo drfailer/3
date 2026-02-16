@@ -19,7 +19,7 @@ struct Options {
         GenerateExecutable,
         GenerateAssembly,
     } generate_option;
-    std::vector<std::string> linker_options = {};
+    std::vector<std::string> linker_options;
 };
 
 Options parse_args(std::vector<std::string> const &args) {

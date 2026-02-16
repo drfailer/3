@@ -628,7 +628,7 @@ void allocate_arguments(CompilerState *state, Ast *ast,
                         SymbolTable *scope) {
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
-    auto args = ast->data.function_definition.arguments;
+    auto args = ast->data.function.arguments;
     size_t int_idx = 0, flt_idx = 0;
     for (size_t idx = 0; idx < args.len; idx++) {
         // TODO: check the rules for structs
@@ -669,7 +669,7 @@ void allocate_arguments(CompilerState *state, Ast *ast,
 
 void compile_function_definition(CompilerState *state, Ast *ast,
                                  SymbolTable *scope) {
-    FunctionDefinition *fund_def_ast = &ast->data.function_definition;
+    Function *fund_def_ast = &ast->data.function;
     SymbolTable *function_scope = scope->symbols[fund_def_ast->name.ptr].scope;
     state->curr_function_id = fund_def_ast->name.ptr;
     state->frame_offset = 8;
@@ -692,8 +692,7 @@ void compile_function_definition(CompilerState *state, Ast *ast,
 
 void compile_function_declaration(CompilerState *state, Ast *ast,
                                   SymbolTable *) {
-    asm_add_instruction(state->code, ".extern",
-                        ast->data.function_declaration.name.ptr);
+    asm_add_instruction(state->code, ".extern", ast->data.function.name.ptr);
 }
 
 void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope) {
@@ -713,11 +712,12 @@ void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope) {
     case AstKind::IndexExpression:
         compile_index_expression(state, ast, scope);
         break;
-    case AstKind::FunctionDefinition:
-        compile_function_definition(state, ast, scope);
-        break;
-    case AstKind::FunctionDeclaration:
-        compile_function_declaration(state, ast, scope);
+    case AstKind::Function:
+        if (ast->data.function.body != nullptr) {
+            compile_function_definition(state, ast, scope);
+        } else {
+            compile_function_declaration(state, ast, scope);
+        }
         break;
     case AstKind::FunctionCall:
         compile_function_call(state, ast, scope);

@@ -29,8 +29,7 @@ enum class AstKind {
     Assignment,
     IndexExpression,
     // funtions
-    FunctionDefinition,
-    FunctionDeclaration,
+    Function,
     FunctionCall,
     // control flow
     CndStmt,
@@ -79,16 +78,10 @@ struct IndexExpression {
     Ast *index;
 };
 
-struct FunctionDefinition {
+struct Function {
     String name;
     Array<Ast *> arguments = {};
     Ast *body;
-};
-
-// TODO: do we want to use this type in FunctionDefinition as well?
-struct FunctionDeclaration {
-    String name;
-    Array<Ast *> arguments = {};
 };
 
 struct FunctionCall {
@@ -168,8 +161,7 @@ union AstData {
     VariableReference variable_reference;
     Assignment assignment;
     IndexExpression index_expression;
-    FunctionDefinition function_definition;
-    FunctionDeclaration function_declaration;
+    Function function;
     FunctionCall function_call;
     CndStmt cnd_stmt;
     WhlStmt whl_stmt;
