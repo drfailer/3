@@ -15,18 +15,8 @@ namespace s3c {
 struct State {
     int status;
     std::string curr_filename;
-    struct {
-        std::string name;
-        std::vector<Ast *> arguments;
-        type::Type *return_type;
-        std::vector<type::Type *> arguments_types;
-        std::stack<Ast *> blocks;
-    } curr_function;
     SymbolTable *symtable;
     std::vector<Ast *> program;
-    std::vector<std::vector<Ast *>> funcall_parameters;
-    std::vector<std::string> funcall_ids;
-    std::stack<Ast *> parser_stack; // ast stack for complexe rules
     MemPool<Ast> ast_pool; // TODO: the ast should be default constructible!
     Arena arena;
     Allocator allocator;
@@ -35,47 +25,17 @@ struct State {
 State *state_create();
 void state_destroy(State *state);
 
-void reset_curr_function(State *state);
-
 void enter_file(State *state, std::string const &filename);
-void enter_function(State *state, std::string const &function_name);
 
-Ast *new_argument_declaration(State *state, std::string const &id,
-                              TypeSpecifier type, size_t line);
-void new_function_definition(State *state, std::string const &id, size_t line);
 void add_function(State *state, Ast *function);
-
-void begin_block(State *state);
-Ast *end_block(State *state);
-void add_instruction(State *state, Ast *ast);
-
-void new_return_expr(State *state, Ast *expr, size_t line);
 
 Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
                               ArithmeticOperationKind kind, size_t line);
 
-void begin_new_funcall(State *state);
-void save_function_call_argument(State *state, Ast *ast);
-Ast *new_function_call(State *state, std::string const &function_name, size_t line);
-
-void new_variable_definition(State *state, std::string id, TypeSpecifier type, size_t line);
 Ast *new_variable_reference(State *state, std::string const &name, size_t line);
 Ast *new_index_expr(State *state, std::string const &name, size_t line, Ast *index_ast);
 
-void very_assignement_type(State *state, Assignment *assignment,
-                           FunctionCall *expr, std::string const &file,
-                           size_t line);
-
-Ast *new_assignment(State *state, Ast *target, Ast *expr, size_t line);
-
-void new_cnd(State *state, Ast *cond, size_t line);
-void new_otw(State *state);
-void new_otw_cnd(State *state, Ast *cond, size_t line);
-Ast * end_cnd(State *state);
-
 Ast *new_for(State *state, Ast *init, Ast *condition, Ast *step, Ast *block, size_t line);
-
-void new_shw(State *state, Ast *expr, size_t line);
 
 bool try_verify_main_type(State *state);
 

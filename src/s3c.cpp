@@ -29,14 +29,6 @@ void state_destroy(State *state) {
     delete state;
 }
 
-void reset_curr_function(State *state) {
-    state->curr_function.name.clear();
-    state->curr_function.arguments.clear();
-    state->curr_function.arguments_types.clear();
-    state->curr_function.return_type = nullptr;
-    state->curr_function.blocks = {};
-}
-
 void enter_file(State *state, std::string const &filename) {
     if (filename.empty()) {
         return;
@@ -48,81 +40,19 @@ void enter_file(State *state, std::string const &filename) {
     }
 }
 
-void enter_function(State *state, std::string const &function_name) {
-    state->curr_function.name = function_name;
-}
-
-Ast *new_argument_declaration(State *state, std::string const &id,
-                              TypeSpecifier type, size_t line) {
-    auto location = location_create(state->curr_filename, line);
-    auto ast = new_ast(&state->ast_pool, location, AstKind::VariableDefinition,
-                         .variable_definition = VariableDefinition{
-                            .type_specifier = type,
-                            .name = string_create(id, state->allocator),
-                         });
-    state->curr_function.arguments.push_back(ast);
-    return ast;
-}
-
-void new_function_definition(State *state, std::string const &id, size_t line) {
-    state->curr_function.name = id;
-}
-
 void add_function(State *state, Ast *ast) {
     state->program.push_back(ast);
-    reset_curr_function(state);
 }
-
-void begin_block(State *state) {
-    state->curr_function.blocks.push(new_ast(
-                &state->ast_pool,
-                Location{},
-                AstKind::Block,
-                .block = { array_create<Ast*>(0, 0, state->allocator) }));
-}
-
-Ast *end_block(State *state) {
-    Ast *lastBlock = state->curr_function.blocks.top();
-    state->curr_function.blocks.pop();
-    return lastBlock;
-}
-
-void add_instruction(State *state, Ast *ast) {
-    array_append(&state->curr_function.blocks.top()->data.block.asts, ast);
-}
-
-// void new_return_expr(State *state, Ast *expr, size_t line) {
-//     std::ostringstream oss;
-//     auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
-//                          .ret_stmt = { expr });
-//     add_instruction(state, ast);
-// }
 
 Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
                               ArithmeticOperationKind kind, size_t line) {
-    auto op_ast = new_ast(&state->ast_pool, LOCATION, AstKind::ArithmeticOperation,
-                           .arithmetic_operation = ArithmeticOperation{ kind, lhs, rhs });
+    auto op_ast = new_ast(
+        &state->ast_pool,
+        LOCATION,
+        AstKind::ArithmeticOperation,
+        .arithmetic_operation = ArithmeticOperation{kind, lhs, rhs}
+    );
     return op_ast;
-}
-
-void save_function_call_argument(State *state, Ast *ast) {
-    state->funcall_parameters.back().push_back(ast);
-}
-
-void begin_new_funcall(State *state) {
-    state->funcall_parameters.push_back({});
-}
-
-Ast *new_function_call(State *state, std::string const &function_name,
-                              size_t line) {
-    auto args = state->funcall_parameters.back();
-    auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::FunctionCall,
-                         .function_call = FunctionCall{
-                            .name = string_create(function_name, state->allocator),
-                            .arguments = array_create_from_std_vector(args, state->allocator),
-                         });
-    state->funcall_parameters.pop_back();
-    return ast;
 }
 
 Ast *new_variable_reference(State *state, std::string const &name,

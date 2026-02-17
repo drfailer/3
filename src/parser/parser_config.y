@@ -68,7 +68,8 @@
 
 %nterm <TypeSpecifier> type
 %nterm <Ast*> functionSignature
-%nterm <Ast*> parameterDeclaration
+%nterm <std::vector<Ast*>> parameterDeclarationList
+%nterm <std::vector<Ast*>> parameterList
 %nterm <Ast*> value
 %nterm <Ast*> assignment
 %nterm <Ast*> expression
@@ -103,10 +104,7 @@ programUnit:
     ;
 
 functionSignature:
-    type[rt] IDENTIFIER[name] {
-        // enter scope v (will be removed)
-        s3c::new_function_definition(state, $name, @name.begin.line);
-    } '('parameterDeclarationList')' {
+    type[rt] IDENTIFIER[name] '('parameterDeclarationList[args]')' {
         $$ = new_ast(
             &state->ast_pool,
             location_create(state->curr_filename, @name.begin.line),
@@ -114,7 +112,7 @@ functionSignature:
             .function = {
                 .return_type_specifier = $rt,
                 .name = string_create($name, state->allocator),
-                .arguments = array_create_from_std_vector(state->curr_function.arguments, state->allocator),
+                .arguments = array_create_from_std_vector($args, state->allocator),
                 .body = nullptr,
             }
         );
@@ -135,49 +133,29 @@ functionDefinition:
     ;
 
 parameterDeclarationList:
-    %empty
-    | parameterDeclaration
-    | parameterDeclaration COMMA parameterDeclarationList
-    ;
-
-parameterDeclaration:
-    type[t] IDENTIFIER {
-        $$ = s3c::new_argument_declaration(state, $2, $t, @2.begin.line);
-    }
-    | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
-        $t.size = $size;
-        $$ = s3c::new_argument_declaration(state, $2, $t, @2.begin.line);
+    %empty { $$ = std::vector<Ast*>(); }
+    | variableDefinition { $$ = std::vector<Ast*>({$1}); }
+    | parameterDeclarationList[args] COMMA variableDefinition[arg] {
+        $args.push_back($arg);
+        $$ = $args;
     }
     ;
 
 parameterList:
-    %empty
-    | parameter
-    | parameter COMMA parameterList
-    ;
-
-parameter:
-    expression {
-        s3c::save_function_call_argument(state, $1);
+    %empty { $$ = std::vector<Ast*>(); }
+    | expression { $$ = std::vector<Ast*>({$1}); }
+    | parameterList[args] COMMA expression[arg] {
+        $args.push_back($arg);
+        $$ = $args;
     }
     ;
 
 type:
-    NIL {
-        $$ = TypeSpecifier{TypeSpecifierKind::Nil, {}, 0};
-    }
-    | INTT {
-        $$ = TypeSpecifier{TypeSpecifierKind::Int, {}, 0};
-    }
-    | FLTT {
-        $$ = TypeSpecifier{TypeSpecifierKind::Flt, {}, 0};
-    }
-    | CHRT {
-        $$ = TypeSpecifier{TypeSpecifierKind::Chr, {}, 0};
-    }
-    | STRT {
-        $$ = TypeSpecifier{TypeSpecifierKind::Str, {}, 0};
-    }
+    NIL { $$ = TypeSpecifier{TypeSpecifierKind::Nil, {}, 0}; }
+    | INTT { $$ = TypeSpecifier{TypeSpecifierKind::Int, {}, 0}; }
+    | FLTT { $$ = TypeSpecifier{TypeSpecifierKind::Flt, {}, 0}; }
+    | CHRT { $$ = TypeSpecifier{TypeSpecifierKind::Chr, {}, 0}; }
+    | STRT { $$ = TypeSpecifier{TypeSpecifierKind::Str, {}, 0}; }
     ;
 
 block:
@@ -186,15 +164,13 @@ block:
             &state->ast_pool,
             location_create(state->curr_filename, @1.begin.line),
             AstKind::Block,
-            .block = { array_create_from_std_vector($code) }
+            .block = { array_create_from_std_vector($code, state->allocator) }
         );
     }
     ;
 
 code:
-    %empty {
-        $$ = std::vector<Ast*>();
-    }
+    %empty { $$ = std::vector<Ast*>(); }
     | code instruction {
         $1.push_back($instruction);
         $$ = $1;
@@ -270,20 +246,20 @@ variable:
     ;
 
 arithmeticOperation:
-    ADD'(' expression[left] COMMA expression[right] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $left, $right,
+    ADD'(' expression[lhs] COMMA expression[rhs] ')' {
+        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
             ArithmeticOperationKind::Add, @1.begin.line);
     }
-    | SUB'(' expression[left] COMMA expression[right] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $left, $right,
+    | SUB'(' expression[lhs] COMMA expression[rhs] ')' {
+        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
             ArithmeticOperationKind::Sub, @1.begin.line);
     }
-    | MUL'(' expression[left] COMMA expression[right] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $left, $right,
+    | MUL'(' expression[lhs] COMMA expression[rhs] ')' {
+        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
             ArithmeticOperationKind::Mul, @1.begin.line);
     }
-    | DIV'(' expression[left] COMMA expression[right] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $left, $right,
+    | DIV'(' expression[lhs] COMMA expression[rhs] ')' {
+        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
             ArithmeticOperationKind::Div, @1.begin.line);
     }
     ;
@@ -400,11 +376,16 @@ booleanOperation:
     ;
 
 functionCall:
-    IDENTIFIER'(' {
-        s3c::begin_new_funcall(state);
-    }
-    parameterList')' {
-        $$ = s3c::new_function_call(state, $1, @1.begin.line);
+    IDENTIFIER[name]'('parameterList[args]')' {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @name.begin.line),
+            AstKind::FunctionCall,
+            .function_call = {
+                .name = string_create($name, state->allocator),
+                .arguments = array_create_from_std_vector($args, state->allocator),
+            }
+        );
     }
     ;
 
@@ -475,7 +456,7 @@ cndContent:
             &state->ast_pool,
             location_create(state->curr_filename, @1.begin.line),
             AstKind::Block,
-            .block = { array_create_from_std_vector($1) }
+            .block = { array_create_from_std_vector($1, state->allocator) }
         );
         $$ = CndContent{
             .block = block,
@@ -503,7 +484,7 @@ optOtw:
             &state->ast_pool,
             location_create(state->curr_filename, @1.begin.line),
             AstKind::Block,
-            .block { array_create_from_std_vector($2) }
+            .block { array_create_from_std_vector($2, state->allocator) }
         );
     }
     ;
