@@ -33,6 +33,10 @@
     namespace parser {
         class Scanner;
     }
+    struct CndContent {
+        Ast *block;
+        Ast *otw;
+    };
 }
 
 %code
@@ -69,6 +73,7 @@
 %nterm <Ast*> assignment
 %nterm <Ast*> expression
 %nterm <Ast*> variable
+%nterm <Ast*> variableDefinition
 %nterm <Ast*> arithmeticOperation
 %nterm <Ast*> functionCall
 %nterm <Ast*> booleanOperation
@@ -76,6 +81,13 @@
 %nterm <Ast*> cnd
 %nterm <Ast*> for
 %nterm <Ast*> whl
+%nterm <Ast*> ret
+%nterm <Ast*> instruction
+%nterm <Ast*> builtinFunctionCall
+%nterm <Ast*> controlStructure
+%nterm <std::vector<Ast*>> code
+%nterm <CndContent> cndContent
+%nterm <Ast*> optOtw
 
 %start start
 
@@ -99,7 +111,7 @@ functionSignature:
             &state->ast_pool,
             location_create(state->curr_filename, @name.begin.line),
             AstKind::Function,
-            .function = Function{
+            .function = {
                 .return_type_specifier = $rt,
                 .name = string_create($name, state->allocator),
                 .arguments = array_create_from_std_vector(state->curr_function.arguments, state->allocator),
@@ -130,11 +142,9 @@ parameterDeclarationList:
 
 parameterDeclaration:
     type[t] IDENTIFIER {
-        DEBUG("new param: " << $2);
         $$ = s3c::new_argument_declaration(state, $2, $t, @2.begin.line);
     }
     | type[t] IDENTIFIER OSQUAREB INT[size] CSQUAREB {
-        DEBUG("new param: " << $2);
         $t.size = $size;
         $$ = s3c::new_argument_declaration(state, $2, $t, @2.begin.line);
     }
@@ -171,52 +181,75 @@ type:
     ;
 
 block:
-    BGN {
-        s3c::begin_block(state);
-    } code END {
-        DEBUG("new block");
-        $$ = s3c::end_block(state);
+    BGN code END {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::Block,
+            .block = { array_create_from_std_vector($code) }
+        );
     }
     ;
 
 code:
-    %empty
-    | statement code
-    | instruction code
-    | RET expression[rs] {
-        s3c::new_return_expr(state, $rs, @1.begin.line);
+    %empty {
+        $$ = std::vector<Ast*>();
     }
-    |
-    RET {
-        s3c::new_return_expr(state, nullptr, @1.begin.line);
+    | code instruction {
+        $1.push_back($instruction);
+        $$ = $1;
     }
     ;
 
 instruction:
-    shw
-    | ipt
+    builtinFunctionCall
     | variableDefinition
-    | assignment { s3c::add_instruction(state, $1); }
-    | functionCall { s3c::add_instruction(state, $1); }
+    | assignment
+    | functionCall
+    | controlStructure
+    | ret
     ;
 
-ipt:
-    IPT'('variable[c]')' {
-        DEBUG("ipt var");
-        s3c::add_instruction(state,
-            new_ast(&state->ast_pool, location_create(state->curr_filename, @c.begin.line),
-                AstKind::BuiltinFunction, .builtin_function = BuiltinFunction{
-                        .kind = BuiltinFunctionKind::Ipt,
-                        .argument = $c,
-                    }
-                ));
+ret:
+    RET expression[expr] {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::RetStmt,
+            .ret_stmt = { $expr }
+        );
     }
-    ;
+    | RET NIL { // Note: we need NIL here to avoid grammar confilicts (a possible fix would be to stop ignoring EOL)
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::RetStmt,
+            .ret_stmt = { nullptr }
+        );
+    }
 
-shw:
-    SHW'('expression[ic]')' {
-        DEBUG("shw var");
-        s3c::new_shw(state, $ic, @ic.begin.line);
+builtinFunctionCall:
+    IPT '(' variable[var] ')' {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BuiltinFunction,
+            .builtin_function = {
+                .kind = BuiltinFunctionKind::Ipt,
+                .argument = $var,
+            }
+        );
+    }
+    | SHW '(' expression[expr] ')' {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BuiltinFunction,
+            .builtin_function = {
+               .kind = BuiltinFunctionKind::Shw,
+               .argument = $expr,
+            }
+        );
     }
     ;
 
@@ -229,33 +262,27 @@ expression:
 
 variable:
     IDENTIFIER {
-        DEBUG("new param variable");
         $$ = s3c::new_variable_reference(state, $1, @1.begin.line);
     }
     | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
-        DEBUG("using an array");
         $$ = s3c::new_index_expr(state, $1, @1.begin.line, $index);
     }
     ;
 
 arithmeticOperation:
     ADD'(' expression[left] COMMA expression[right] ')' {
-        DEBUG("addOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
             ArithmeticOperationKind::Add, @1.begin.line);
     }
     | SUB'(' expression[left] COMMA expression[right] ')' {
-        DEBUG("mnsOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
             ArithmeticOperationKind::Sub, @1.begin.line);
     }
     | MUL'(' expression[left] COMMA expression[right] ')' {
-        DEBUG("tmsOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
             ArithmeticOperationKind::Mul, @1.begin.line);
     }
     | DIV'(' expression[left] COMMA expression[right] ')' {
-        DEBUG("divOP");
         $$ = s3c::new_arithmetic_operation(state, $left, $right,
             ArithmeticOperationKind::Div, @1.begin.line);
     }
@@ -263,85 +290,112 @@ arithmeticOperation:
 
 booleanOperation:
     EQL'(' expression[lhs] COMMA expression[rhs] ')' {
-        DEBUG("EqlOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Eql,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Eql,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
-        DEBUG("SupOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Sup,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Sup,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | INF'(' expression[lhs] COMMA expression[rhs] ')' {
-        DEBUG("InfOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Inf,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Inf,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
-        DEBUG("SeqOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Seq,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Seq,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
-        DEBUG("IeqOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Ieq,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Ieq,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        DEBUG("AndOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::And,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::And,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        DEBUG("LorOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Lor,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Lor,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        DEBUG("XorOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Xor,
-                          .lhs = $lhs,
-                          .rhs = $rhs,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Xor,
+                .lhs = $lhs,
+                .rhs = $rhs,
+            }
+        );
     }
     | NOT'('booleanOperation[op]')' {
-        DEBUG("NotOP");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::BooleanOperation, .boolean_operation = BooleanOperation{
-                          .kind = BooleanOperationKind::Not,
-                          .lhs = $op,
-                          .rhs = nullptr,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::BooleanOperation,
+            .boolean_operation = {
+                .kind = BooleanOperationKind::Not,
+                .lhs = $op,
+                .rhs = nullptr,
+            }
+        );
     }
     ;
 
@@ -350,107 +404,127 @@ functionCall:
         s3c::begin_new_funcall(state);
     }
     parameterList')' {
-        DEBUG("new funcall: " << $1);
         $$ = s3c::new_function_call(state, $1, @1.begin.line);
     }
     ;
 
 variableDefinition:
     type[t] IDENTIFIER[name] {
-        DEBUG("new declaration: " << $name);
-        s3c::new_variable_definition(state, $name, $t, @name.begin.line);
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @name.begin.line),
+            AstKind::VariableDefinition,
+            .variable_definition = {
+                .type_specifier = $t,
+                .name = string_create($name, state->allocator),
+            }
+        );
     }
     | type[t] IDENTIFIER[name] OSQUAREB INT[size] CSQUAREB {
-        DEBUG("new array declaration: " << $2);
         $t.size = $size;
-        s3c::new_variable_definition(state, $name, $t, @name.begin.line);
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @name.begin.line),
+            AstKind::VariableDefinition,
+            .variable_definition = {
+                .type_specifier = $t,
+                .name = string_create($name, state->allocator),
+            }
+        );
     }
     ;
 
 assignment:
     MOV'('variable[var] COMMA expression[expr]')' {
-        DEBUG("new assignment");
-        $$ = s3c::new_assignment(state, $var, $expr, @var.begin.line);
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::Assignment,
+            .assignment = Assignment{ $var, $expr }
+        );
     }
     ;
 
 value:
-    INT {
-        DEBUG("new int: " << $1);
-        $$ = s3c::new_value<long>(state, (long)$1, @1.begin.line);
-    }
-    | FLT {
-        DEBUG("new double: " << $1);
-        $$ = s3c::new_value<double>(state, $1, @1.begin.line);
-    }
-    | CHR {
-        DEBUG("new char: " << $1);
-        $$ = s3c::new_value<char>(state, $1, @1.begin.line);
-    }
-    | STRING {
-        DEBUG("new str: " << $1);
-        $$ = s3c::new_value<std::string>(state, $1, @1.begin.line);
-    }
+    INT { $$ = s3c::new_value<long>(state, (long)$1, @1.begin.line); }
+    | FLT { $$ = s3c::new_value<double>(state, $1, @1.begin.line); }
+    | CHR { $$ = s3c::new_value<char>(state, $1, @1.begin.line); }
+    | STRING { $$ = s3c::new_value<std::string>(state, $1, @1.begin.line); }
     ;
 
-statement:
-    cnd {
-        DEBUG("new if");
-        s3c::add_instruction(state, $1);
-    }
-    | for {
-        DEBUG("new for");
-        s3c::add_instruction(state, $1);
-    }
-    | whl {
-        DEBUG("new whl");
-        s3c::add_instruction(state, $1);
-    }
-    ;
+controlStructure: cnd | for | whl;
 
 cnd:
-    CND {
-        s3c::begin_block(state);
-    } booleanOperation[cond] BGN {
-        s3c::new_cnd(state, $cond, @1.begin.line);
-    } cndContent END {
-        $$ = s3c::end_cnd(state);
+    CND  booleanOperation[cond] BGN cndContent[cc] END {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::CndStmt,
+            .cnd_stmt = {
+                .condition = $cond,
+                .block = $cc.block,
+                .otw = $cc.otw,
+            }
+        );
     }
     ;
 
 cndContent:
-    code optOtw
-    ;
-
-otw:
-    OTW {
-        s3c::new_otw(state);
+    code optOtw {
+        auto block = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::Block,
+            .block = { array_create_from_std_vector($1) }
+        );
+        $$ = CndContent{
+            .block = block,
+            .otw = $2,
+        };
     }
     ;
 
 optOtw:
-    %empty
-    | otw booleanOperation[cond] {
-        s3c::new_otw_cnd(state, $cond, @1.begin.line);
-    } cndContent
-    | otw code
+    %empty { $$ = nullptr; }
+    | OTW booleanOperation[cond] cndContent[cc] {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::CndStmt,
+            .cnd_stmt = {
+                .condition = $cond,
+                .block = $cc.block,
+                .otw = $cc.otw,
+            }
+        );
+    }
+    | OTW code {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::Block,
+            .block { array_create_from_std_vector($2) }
+        );
+    }
     ;
 
 for:
     FOR assignment[b] SEMI booleanOperation[e] SEMI expression[s] block[ops] {
-        DEBUG("in for");
         $$ = s3c::new_for(state, $b, $e, $s, $ops, @1.begin.line);
     }
     ;
 
 whl:
     WHL booleanOperation[cond] block[ops] {
-        DEBUG("in whl");
-        $$ = new_ast(&state->ast_pool, location_create(state->curr_filename, @1.begin.line),
-                      AstKind::WhlStmt, .whl_stmt = WhlStmt{
-                          .condition = $cond,
-                          .block = $ops,
-                      });
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::WhlStmt,
+            .whl_stmt = {
+                .condition = $cond,
+                .block = $ops,
+            }
+        );
     }
     ;
 %%

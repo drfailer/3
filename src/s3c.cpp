@@ -91,12 +91,12 @@ void add_instruction(State *state, Ast *ast) {
     array_append(&state->curr_function.blocks.top()->data.block.asts, ast);
 }
 
-void new_return_expr(State *state, Ast *expr, size_t line) {
-    std::ostringstream oss;
-    auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
-                         .ret_stmt = { expr });
-    add_instruction(state, ast);
-}
+// void new_return_expr(State *state, Ast *expr, size_t line) {
+//     std::ostringstream oss;
+//     auto ast = new_ast(&state->ast_pool, LOCATION, AstKind::RetStmt,
+//                          .ret_stmt = { expr });
+//     add_instruction(state, ast);
+// }
 
 Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
                               ArithmeticOperationKind kind, size_t line) {
@@ -123,23 +123,6 @@ Ast *new_function_call(State *state, std::string const &function_name,
                          });
     state->funcall_parameters.pop_back();
     return ast;
-}
-
-void new_variable_definition(State *state, std::string id, TypeSpecifier type,
-                             size_t line) {
-    auto location = location_create(state->curr_filename, line);
-    add_instruction(
-        state,
-        new_ast(
-            &state->ast_pool,
-            location,
-            AstKind::VariableDefinition,
-            .variable_definition = VariableDefinition{
-                .type_specifier = type,
-                .name = string_create(id, state->allocator),
-            }
-        )
-    );
 }
 
 Ast *new_variable_reference(State *state, std::string const &name,
@@ -176,70 +159,17 @@ Ast *new_index_expr(State *state, std::string const &name, size_t line,
     );
 }
 
-Ast *new_assignment(State *state, Ast *target, Ast *expr,
-                           size_t line) {
-    auto location = LOCATION;
-    return new_ast(&state->ast_pool, location, AstKind::Assignment, .assignment = Assignment{ target, expr });
-}
-
-void new_cnd(State *state, Ast *cond, size_t line) {
-    state->parser_stack.push(new_ast(&state->ast_pool, location_create(state->curr_filename, line),
-                AstKind::CndStmt, .cnd_stmt = CndStmt{
-                    .condition = cond,
-                    .block = nullptr,
-                    .otw = nullptr,
-                }));
-}
-
-void new_otw(State *state) {
-    auto block = s3c::end_block(state);
-
-    CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
-    while (cur->block != nullptr) {
-        cur = &cur->otw->data.cnd_stmt;
-    }
-    cur->block = block;
-    s3c::begin_block(state);
-}
-
-void new_otw_cnd(State *state, Ast *cond, size_t line) {
-    CndStmt *cur = &state->parser_stack.top()->data.cnd_stmt;
-    while (cur->otw != nullptr) {
-        cur = &cur->otw->data.cnd_stmt;
-    }
-    cur->otw = new_ast(&state->ast_pool, location_create(state->curr_filename, line),
-                        AstKind::CndStmt, .cnd_stmt = CndStmt{
-                            .condition = cond,
-                            .block = nullptr,
-                            .otw = nullptr,
-                        });
-}
-
-Ast *end_cnd(State *state) {
-    auto cnd = state->parser_stack.top();
-    auto block = s3c::end_block(state);
-
-    Ast *cur = cnd;
-    while (cur->data.cnd_stmt.otw != nullptr) {
-        cur = cur->data.cnd_stmt.otw;
-    }
-    if (cur->data.cnd_stmt.block == nullptr) {
-        cur->data.cnd_stmt.block = block;
-    } else {
-        block->location = cur->location;
-        cur->data.cnd_stmt.otw = block;
-    }
-    state->parser_stack.pop();
-    return cnd;
-}
-
 Ast *new_for(State *state, Ast *init, Ast *end,
                     Ast *step, Ast *block, size_t line) {
     auto location = LOCATION;
     // the syntax allow to just put the expression that is assigned to the loop
     // variable, therefore, we need to manually create the assignment
-    auto step_assignment =
-        new_assignment(state, init->data.assignment.target, step, line);
+    auto step_assignment = new_ast(
+        &state->ast_pool,
+        location,
+        AstKind::Assignment,
+        .assignment = Assignment{ init->data.assignment.target, step }
+    );
     return new_ast(&state->ast_pool, location, AstKind::ForStmt,
                     .for_stmt = ForStmt{
                         .init = init,
@@ -247,16 +177,6 @@ Ast *new_for(State *state, Ast *init, Ast *end,
                         .step = step_assignment,
                         .block = block,
                     });
-}
-
-void new_shw(State *state, Ast *expr, size_t line) {
-    auto location = LOCATION;
-    auto ast = new_ast(&state->ast_pool, location, AstKind::BuiltinFunction,
-                         .builtin_function = BuiltinFunction{
-                            .kind = BuiltinFunctionKind::Shw,
-                            .argument = expr,
-                         });
-    add_instruction(state, ast);
 }
 
 bool try_verify_main_type(State *state) {
