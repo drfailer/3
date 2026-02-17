@@ -90,11 +90,13 @@ void run_tests(std::string const& pattern) {
 
     for (auto path : config_paths) {
         TestConfig config = parse_config_file(path);
+        std::cout << "-------------------------------------------" << std::endl;
         if (run_test(config)) {
             std::cout << "success: " << config.title << std::endl;
         } else {
             std::cout << "failure: " << config.title << std::endl;
         }
+        std::cout << "-------------------------------------------" << std::endl;
     }
 }
 
