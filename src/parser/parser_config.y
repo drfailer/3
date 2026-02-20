@@ -238,10 +238,25 @@ expression:
 
 variable:
     IDENTIFIER {
-        $$ = s3c::new_variable_reference(state, $1, @1.begin.line);
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::VariableReference,
+            .variable_reference = {
+                .name = string_create($1, state->allocator),
+            }
+        );
     }
-    | IDENTIFIER OSQUAREB expression[index] CSQUAREB {
-        $$ = s3c::new_index_expr(state, $1, @1.begin.line, $index);
+    | variable[var] OSQUAREB expression[index] CSQUAREB {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @var.begin.line),
+            AstKind::IndexExpression,
+            .index_expression = {
+                .element = $var,
+                .index = $index,
+            }
+        );
     }
     ;
 
@@ -266,112 +281,40 @@ arithmeticOperation:
 
 booleanOperation:
     EQL'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Eql,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Eql,
+                                        @1.begin.line);
     }
     | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Sup,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Sup,
+                                        @1.begin.line);
     }
     | INF'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Inf,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Inf,
+                                        @1.begin.line);
     }
     | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Seq,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Seq,
+                                        @1.begin.line);
     }
     | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Ieq,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Ieq,
+                                        @1.begin.line);
     }
     | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::And,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::And,
+                                        @1.begin.line);
     }
     | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Lor,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Lor,
+                                        @1.begin.line);
     }
     | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Xor,
-                .lhs = $lhs,
-                .rhs = $rhs,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Xor,
+                                        @1.begin.line);
     }
     | NOT'('booleanOperation[op]')' {
-        $$ = new_ast(
-            &state->ast_pool,
-            location_create(state->curr_filename, @1.begin.line),
-            AstKind::BooleanOperation,
-            .boolean_operation = {
-                .kind = BooleanOperationKind::Not,
-                .lhs = $op,
-                .rhs = nullptr,
-            }
-        );
+        $$ = s3c::new_boolean_operation(state, $op, nullptr, BooleanOperationKind::Not,
+                                        @1.begin.line);
     }
     ;
 
@@ -490,8 +433,26 @@ optOtw:
     ;
 
 for:
-    FOR assignment[b] SEMI booleanOperation[e] SEMI expression[s] block[ops] {
-        $$ = s3c::new_for(state, $b, $e, $s, $ops, @1.begin.line);
+    FOR assignment[i] SEMI booleanOperation[c] SEMI expression[s] block[ops] {
+        $$ = new_ast(
+            &state->ast_pool,
+            location_create(state->curr_filename, @1.begin.line),
+            AstKind::ForStmt,
+            .for_stmt = {
+                .init = $i,
+                .condition = $c,
+                .step = new_ast(
+                    &state->ast_pool,
+                    location_create(state->curr_filename, @s.begin.line),
+                    AstKind::Assignment,
+                    .assignment = {
+                        .target = $i->data.assignment.target,
+                        .value = $s,
+                    }
+                ),
+                .block = $ops,
+            }
+        );
     }
     ;
 

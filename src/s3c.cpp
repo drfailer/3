@@ -55,58 +55,18 @@ Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
     return op_ast;
 }
 
-Ast *new_variable_reference(State *state, std::string const &name,
-                            size_t line) {
+Ast *new_boolean_operation(State *state, Ast *lhs, Ast *rhs,
+                           BooleanOperationKind kind, size_t line) {
     return new_ast(
         &state->ast_pool,
-        LOCATION,
-        AstKind::VariableReference,
-        .variable_reference = VariableReference{
-            .name = string_create(name, state->allocator),
+        location_create(state->curr_filename, line),
+        AstKind::BooleanOperation,
+        .boolean_operation = {
+            .kind = kind,
+            .lhs = lhs,
+            .rhs = rhs,
         }
     );
-}
-
-Ast *new_index_expr(State *state, std::string const &name, size_t line,
-                    Ast *index_ast) {
-    auto location = location_create(state->curr_filename, line);
-    auto variable = new_ast(
-        &state->ast_pool,
-        location,
-        AstKind::VariableReference,
-        .variable_reference = VariableReference{
-            .name = string_create(name, state->allocator),
-        }
-    );
-    return new_ast(
-        &state->ast_pool,
-        location,
-        AstKind::IndexExpression,
-        .index_expression = IndexExpression{
-            .element = variable,
-            .index = index_ast,
-        }
-    );
-}
-
-Ast *new_for(State *state, Ast *init, Ast *end,
-                    Ast *step, Ast *block, size_t line) {
-    auto location = LOCATION;
-    // the syntax allow to just put the expression that is assigned to the loop
-    // variable, therefore, we need to manually create the assignment
-    auto step_assignment = new_ast(
-        &state->ast_pool,
-        location,
-        AstKind::Assignment,
-        .assignment = Assignment{ init->data.assignment.target, step }
-    );
-    return new_ast(&state->ast_pool, location, AstKind::ForStmt,
-                    .for_stmt = ForStmt{
-                        .init = init,
-                        .condition = end,
-                        .step = step_assignment,
-                        .block = block,
-                    });
 }
 
 bool try_verify_main_type(State *state) {

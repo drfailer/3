@@ -29,13 +29,8 @@ void enter_file(State *state, std::string const &filename);
 
 void add_function(State *state, Ast *function);
 
-Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs,
-                              ArithmeticOperationKind kind, size_t line);
-
-Ast *new_variable_reference(State *state, std::string const &name, size_t line);
-Ast *new_index_expr(State *state, std::string const &name, size_t line, Ast *index_ast);
-
-Ast *new_for(State *state, Ast *init, Ast *condition, Ast *step, Ast *block, size_t line);
+Ast *new_arithmetic_operation(State *state, Ast *lhs, Ast *rhs, ArithmeticOperationKind kind, size_t line);
+Ast *new_boolean_operation(State *state, Ast *lhs, Ast *rhs, BooleanOperationKind kind, size_t line);
 
 bool try_verify_main_type(State *state);
 
