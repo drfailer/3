@@ -102,7 +102,7 @@ bool check_index_expr(CheckState *state, Ast *ast, SymbolTable *scope) {
     }
 
     auto variable_type = lookup_ast_type(scope, variable_ast);
-    if (variable_type->kind == type::TypeKind::Array) {
+    if (variable_type->kind != type::TypeKind::Array) {
         INDEX_NON_ARRAY_TYPE_ERROR(ast->location, std::string(variable_ast->data.variable_reference.name.ptr));
         return false;
     }
