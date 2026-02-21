@@ -24,7 +24,7 @@
 %define api.namespace {parser}
 %define api.value.type variant
 %locations
-%parse-param {Scanner &scanner} {s3c::State *state}
+%parse-param {Scanner &scanner} {State *state}
 
 %code requires
 {
@@ -100,7 +100,7 @@ program: %empty | programUnit program ;
 programUnit:
     functionDefinition { DEBUG("create new function" ); }
     | functionDeclaration { DEBUG("new function declaration" ); }
-    | PREPROCESSOR_LOCATION { s3c::enter_file(state, $1); }
+    | PREPROCESSOR_LOCATION { enter_file(state, $1); }
     ;
 
 functionSignature:
@@ -121,14 +121,14 @@ functionSignature:
 
 functionDeclaration:
     DCL functionSignature[function] {
-        s3c::add_function(state, $function);
+        add_function(state, $function);
     }
     ;
 
 functionDefinition:
     functionSignature[function] block[body] {
         $function->data.function.body = $body;
-        s3c::add_function(state, $function);
+        add_function(state, $function);
     }
     ;
 
@@ -262,59 +262,46 @@ variable:
 
 arithmeticOperation:
     ADD'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
-            ArithmeticOperationKind::Add, @1.begin.line);
+        $$ = new_arithmetic_operation(state, $lhs, $rhs, ArithmeticOperationKind::Add, @1.begin.line);
     }
     | SUB'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
-            ArithmeticOperationKind::Sub, @1.begin.line);
+        $$ = new_arithmetic_operation(state, $lhs, $rhs, ArithmeticOperationKind::Sub, @1.begin.line);
     }
     | MUL'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
-            ArithmeticOperationKind::Mul, @1.begin.line);
+        $$ = new_arithmetic_operation(state, $lhs, $rhs, ArithmeticOperationKind::Mul, @1.begin.line);
     }
     | DIV'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_arithmetic_operation(state, $lhs, $rhs,
-            ArithmeticOperationKind::Div, @1.begin.line);
+        $$ = new_arithmetic_operation(state, $lhs, $rhs, ArithmeticOperationKind::Div, @1.begin.line);
     }
     ;
 
 booleanOperation:
     EQL'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Eql,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Eql, @1.begin.line);
     }
     | SUP'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Sup,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Sup, @1.begin.line);
     }
     | INF'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Inf,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Inf, @1.begin.line);
     }
     | SEQ'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Seq,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Seq, @1.begin.line);
     }
     | IEQ'(' expression[lhs] COMMA expression[rhs] ')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Ieq,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Ieq, @1.begin.line);
     }
     | AND'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::And,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::And, @1.begin.line);
     }
     | LOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Lor,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Lor, @1.begin.line);
     }
     | XOR'('booleanOperation[lhs] COMMA booleanOperation[rhs]')' {
-        $$ = s3c::new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Xor,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $lhs, $rhs, BooleanOperationKind::Xor, @1.begin.line);
     }
     | NOT'('booleanOperation[op]')' {
-        $$ = s3c::new_boolean_operation(state, $op, nullptr, BooleanOperationKind::Not,
-                                        @1.begin.line);
+        $$ = new_boolean_operation(state, $op, nullptr, BooleanOperationKind::Not, @1.begin.line);
     }
     ;
 
@@ -370,10 +357,10 @@ assignment:
     ;
 
 value:
-    INT { $$ = s3c::new_value<long>(state, (long)$1, @1.begin.line); }
-    | FLT { $$ = s3c::new_value<double>(state, $1, @1.begin.line); }
-    | CHR { $$ = s3c::new_value<char>(state, $1, @1.begin.line); }
-    | STRING { $$ = s3c::new_value<std::string>(state, $1, @1.begin.line); }
+    INT { $$ = new_value<long>(state, (long)$1, @1.begin.line); }
+    | FLT { $$ = new_value<double>(state, $1, @1.begin.line); }
+    | CHR { $$ = new_value<char>(state, $1, @1.begin.line); }
+    | STRING { $$ = new_value<std::string>(state, $1, @1.begin.line); }
     ;
 
 controlStructure: cnd | for | whl;

@@ -6,8 +6,6 @@
 #include "type.hpp"
 #include <sstream>
 
-namespace s3c {
-
 State *state_create() {
     auto *state = new State();
     state->symtable = symbol_table_create(nullptr);
@@ -88,5 +86,3 @@ bool try_verify_main_type(State *state) {
 
     return true;
 }
-
-} // end namespace s3c

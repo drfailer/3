@@ -122,7 +122,7 @@ bool preprocess(Options const &opts) {
     return true;
 }
 
-bool parse(Options const &opts, s3c::State *state) {
+bool parse(Options const &opts, State *state) {
     // BUG: when declaring a string here, its destructor ends up crashing???
     // std::string pp_file = opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE;
     std::ifstream is(opts.build_directory_name + PREPROCESSOR_OUTPUT_FILE, std::ios::in);
@@ -136,7 +136,7 @@ bool parse(Options const &opts, s3c::State *state) {
 }
 
 bool compile(Options const &opts) {
-    s3c::State *state = s3c::state_create();
+    State *state = state_create();
     defer(state_destroy(state));
 
     make_directory(opts.build_directory_name);

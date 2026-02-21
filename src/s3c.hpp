@@ -10,8 +10,6 @@
 
 #define LOCATION location_create(state->curr_filename, line)
 
-namespace s3c {
-
 struct State {
     int status;
     std::string curr_filename;
@@ -73,7 +71,5 @@ Ast *new_value(State *state, T value, size_t line) {
     }
     return ast;
 }
-
-} // end namespace s3c
 
 #endif
