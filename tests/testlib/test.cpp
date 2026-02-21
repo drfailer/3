@@ -1,6 +1,7 @@
 #include "test.hpp"
 #include "config.hpp"
 #include "cmd.hpp"
+#include "timer.hpp"
 #include <filesystem>
 #include <iostream>
 #include <fstream>
@@ -52,9 +53,11 @@ static bool run_test(TestConfig const &config) {
         error("no gold files found for test `", config.title, "'");
         return false;
     }
+    timer_start(build);
     int build_res = run_cmd("../build/s3c", "-o",
                             exec, src, config.compiler.flags, config.compiler.ldflags,
                             ">", comp);
+    timer_end(build);
     if (build_res != 0 && config.results.should_compile) {
         error("failed to compile test '", config.title, "'.");
         return false;
@@ -63,6 +66,7 @@ static bool run_test(TestConfig const &config) {
         error("compiler output missmatch for test `", config.title , "'.");
         return false;
     }
+    timer_report(build);
 
     // run
     if (!config.results.should_run) {
@@ -72,7 +76,9 @@ static bool run_test(TestConfig const &config) {
         error("no gold files found for test `", config.title, "'");
         return false;
     }
+    timer_start(run);
     int run_res = run_cmd(exec, ">", out);
+    timer_end(run);
     if (run_res != config.results.exit_code) {
         error("wrong exit code for program `", config.title, "', expected ",
               config.results.exit_code, " but found ", run_res, ".");
@@ -82,6 +88,7 @@ static bool run_test(TestConfig const &config) {
         error("out file does not correspond to gold file for test `", config.title, "'.");
         return false;
     }
+    timer_report(run);
     return true;
 }
 
