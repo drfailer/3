@@ -6,6 +6,7 @@
 #include "s3c.hpp"
 #include "checks.hpp"
 #include "tools/messages.hpp"
+#include "tools/defer.hpp"
 #include "tools/string.hpp"
 #include <filesystem>
 #include <cassert>
@@ -136,6 +137,7 @@ bool parse(Options const &opts, s3c::State *state) {
 
 bool compile(Options const &opts) {
     s3c::State *state = s3c::state_create();
+    defer(state_destroy(state));
 
     make_directory(opts.build_directory_name);
 
@@ -180,8 +182,6 @@ bool compile(Options const &opts) {
                               opts.linker_options);
         }
     }
-
-    state_destroy(state);
     return true;
 }
 
