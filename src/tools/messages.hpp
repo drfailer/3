@@ -1,6 +1,6 @@
 #ifndef TOOLS_MESSAGES
 #define TOOLS_MESSAGES
-#include "type/type.hpp"
+#include "type.hpp"
 #include <sstream>
 #include <string>
 
@@ -47,67 +47,67 @@ void warning(std::string const &msg);
                    << QUOTE(function_name)                                     \
                    << ".\n"                                                    \
                       "found: "                                                \
-                   << QUOTE(type::type_to_string(found))                       \
+                   << QUOTE(type_to_string(found))                       \
                    << ".\n"                                                    \
                       "expected: "                                             \
-                   << QUOTE(type::type_to_string(expected)));
+                   << QUOTE(type_to_string(expected)));
 #define INVALID_RETURN_TYPE_ERROR(loc, function_id, found_type, expected_type) \
     ERROR(loc, "invalid return type found in "                                 \
                    << QUOTE(function_id)                                       \
                    << ".\n"                                                    \
                       "found: "                                                \
-                   << QUOTE(type::type_to_string(found_type))                  \
+                   << QUOTE(type_to_string(found_type))                  \
                    << "\n."                                                    \
                       "expected: "                                             \
-                   << QUOTE(type::type_to_string(expected_type)))
+                   << QUOTE(type_to_string(expected_type)))
 #define WRONG_NUMBER_OF_ARGUMENT_ERROR(loc, function_name, function_type)      \
     ERROR(loc, "wrong number of argument for "                                 \
                    << QUOTE(function_name) << " which is of type "             \
-                   << QUOTE(type::type_to_string(function_type)) << ".\n")
+                   << QUOTE(type_to_string(function_type)) << ".\n")
 
 #define ARGUMENT_TYPE_ERROR(loc, function_name, arg_idx, found_type,           \
                             expected_type)                                     \
     ERROR(loc,                                                                 \
           "wrong type for argument "                                           \
               << arg_idx << " of function " << QUOTE(function_name) << ".\n"   \
-              << "found: " << QUOTE(type::type_to_string(found_type)) << ".\n" \
-              << "expected: " << QUOTE(type::type_to_string(expected_type)))
+              << "found: " << QUOTE(type_to_string(found_type)) << ".\n" \
+              << "expected: " << QUOTE(type_to_string(expected_type)))
 
 #define INDEX_NON_ARRAY_TYPE_ERROR(loc, variable_name)                         \
     ERROR(loc, QUOTE(variable_name) << " is not indexable.")
 #define INVALID_INDEX_TYPE_ERROR(loc, found_type)                              \
     ERROR(loc, "index type should be "                                         \
                    << QUOTE("int") << " found "                                \
-                   << QUOTE(type::type_to_string(found_type)) << ".")
+                   << QUOTE(type_to_string(found_type)) << ".")
 
 #define IMPLICIT_CONVERTION_WARNING(loc, found_type, expected_type)            \
     WARNING(loc, "implicit convertion from "                                   \
-                     << QUOTE(type::type_to_string(found_type)) << " to "      \
-                     << QUOTE(type::type_to_string(expected_type)) << ".")
+                     << QUOTE(type_to_string(found_type)) << " to "      \
+                     << QUOTE(type_to_string(expected_type)) << ".")
 
 #define INVALID_MOV_ERROR(loc, target_type)                                    \
     ERROR(loc, "bad assignment of to expression of type "                      \
-                   << QUOTE(type::type_to_string(target_type)) << ".")
+                   << QUOTE(type_to_string(target_type)) << ".")
 #define BAD_ASSIGNMENT_ERROR(loc, found_type, expected_type)                   \
     ERROR(loc, "bad assignment of of an expression of type "                   \
-                   << QUOTE(type::type_to_string(found_type))                  \
+                   << QUOTE(type_to_string(found_type))                  \
                    << " to a variable of type "                                \
-                   << QUOTE(type::type_to_string(expected_type)) << ".")
+                   << QUOTE(type_to_string(expected_type)) << ".")
 
 #define BAD_FOR_INDEX_VARIABLE_TYPE(loc, index_id, found_type)                 \
     ERROR(loc, "variable " << QUOTE(index_id) << " is of type "                \
-                           << QUOTE(type::type_to_string(found_type))          \
+                           << QUOTE(type_to_string(found_type))          \
                            << " which cannot be used in a for loops.")
 
 #define FOR_STEP_TYPE_ERROR(loc, found_type, expected_type)                    \
     ERROR(loc, "in for statement, found step expression of type "              \
-                   << QUOTE(type::type_to_string(found_type))                  \
+                   << QUOTE(type_to_string(found_type))                  \
                    << ", which is incompatible with the index type "           \
-                   << QUOTE(type::type_to_string(expected_type)) << ".")
+                   << QUOTE(type_to_string(expected_type)) << ".")
 #define FOR_STEP_TYPE_WARNING(loc, found_type, expected_type)                  \
     ERROR(loc, "in for statement, implicit convertion from "                   \
-                   << QUOTE(type::type_to_string(found_type)) << " to "        \
-                   << QUOTE(type::type_to_string(expected_type))               \
+                   << QUOTE(type_to_string(found_type)) << " to "        \
+                   << QUOTE(type_to_string(expected_type))               \
                    << " on step.")
 
 #endif

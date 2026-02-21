@@ -4,6 +4,7 @@
 #include <vector>
 #include "ast.hpp"
 #include "symbol_table.hpp"
+#include "tools/mem.hpp"
 
 /*
  * This module contains function that verify the types and the symbol
@@ -11,10 +12,11 @@
  */
 
 struct CheckState {
-    std::string current_file;
-    std::string current_function;
+    std::string current_function; // TODO: use the ast node here instead of a string
+    MemPool<Type> *type_pool;
+    Allocator allocator;
 };
 
-bool check(std::vector<Ast *> program, SymbolTable *symtable);
+bool check(CheckState *state, std::vector<Ast *> const &program, SymbolTable *symtable);
 
 #endif

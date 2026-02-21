@@ -1,13 +1,10 @@
 #include "s3c.hpp"
 #include "symbol_table.hpp"
 #include "tools/messages.hpp"
-#include "tools/type_utilities.hpp"
 #include "ast.hpp"
-#include "type/predicates.hpp"
-#include "type/type.hpp"
+#include "type.hpp"
+#include "type.hpp"
 #include <sstream>
-
-// TODO: add an error status in the state
 
 namespace s3c {
 
@@ -17,7 +14,9 @@ State *state_create() {
     state->status = 0;
     state->arena = arena_create();
     state->allocator = arena_allocator(&state->arena);
+    // TODO: use the default pool size (should be a define)
     mem_pool_init(&state->ast_pool, 100);
+    mem_pool_init(&state->type_pool, 100);
     return state;
 }
 
@@ -25,6 +24,7 @@ void state_destroy(State *state) {
     // BUG: does not work, the memory must get corrupted somewhere
     symbol_table_destroy(state->symtable);
     mem_pool_destroy(&state->ast_pool);
+    mem_pool_destroy(&state->type_pool);
     arena_destroy(&state->arena);
     delete state;
 }
@@ -76,12 +76,12 @@ bool try_verify_main_type(State *state) {
         return true; // when compiling libraries or object files
     }
 
-    if (sym->type->kind != type::TypeKind::Function) {
+    if (sym->type->kind != TypeKind::Function) {
         ERROR(sym->location, "main should be a function.")
         return false;
     }
 
-    if (!type::is_int(sym->type->value.function->return_type)) {
+    if (!is_int(sym->type->data.function.return_type)) {
         ERROR(sym->location, "invalid return type for main.")
         return false;
     }

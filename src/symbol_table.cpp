@@ -17,7 +17,7 @@ void symbol_table_destroy(SymbolTable *table) {
     delete table;
 }
 
-void insert_symbol(SymbolTable *table, std::string const &id, type::Type *type,
+void insert_symbol(SymbolTable *table, std::string const &id, Type *type,
                    SymbolTable *scope, Location const &location) {
     table->symbols.insert({id, Symbol{
                                    .id = id,
@@ -38,7 +38,7 @@ Symbol *lookup_id(SymbolTable *table, std::string const &id) {
     return nullptr;
 }
 
-type::Type *lookup_ast_type(SymbolTable *table, Ast *ast) {
+Type *lookup_ast_type(SymbolTable *table, Ast *ast) {
     auto maybe_type = table->ast_types.find(ast);
     if (maybe_type != table->ast_types.end()) {
         return maybe_type->second;

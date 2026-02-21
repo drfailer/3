@@ -1,47 +1,75 @@
 #include "checks.hpp"
 #include "ast.hpp"
 #include "symbol_table.hpp"
-#include "type/predicates.hpp"
-#include "type/type.hpp"
+#include "type.hpp"
 #include "tools/messages.hpp"
+#include "tools/array.hpp"
 
 bool check(CheckState *state, Ast *ast, SymbolTable *scope);
 bool check_block(CheckState *state, Ast *ast, SymbolTable *scope);
 bool check_boolean_operation(CheckState *state, Ast *ast, SymbolTable *scope);
 
-type::Type *type_specifier_to_type(TypeSpecifier const &specifier) {
-    type::Type *type = nullptr;
+Type *type_specifier_to_type(CheckState *state, TypeSpecifier const &specifier) {
+    Type *type = nullptr;
 
     switch (specifier.kind) {
-    case TypeSpecifierKind::Nil: type = type::create_nil_type(); break;
-    case TypeSpecifierKind::Chr: type = type::create_primitive_type(type::PrimitiveType::Chr); break;
-    case TypeSpecifierKind::Int: type = type::create_primitive_type(type::PrimitiveType::Int); break;
-    case TypeSpecifierKind::Flt: type = type::create_primitive_type(type::PrimitiveType::Flt); break;
-    case TypeSpecifierKind::Str: type = type::create_primitive_type(type::PrimitiveType::Str); break;
-    case TypeSpecifierKind::Obj: assert(false && "obj not implemented"); break;
+    case TypeSpecifierKind::Nil:
+        type = new_type(state->type_pool, TypeKind::Nil, {});
+        break;
+    case TypeSpecifierKind::Chr:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Chr);
+        break;
+    case TypeSpecifierKind::Int:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Int);
+        break;
+    case TypeSpecifierKind::Flt:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Flt);
+        break;
+    case TypeSpecifierKind::Str:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Str);
+        break;
+    case TypeSpecifierKind::Obj:
+        assert(false && "obj not implemented");
+        break;
     }
 
     // TODO: update this when we will support dynamic arrays
     if (specifier.size > 0) {
-        return create_static_array_type(type, specifier.size);
+        return new_type(
+            state->type_pool,
+            TypeKind::Array,
+            .array = {
+                .element_type = type,
+                .size = specifier.size,
+                .dynamic = false,
+            },
+        );
     }
     return type;
 }
 
-bool check_value(CheckState *, Ast *ast, SymbolTable *scope) {
-    type::Type *type = nullptr;
+bool check_value(CheckState *state, Ast *ast, SymbolTable *scope) {
+    Type *type = nullptr;
 
     switch (ast->data.value.kind) {
-    case ValueKind::Character: type = type::create_primitive_type(type::PrimitiveType::Chr); break;
-    case ValueKind::Integer: type = type::create_primitive_type(type::PrimitiveType::Int); break;
-    case ValueKind::Real: type = type::create_primitive_type(type::PrimitiveType::Flt); break;
-    case ValueKind::String: type = type::create_primitive_type(type::PrimitiveType::Str); break;
+    case ValueKind::Character:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Chr);
+        break;
+    case ValueKind::Integer:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Int);
+        break;
+    case ValueKind::Real:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Flt);
+        break;
+    case ValueKind::String:
+        type = new_type(state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Str);
+        break;
     }
     scope->ast_types[ast] = type;
     return true;
 }
 
-bool check_variable_definition(CheckState *, Ast *ast, SymbolTable *scope) {
+bool check_variable_definition(CheckState *state, Ast *ast, SymbolTable *scope) {
     assert(ast->kind == AstKind::VariableDefinition);
     std::string variable_name = std::string(ast->data.variable_definition.name.ptr);
 
@@ -50,7 +78,7 @@ bool check_variable_definition(CheckState *, Ast *ast, SymbolTable *scope) {
         MULTIPLE_DEFINITION_ERROR(ast->location, variable_name, sym->location);
         return false;
     }
-    insert_symbol(scope, variable_name, type_specifier_to_type(ast->data.variable_definition.type_specifier),
+    insert_symbol(scope, variable_name, type_specifier_to_type(state, ast->data.variable_definition.type_specifier),
             nullptr, ast->location);
     return true;
 }
@@ -79,15 +107,15 @@ bool check_assignment(CheckState *state, Ast *ast, SymbolTable *scope) {
     auto expr_type = lookup_ast_type(scope, expr);
     auto target_type = lookup_ast_type(scope, target);
 
-    if (!type::is_primitive(target_type)) { // may change
+    if (!is_primitive(target_type)) { // may change
         INVALID_MOV_ERROR(ast->location, target_type);
         return false;
     }
-    if (!type::is_convertible(expr_type, target_type)) {
+    if (!is_convertible(expr_type, target_type)) {
         BAD_ASSIGNMENT_ERROR(ast->location, expr_type, target_type);
         return false;
     }
-    if (!type::equal(expr_type, target_type)) {
+    if (!equal(expr_type, target_type)) {
         IMPLICIT_CONVERTION_WARNING(ast->location, expr_type, target_type);
     }
     return true;
@@ -102,17 +130,17 @@ bool check_index_expr(CheckState *state, Ast *ast, SymbolTable *scope) {
     }
 
     auto variable_type = lookup_ast_type(scope, variable_ast);
-    if (variable_type->kind != type::TypeKind::Array) {
+    if (variable_type->kind != TypeKind::Array) {
         INDEX_NON_ARRAY_TYPE_ERROR(ast->location, std::string(variable_ast->data.variable_reference.name.ptr));
         return false;
     }
 
     auto index_type = lookup_ast_type(scope, index_ast);
-    if (!type::is_int(index_type)) {
+    if (!is_int(index_type)) {
         INVALID_INDEX_TYPE_ERROR(index_ast->location, index_type);
         return false;
     }
-    scope->ast_types[ast] = variable_type->value.array->type;
+    scope->ast_types[ast] = variable_type->data.array.element_type;
     return true;
 }
 
@@ -138,14 +166,14 @@ bool check_function_call(CheckState *state, Ast *ast, SymbolTable *scope) {
         UNDEFINED_SYMBOL_ERROR(ast->location, function_name.ptr);
         return false;
     }
-    if (sym->type->kind != type::TypeKind::Function) {
+    if (sym->type->kind != TypeKind::Function) {
         INVALID_CALL_ERROR(ast->location, function_name.ptr);
         return false;
     }
 
-    auto function_type = sym->type->value.function;
+    auto function_type = &sym->type->data.function;
     scope->ast_types[ast] = function_type->return_type;
-    if (function_type->arguments_types.size() != args.len) {
+    if (function_type->arguments_types.len != args.len) {
         WRONG_NUMBER_OF_ARGUMENT_ERROR(ast->location, function_name.ptr,
                                        sym->type);
         return false;
@@ -160,7 +188,7 @@ bool check_function_call(CheckState *state, Ast *ast, SymbolTable *scope) {
         auto found_type = lookup_ast_type(scope, args[idx]);
         auto expected_tpe = args_types[idx];
 
-        if (!type::is_convertible(found_type, expected_tpe)) {
+        if (!is_convertible(found_type, expected_tpe)) {
             ARGUMENT_TYPE_ERROR(ast->location, function_name.ptr, idx,
                                 found_type, expected_tpe);
             res = false;
@@ -200,11 +228,11 @@ bool check_for_stmt(CheckState *state, Ast *ast, SymbolTable *scope) {
 
     Ast *idx_var = init->data.assignment.target;
     Symbol *idx_sym = lookup_id(scope, idx_var->data.variable_reference.name.ptr);
-    type::Type *idx_var_type = idx_sym->type;
-    type::Type *step_type = lookup_ast_type(scope, step->data.assignment.value);
+    Type *idx_var_type = idx_sym->type;
+    Type *step_type = lookup_ast_type(scope, step->data.assignment.value);
 
-    if (!type::equal(idx_var_type, step_type)) {
-        if (!type::is_convertible(idx_var_type, step_type)) {
+    if (!equal(idx_var_type, step_type)) {
+        if (!is_convertible(idx_var_type, step_type)) {
             FOR_STEP_TYPE_ERROR(location, step_type, idx_var_type);
             return false;
         } else {
@@ -228,14 +256,14 @@ bool check_whl_stmt(CheckState *state, Ast *ast, SymbolTable *scope) {
 bool check_ret_stmt(CheckState *state, Ast *ast, SymbolTable *scope) {
     Symbol *sym = lookup_id(scope, state->current_function);
     assert(sym && "current function not inserted in the symbol table.");
-    auto expected_type = sym->type->value.function->return_type;
+    auto expected_type = sym->type->data.function.return_type;
     Ast *expr = ast->data.ret_stmt.expression;
 
     if (expr == nullptr) {
-        if (!type::is_nil(expected_type)) {
+        if (!is_nil(expected_type)) {
             INVALID_RETURN_TYPE_ERROR(
                 ast->location, sym->id,
-                sym->type->value.function->return_type, expected_type);
+                sym->type->data.function.return_type, expected_type);
             return false;
         }
         return true;
@@ -246,13 +274,13 @@ bool check_ret_stmt(CheckState *state, Ast *ast, SymbolTable *scope) {
     }
 
     auto expr_type = lookup_ast_type(scope, expr);
-    if (!type::is_convertible(expr_type, expected_type)) {
+    if (!is_convertible(expr_type, expected_type)) {
         INVALID_RETURN_TYPE_ERROR(ast->location, sym->id, expr_type,
-                                  sym->type->value.function->return_type);
+                                  sym->type->data.function.return_type);
         return false;
-    } else if (!type::equal(expr_type, expected_type)) {
+    } else if (!equal(expr_type, expected_type)) {
         IMPLICIT_CONVERTION_WARNING(ast->location, expr_type,
-                                    sym->type->value.function->return_type);
+                                    sym->type->data.function.return_type);
     }
     return true;
 }
@@ -278,11 +306,11 @@ bool check_arithmetic_operation(CheckState *state, Ast *ast, SymbolTable *scope)
     auto lhs_type = lookup_ast_type(scope, lhs);
     auto rhs_type = lookup_ast_type(scope, rhs);
 
-    if (!type::supports_arithmetic(lhs_type) || !type::supports_arithmetic(rhs_type)) {
+    if (!supports_arithmetic(lhs_type) || !supports_arithmetic(rhs_type)) {
         ARITHMETIC_OPERATOR_ERROR(ast->location, operator_name(ast->data.arithmetic_operation.kind))
         return false;
     }
-    scope->ast_types[ast] = type::select_most_precise_arithmetic_type(lhs_type, rhs_type);
+    scope->ast_types[ast] = select_most_precise_arithmetic_type(lhs_type, rhs_type);
     return true;
 }
 
@@ -299,8 +327,8 @@ bool check_boolean_operation(CheckState *state, Ast *ast, SymbolTable *scope) {
     assert(lhs_type != nullptr);
     assert(rhs_type != nullptr);
 
-    if (!type::equal(lhs_type, rhs_type)) {
-        if (type::is_convertible(lhs_type, rhs_type)) {
+    if (!equal(lhs_type, rhs_type)) {
+        if (is_convertible(lhs_type, rhs_type)) {
             IMPLICIT_CONVERTION_WARNING(ast->location, lhs_type, rhs_type);
         } else {
             return false;
@@ -319,7 +347,7 @@ bool check_builtin_function(CheckState *state, Ast *ast, SymbolTable *scope) {
 
     if (ast->data.builtin_function.kind == BuiltinFunctionKind::Shw) {
         auto expr_type = lookup_ast_type(scope, arg);
-        if (!type::is_str(expr_type)) {
+        if (!is_str(expr_type)) {
             ERROR(ast->location, "shw takes a string as argument.");
             return false;
         }
@@ -391,24 +419,29 @@ bool check(CheckState *state, Ast *ast, SymbolTable *scope) {
     return ok;
 }
 
-type::Type *function_type_from_ast(Ast *ast) {
+Type *function_type_from_ast(CheckState *state, Ast *ast) {
     assert(ast->kind == AstKind::Function);
-    type::Type *return_type = type_specifier_to_type(ast->data.function.return_type_specifier);
-    std::vector<type::Type *> arguments_types(ast->data.function.arguments.len);
+    Type *return_type = type_specifier_to_type(state, ast->data.function.return_type_specifier);
+    size_t nb_args = ast->data.function.arguments.len;
+    Array<Type *> arguments_types = array_create<Type *>(nb_args, nb_args, state->allocator);
 
     for (size_t i = 0; i < ast->data.function.arguments.len; ++i) {
         Ast *arg = ast->data.function.arguments[i];
         assert(arg->kind == AstKind::VariableDefinition);
-        arguments_types[i] = type_specifier_to_type(arg->data.variable_definition.type_specifier);
+        arguments_types[i] = type_specifier_to_type(state, arg->data.variable_definition.type_specifier);
     }
-    return create_function_type(std::string(ast->data.function.name.ptr), return_type,
-                                std::move(arguments_types));
+    return new_type(
+        state->type_pool,
+        TypeKind::Function,
+        .function = {
+            .return_type = return_type,
+            .arguments_types = arguments_types,
+        }
+    );
 }
 
-/*
- * TODO: First pass in which global symbols are added to the symbol table.
- */
-bool process_global_symbols(std::vector<Ast *> program, SymbolTable *global_scope) {
+// First pass in which global symbols are added to the symbol table.
+bool process_global_symbols(CheckState *state, std::vector<Ast *> const &program, SymbolTable *global_scope) {
     for (Ast *ast : program) {
         assert(ast->kind == AstKind::Function);
         std::string function_name = std::string(ast->data.function.name.ptr);
@@ -419,22 +452,21 @@ bool process_global_symbols(std::vector<Ast *> program, SymbolTable *global_scop
             return false;
         }
         insert_symbol(global_scope, function_name,
-                function_type_from_ast(ast), nullptr, ast->location);
+                function_type_from_ast(state, ast), nullptr, ast->location);
     }
     return true;
 }
 
 // TODO: we should create the symbol table here
-bool check(std::vector<Ast *> program, SymbolTable *symtable) {
+bool check(CheckState *state, std::vector<Ast *> const &program, SymbolTable *symtable) {
     bool ok = true;
-    CheckState state;
 
-    if (!process_global_symbols(program, symtable)) {
+    if (!process_global_symbols(state, program, symtable)) {
         return false;
     }
 
     for (Ast *ast : program) {
-        if (!check(&state, ast, symtable)) {
+        if (!check(state, ast, symtable)) {
             ok = false;
         }
     }

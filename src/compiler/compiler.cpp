@@ -38,7 +38,7 @@ std::string asm_addr(Address const &result) {
 }
 
 void asm_addr_immediate_value(CompilerState *state, std::string value,
-                              type::Type *type) {
+                              Type *type) {
     // TODO: size?
     state->last_expr_addr.addressing_mode = AddressingMode::ImmediateValue;
     state->last_expr_addr.immediate_value = value;
@@ -46,7 +46,7 @@ void asm_addr_immediate_value(CompilerState *state, std::string value,
 }
 
 void asm_addr_register(CompilerState *state, std::string register_name,
-                       type::Type *type) {
+                       Type *type) {
     // TODO: size?
     state->last_expr_addr.addressing_mode = AddressingMode::Register;
     state->last_expr_addr.register_name = register_name;
@@ -54,7 +54,7 @@ void asm_addr_register(CompilerState *state, std::string register_name,
 }
 
 void asm_addr_register_indirect(CompilerState *state, std::string register_name,
-                                type::Type *type) {
+                                Type *type) {
     // TODO: size?
     state->last_expr_addr.addressing_mode = AddressingMode::RegisterIndirect;
     state->last_expr_addr.register_name = register_name;
@@ -62,7 +62,7 @@ void asm_addr_register_indirect(CompilerState *state, std::string register_name,
 }
 
 void asm_addr_based(CompilerState *state, std::string base_name, int offset,
-                    type::Type *type) {
+                    Type *type) {
     // TODO: size?
     state->last_expr_addr.addressing_mode = AddressingMode::Based;
     state->last_expr_addr.register_name = base_name;
@@ -170,7 +170,7 @@ std::string asm_create_data_id(Asm const &code, std::string const &name) {
 }
 
 void allocate_stack_variable(CompilerState *state, std::string const &id,
-                             size_t size, type::Type *type,
+                             size_t size, Type *type,
                              std::string const &base_name) {
     auto it = state->variables_addresses.find(id);
 

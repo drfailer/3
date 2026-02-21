@@ -2,7 +2,7 @@
 #define TOOLS_S3C_H
 #include "symbol_table.hpp"
 #include "ast.hpp"
-#include "type/type.hpp"
+#include "type.hpp"
 #include "tools/mem.hpp"
 #include <cstring>
 #include <functional>
@@ -17,7 +17,8 @@ struct State {
     std::string curr_filename;
     SymbolTable *symtable;
     std::vector<Ast *> program;
-    MemPool<Ast> ast_pool; // TODO: the ast should be default constructible!
+    MemPool<Ast> ast_pool;
+    MemPool<Type> type_pool;
     Arena arena;
     Allocator allocator;
 };

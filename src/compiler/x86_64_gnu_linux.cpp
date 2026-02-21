@@ -3,8 +3,7 @@
 #include "compiler/tools.hpp"
 #include "symbol_table.hpp"
 #include "tools/string.hpp"
-#include "type/predicates.hpp"
-#include "type/type.hpp"
+#include "../type.hpp"
 #include <array>
 #include <cassert>
 #include <cstring>
@@ -69,7 +68,7 @@ void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope);
  */
 void compile_value(CompilerState *state, Ast *ast, SymbolTable *scope) {
     Value *value_ast = &ast->data.value;
-    type::Type *type = scope->ast_types[ast];
+    Type *type = scope->ast_types[ast];
 
     switch (value_ast->kind) {
     case ValueKind::Character:
@@ -101,7 +100,7 @@ void compile_variable_definition(CompilerState *state, Ast *ast,
                                  SymbolTable *scope) {
     VariableDefinition *var_ast = &ast->data.variable_definition;
     auto type = lookup_id(scope, var_ast->name.ptr)->type;
-    auto size = type::get_type_size(type);
+    auto size = size_of(type);
 
     allocate_stack_variable(state, var_ast->name.ptr, size, type, "rbp");
     asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
@@ -125,39 +124,39 @@ void compile_assignement(CompilerState *state, Ast *ast,
         asm_add_instruction(state->code, "push", target.register_name);
         compile_ast(state, assignment_ast->value, scope);
         asm_add_instruction(state->code, "pop", "rdx");
-        if (type::is_flt(target_type)) {
+        if (is_flt(target_type)) {
             std::string value_addr = asm_addr(state->last_expr_addr);
-            if (!type::is_flt(value_type)) {
+            if (!is_flt(value_type)) {
                 asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
                                     value_addr);
                 value_addr = "xmm0";
             }
             asm_add_instruction(state->code, "movsd", "[rdx]", value_addr);
-        } else if (type::is_int(target_type)) {
+        } else if (is_int(target_type)) {
             asm_add_instruction(state->code, "mov", "[rdx]",
                                 asm_addr(state->last_expr_addr));
-        } else if (type::is_str(target_type)) {
+        } else if (is_str(target_type)) {
             throw std::logic_error(
                 "error: str type does not support direct addressing mode.");
         } else {
             throw std::logic_error("unknown assignment target tyep: " +
-                                   type::type_to_string(target_type));
+                                   type_to_string(target_type));
         }
     } else if (target.addressing_mode == AddressingMode::Based) {
         compile_ast(state, assignment_ast->value, scope);
-        if (type::is_flt(target_type)) {
+        if (is_flt(target_type)) {
             auto value_addr = asm_addr(state->last_expr_addr);
-            if (!type::is_flt(value_type)) {
+            if (!is_flt(value_type)) {
                 asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
                                     value_addr);
                 value_addr = "xmm0";
             }
             asm_add_instruction(state->code, "movsd", asm_addr(target),
                                 value_addr);
-        } else if (type::is_int(target_type)) {
+        } else if (is_int(target_type)) {
             asm_add_instruction(state->code, "mov", asm_addr(target),
                                 asm_addr(state->last_expr_addr));
-        } else if (type::is_str(target_type)) {
+        } else if (is_str(target_type)) {
             // str is store backward as followed on the stack:
             // [nb bytes] <- effective address of the string
             // [data ptr]
@@ -204,7 +203,7 @@ void compile_assignement(CompilerState *state, Ast *ast,
             }
         } else {
             throw std::logic_error("unknown assignment target tyep: " +
-                                   type::type_to_string(target_type));
+                                   type_to_string(target_type));
         }
     } else {
         std::cerr << "error: invalide target." << std::endl;
@@ -236,7 +235,7 @@ void compile_variable_reference(CompilerState *state, Ast *ast,
 }
 
 void compile_add_sub_int(CompilerState *state, ArithmeticOperation *ast,
-                         SymbolTable *scope, bool sub, type::Type *type) {
+                         SymbolTable *scope, bool sub, Type *type) {
     compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_ast(state, ast->lhs, scope);
@@ -251,7 +250,7 @@ void compile_add_sub_int(CompilerState *state, ArithmeticOperation *ast,
 }
 
 void compile_mul_int(CompilerState *state, ArithmeticOperation *ast,
-                     SymbolTable *scope, type::Type *type) {
+                     SymbolTable *scope, Type *type) {
     compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_ast(state, ast->lhs, scope);
@@ -264,7 +263,7 @@ void compile_mul_int(CompilerState *state, ArithmeticOperation *ast,
 }
 
 void compile_div_int(CompilerState *state, ArithmeticOperation *ast,
-                     SymbolTable *scope, type::Type *type) {
+                     SymbolTable *scope, Type *type) {
     compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_ast(state, ast->lhs, scope);
@@ -278,10 +277,10 @@ void compile_div_int(CompilerState *state, ArithmeticOperation *ast,
 void compile_arithmetic_operation_flt(CompilerState *state,
                                       ArithmeticOperation *ast,
                                       SymbolTable *scope, std::string const &op,
-                                      type::Type *type) {
+                                      Type *type) {
     compile_ast(state, ast->rhs, scope);
     // implicit convertion to double
-    if (type::is_flt(scope->ast_types[ast->rhs])) {
+    if (is_flt(scope->ast_types[ast->rhs])) {
         asm_add_instruction(state->code, "movsd", "[rsp-8]",
                             asm_addr(state->last_expr_addr));
     } else {
@@ -290,7 +289,7 @@ void compile_arithmetic_operation_flt(CompilerState *state,
         asm_add_instruction(state->code, "movsd", "[rsp-8]", "xmm0");
     }
     compile_ast(state, ast->lhs, scope);
-    if (type::is_flt(scope->ast_types[ast->lhs])) {
+    if (is_flt(scope->ast_types[ast->lhs])) {
         mov_result_to_register(state, "xmm0");
     } else {
         asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
@@ -304,10 +303,10 @@ void compile_arithmetic_operation_flt(CompilerState *state,
 void compile_arithmetic_operation(CompilerState *state, Ast *ast,
                                   SymbolTable *scope) {
     ArithmeticOperation *op_ast = &ast->data.arithmetic_operation;
-    type::Type *op_type = scope->ast_types[ast];
+    Type *op_type = scope->ast_types[ast];
     switch (op_ast->kind) {
     case ArithmeticOperationKind::Add:
-        if (type::is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(lookup_ast_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "addsd",
                                              op_type);
         } else {
@@ -315,7 +314,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
         }
         break;
     case ArithmeticOperationKind::Sub:
-        if (type::is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(lookup_ast_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "subsd",
                                              op_type);
         } else {
@@ -323,7 +322,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
         }
         break;
     case ArithmeticOperationKind::Mul:
-        if (type::is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(lookup_ast_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "mulsd",
                                              op_type);
         } else {
@@ -331,7 +330,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
         }
         break;
     case ArithmeticOperationKind::Div:
-        if (type::is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(lookup_ast_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "divsd",
                                              op_type);
         } else {
@@ -468,10 +467,10 @@ void compile_function_call(CompilerState *state, Ast *ast,
     // calling C variadic functions
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
-    type::Type *function_type =
+    Type *function_type =
         lookup_id(scope, ast->data.function_call.name.ptr)->type;
     auto args = ast->data.function_call.arguments;
-    auto args_type = function_type->value.function->arguments_types;
+    auto args_type = function_type->data.function.arguments_types;
     size_t int_idx = 0, flt_idx = 0;
     size_t stack_size_to_release = 0;
     std::stack<Address> args_addr;
@@ -481,7 +480,7 @@ void compile_function_call(CompilerState *state, Ast *ast,
         compile_ast(state, args[i], scope);
         auto value_addr = state->last_expr_addr;
 
-        if (type::is_flt(args_type[i])) {
+        if (is_flt(args_type[i])) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
                 asm_add_instruction(state->code, "movsd",
                                     ARG_REGISTERS_FLOAT[flt_idx],
@@ -490,7 +489,7 @@ void compile_function_call(CompilerState *state, Ast *ast,
                 args_addr.push(value_addr);
             }
             flt_idx++;
-        } else if (type::is_int(args_type[i])) {
+        } else if (is_int(args_type[i])) {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
                 asm_add_instruction(state->code, "mov",
                                     ARG_REGISTERS_INTEGER[int_idx],
@@ -499,7 +498,7 @@ void compile_function_call(CompilerState *state, Ast *ast,
                 args_addr.push(value_addr);
             }
             int_idx++;
-        } else if (type::is_str(args_type[i])) {
+        } else if (is_str(args_type[i])) {
             if (value_addr.addressing_mode == AddressingMode::ImmediateValue) {
                 value_addr = create_tmp_str_value(state, args[i], value_addr);
                 stack_size_to_release += 16;
@@ -520,7 +519,7 @@ void compile_function_call(CompilerState *state, Ast *ast,
             int_idx++;
         } else {
             throw std::logic_error("error: unsuported type " +
-                                   type::type_to_string(args_type[i]));
+                                   type_to_string(args_type[i]));
         }
     }
     // push the remaining argument on the stack in the reverse order
@@ -534,12 +533,10 @@ void compile_function_call(CompilerState *state, Ast *ast,
     asm_add_instruction(state->code, "call", ast->data.function_call.name.ptr);
     // make sure the compiler know that the result will be store in rax (if
     // the function returns a result).
-    if (type::is_flt(function_type->value.function->return_type)) {
-        asm_addr_register(state, "xmm0",
-                          function_type->value.function->return_type);
+    if (is_flt(function_type->data.function.return_type)) {
+        asm_addr_register(state, "xmm0", function_type->data.function.return_type);
     } else {
-        asm_addr_register(state, "rax",
-                          function_type->value.function->return_type);
+        asm_addr_register(state, "rax", function_type->data.function.return_type);
     }
     if (stack_size_to_release > 0) {
         asm_add_instruction(state->code, "add", "rsp",
@@ -597,7 +594,7 @@ void compile_ret_stmt(CompilerState *state, Ast *ast,
 
     compile_ast(state, ret_ast->expression, scope);
     if (ret_ast->expression->kind != AstKind::Value) {
-        if (type::is_flt(lookup_ast_type(scope, ret_ast->expression))) {
+        if (is_flt(lookup_ast_type(scope, ret_ast->expression))) {
             asm_add_instruction(state->code, "movsd", "xmm0",
                                 asm_addr(state->last_expr_addr));
         } else {
@@ -636,7 +633,7 @@ void allocate_arguments(CompilerState *state, Ast *ast,
         auto type = lookup_id(scope, var_ast->name.ptr)->type;
         std::string reg = "";
 
-        if (type::is_int(type) || type::is_chr(type)) {
+        if (is_int(type) || is_chr(type)) {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
                 reg = ARG_REGISTERS_INTEGER[int_idx];
             } else {
@@ -647,7 +644,7 @@ void allocate_arguments(CompilerState *state, Ast *ast,
                       "]";
             }
             int_idx++;
-        } else if (type::is_flt(type)) {
+        } else if (is_flt(type)) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
                 reg = ARG_REGISTERS_FLOAT[flt_idx];
             } else {

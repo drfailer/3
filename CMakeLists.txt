@@ -37,11 +37,9 @@ set(files
     src/tools/messages.cpp
     src/tools/string.cpp
     src/tools/mem.cpp
-    src/tools/type_utilities.cpp
     src/ast.cpp
+    src/type.cpp
     src/checks.cpp
-    src/type/predicates.cpp
-    src/type/type.cpp
 )
 
 add_executable(s3c src/parser/parser.cpp src/parser/lexer.cpp ${files})

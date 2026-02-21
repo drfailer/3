@@ -147,7 +147,8 @@ bool compile(Options const &opts) {
         return false;
     }
 
-    if (!check(state->program, state->symtable)) {
+    CheckState check_state = {"", &state->type_pool, state->allocator};
+    if (!check(&check_state, state->program, state->symtable)) {
         return false;
     }
 

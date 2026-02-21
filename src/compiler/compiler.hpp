@@ -44,7 +44,7 @@ struct Address {
     std::string index;
     signed int offset;
     size_t size;
-    type::Type *type;
+    Type *type;
 };
 
 struct CompilerState {
@@ -68,13 +68,13 @@ void compile(std::string const &filename, Arch arch, Platform platform,
 
 std::string asm_addr(Address const &result);
 void asm_addr_immediate_value(CompilerState *state, std::string value,
-                              type::Type *type);
+                              Type *type);
 void asm_addr_register(CompilerState *state, std::string register_name,
-                       type::Type *type);
+                       Type *type);
 void asm_addr_register_indirect(CompilerState *state, std::string register_name,
-                                type::Type *type);
+                                Type *type);
 void asm_addr_based(CompilerState *state, std::string base_name, int offset,
-                    type::Type *type);
+                    Type *type);
 
 void asm_dump(Asm const &code, std::string const &filename);
 void asm_add_global_symbol(Asm &code, std::string const &name);
@@ -89,7 +89,7 @@ void asm_add_data(Asm &code, std::string const &name, std::string const &type,
 std::string asm_create_data_id(Asm const &code, std::string const &name);
 
 void allocate_stack_variable(CompilerState *state, std::string const &id,
-                             size_t size, type::Type *type,
+                             size_t size, Type *type,
                              std::string const &base_name);
 Address get_address(CompilerState *state, std::string const &id);
 
