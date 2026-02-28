@@ -1,12 +1,12 @@
 #ifndef PROGRAM
 #define PROGRAM
-#include "symbol_table.hpp"
+#include "scope.hpp"
 #include "ast.hpp"
 #include <vector>
 
 struct Program {
     std::vector<Ast *> code;
-    SymbolTable *scope;
+    Scope *scope;
 };
 
 #endif

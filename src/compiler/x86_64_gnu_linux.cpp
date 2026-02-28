@@ -1,7 +1,7 @@
 #include "x86_64_gnu_linux.hpp"
 #include "compiler/compiler.hpp"
 #include "compiler/tools.hpp"
-#include "symbol_table.hpp"
+#include "scope.hpp"
 #include "tools/string.hpp"
 #include "../type.hpp"
 #include <array>
@@ -26,8 +26,7 @@ const std::array<std::string, 6> ARG_REGISTERS_INTEGER = {"rdi", "rsi", "rdx",
 const std::array<std::string, 8> ARG_REGISTERS_FLOAT = {
     "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
-void mov_result_to_register(CompilerState *state,
-                            std::string const &register_name) {
+void mov_result_to_register(CompilerState *state, std::string const &register_name) {
     if (!(state->last_expr_addr.addressing_mode == AddressingMode::Register &&
           state->last_expr_addr.register_name == register_name)) {
         if (starts_with(register_name, "xmm")) {
@@ -40,8 +39,7 @@ void mov_result_to_register(CompilerState *state,
     }
 }
 
-Address create_tmp_str_value(CompilerState *state, Ast *value,
-                             Address addr) {
+Address create_tmp_str_value(CompilerState *state, Ast *value, Address addr) {
     std::string value_str(value->data.value.value.string.ptr);
     Address result_addr;
 
@@ -59,16 +57,16 @@ Address create_tmp_str_value(CompilerState *state, Ast *value,
     return result_addr;
 }
 
-void compile_block(CompilerState *state, Ast *ast, SymbolTable *scope);
+void compile_block(CompilerState *state, Ast *ast, Scope *scope);
 
-void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope);
+void compile_ast(CompilerState *state, Ast *ast, Scope *scope);
 
 /*
  * When this function is called, rax will always contain the value
  */
-void compile_value(CompilerState *state, Ast *ast, SymbolTable *scope) {
+void compile_value(CompilerState *state, Ast *ast, Scope *scope) {
     Value *value_ast = &ast->data.value;
-    Type *type = scope->ast_types[ast];
+    Type *type = scope->expr_types[ast];
 
     switch (value_ast->kind) {
     case ValueKind::Character:
@@ -96,10 +94,9 @@ void compile_value(CompilerState *state, Ast *ast, SymbolTable *scope) {
     }
 }
 
-void compile_variable_definition(CompilerState *state, Ast *ast,
-                                 SymbolTable *scope) {
+void compile_variable_definition(CompilerState *state, Ast *ast, Scope *scope) {
     VariableDefinition *var_ast = &ast->data.variable_definition;
-    auto type = lookup_id(scope, var_ast->name.ptr)->type;
+    auto type = scope_lookup_symbol(scope, var_ast->name.ptr)->type;
     auto size = size_of(type);
 
     allocate_stack_variable(state, var_ast->name.ptr, size, type, "rbp");
@@ -107,12 +104,11 @@ void compile_variable_definition(CompilerState *state, Ast *ast,
     asm_comment_last_instruction(state->code, var_ast->name.ptr);
 }
 
-void compile_assignement(CompilerState *state, Ast *ast,
-                         SymbolTable *scope) {
+void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
     Assignment *assignment_ast = &ast->data.assignment;
     Address target;
-    auto target_type = scope->ast_types[assignment_ast->target];
-    auto value_type = scope->ast_types[assignment_ast->value];
+    auto target_type = scope->expr_types[assignment_ast->target];
+    auto value_type = scope->expr_types[assignment_ast->value];
 
     compile_ast(state, assignment_ast->target, scope);
     target = state->last_expr_addr;
@@ -210,10 +206,9 @@ void compile_assignement(CompilerState *state, Ast *ast,
     }
 }
 
-void compile_index_expression(CompilerState *state, Ast *ast,
-                              SymbolTable *scope) {
+void compile_index_expression(CompilerState *state, Ast *ast, Scope *scope) {
     IndexExpression *expr_ast = &ast->data.index_expression;
-    auto type = scope->ast_types[ast];
+    auto type = scope->expr_types[ast];
 
     // TODO: make sure that this works with float arrays
     compile_ast(state, expr_ast->element, scope);
@@ -226,8 +221,7 @@ void compile_index_expression(CompilerState *state, Ast *ast,
     asm_addr_register_indirect(state, "rax", type);
 }
 
-void compile_variable_reference(CompilerState *state, Ast *ast,
-                                SymbolTable *) {
+void compile_variable_reference(CompilerState *state, Ast *ast, Scope *) {
     VariableReference *var_ref_ast = &ast->data.variable_reference;
     // TODO: the addressing mode might not be based all the time
     auto addr = get_address(state, var_ref_ast->name.ptr);
@@ -235,7 +229,7 @@ void compile_variable_reference(CompilerState *state, Ast *ast,
 }
 
 void compile_add_sub_int(CompilerState *state, ArithmeticOperation *ast,
-                         SymbolTable *scope, bool sub, Type *type) {
+                         Scope *scope, bool sub, Type *type) {
     compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_ast(state, ast->lhs, scope);
@@ -249,8 +243,8 @@ void compile_add_sub_int(CompilerState *state, ArithmeticOperation *ast,
     asm_addr_register(state, "rax", type);
 }
 
-void compile_mul_int(CompilerState *state, ArithmeticOperation *ast,
-                     SymbolTable *scope, Type *type) {
+void compile_mul_int(CompilerState *state, ArithmeticOperation *ast, Scope *scope,
+                     Type *type) {
     compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_ast(state, ast->lhs, scope);
@@ -262,8 +256,8 @@ void compile_mul_int(CompilerState *state, ArithmeticOperation *ast,
     asm_addr_register(state, "rax", type);
 }
 
-void compile_div_int(CompilerState *state, ArithmeticOperation *ast,
-                     SymbolTable *scope, Type *type) {
+void compile_div_int(CompilerState *state, ArithmeticOperation *ast, Scope *scope,
+                     Type *type) {
     compile_ast(state, ast->rhs, scope);
     asm_add_instruction(state->code, "push", asm_addr(state->last_expr_addr));
     compile_ast(state, ast->lhs, scope);
@@ -276,11 +270,11 @@ void compile_div_int(CompilerState *state, ArithmeticOperation *ast,
 
 void compile_arithmetic_operation_flt(CompilerState *state,
                                       ArithmeticOperation *ast,
-                                      SymbolTable *scope, std::string const &op,
+                                      Scope *scope, std::string const &op,
                                       Type *type) {
     compile_ast(state, ast->rhs, scope);
     // implicit convertion to double
-    if (is_flt(scope->ast_types[ast->rhs])) {
+    if (is_flt(scope->expr_types[ast->rhs])) {
         asm_add_instruction(state->code, "movsd", "[rsp-8]",
                             asm_addr(state->last_expr_addr));
     } else {
@@ -289,7 +283,7 @@ void compile_arithmetic_operation_flt(CompilerState *state,
         asm_add_instruction(state->code, "movsd", "[rsp-8]", "xmm0");
     }
     compile_ast(state, ast->lhs, scope);
-    if (is_flt(scope->ast_types[ast->lhs])) {
+    if (is_flt(scope->expr_types[ast->lhs])) {
         mov_result_to_register(state, "xmm0");
     } else {
         asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
@@ -300,13 +294,12 @@ void compile_arithmetic_operation_flt(CompilerState *state,
     asm_addr_register(state, "xmm0", type);
 }
 
-void compile_arithmetic_operation(CompilerState *state, Ast *ast,
-                                  SymbolTable *scope) {
+void compile_arithmetic_operation(CompilerState *state, Ast *ast, Scope *scope) {
     ArithmeticOperation *op_ast = &ast->data.arithmetic_operation;
-    Type *op_type = scope->ast_types[ast];
+    Type *op_type = scope->expr_types[ast];
     switch (op_ast->kind) {
     case ArithmeticOperationKind::Add:
-        if (is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(scope_lookup_expr_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "addsd",
                                              op_type);
         } else {
@@ -314,7 +307,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
         }
         break;
     case ArithmeticOperationKind::Sub:
-        if (is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(scope_lookup_expr_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "subsd",
                                              op_type);
         } else {
@@ -322,7 +315,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
         }
         break;
     case ArithmeticOperationKind::Mul:
-        if (is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(scope_lookup_expr_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "mulsd",
                                              op_type);
         } else {
@@ -330,7 +323,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
         }
         break;
     case ArithmeticOperationKind::Div:
-        if (is_flt(lookup_ast_type(scope, ast))) {
+        if (is_flt(scope_lookup_expr_type(scope, ast))) {
             compile_arithmetic_operation_flt(state, op_ast, scope, "divsd",
                                              op_type);
         } else {
@@ -346,8 +339,7 @@ void compile_arithmetic_operation(CompilerState *state, Ast *ast,
 #define BEGIN_LABEL(ast) LABEL(ast, "_begin")
 #define END_LABEL(ast) LABEL(ast, "_end")
 
-void compile_cmp(CompilerState *state, Ast *ast, SymbolTable *scope,
-                 std::string const &jmp) {
+void compile_cmp(CompilerState *state, Ast *ast, Scope *scope, std::string const &jmp) {
     Ast *lhs = ast->data.boolean_operation.lhs;
     Ast *rhs = ast->data.boolean_operation.rhs;
 
@@ -362,8 +354,7 @@ void compile_cmp(CompilerState *state, Ast *ast, SymbolTable *scope,
     asm_add_instruction(state->code, "jmp", FALSE_LABEL(ast));
 }
 
-void compile_boolean_operation(CompilerState *state, Ast *ast,
-                               SymbolTable *scope) {
+void compile_boolean_operation(CompilerState *state, Ast *ast, Scope *scope) {
     // TODO: float?
     BooleanOperation *op_ast = &ast->data.boolean_operation;
     switch (op_ast->kind) {
@@ -437,8 +428,7 @@ void compile_boolean_operation(CompilerState *state, Ast *ast,
 }
 
 // TODO: builtin function should not be compiled but linked !
-void compile_builtin_function(CompilerState *state, Ast *ast,
-                              SymbolTable *) {
+void compile_builtin_function(CompilerState *state, Ast *ast, Scope *) {
     BuiltinFunction *fun_ast = &ast->data.builtin_function;
     switch (fun_ast->kind) {
     case BuiltinFunctionKind::Shw: {
@@ -461,14 +451,13 @@ void compile_builtin_function(CompilerState *state, Ast *ast,
     }
 }
 
-void compile_function_call(CompilerState *state, Ast *ast,
-                           SymbolTable *scope) {
+void compile_function_call(CompilerState *state, Ast *ast, Scope *scope) {
     // WARN: make sure to put the number of float arguments in `al` before
     // calling C variadic functions
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     Type *function_type =
-        lookup_id(scope, ast->data.function_call.name.ptr)->type;
+        scope_lookup_symbol(scope, ast->data.function_call.name.ptr)->type;
     auto args = ast->data.function_call.arguments;
     auto args_type = function_type->data.function.arguments_types;
     size_t int_idx = 0, flt_idx = 0;
@@ -544,13 +533,14 @@ void compile_function_call(CompilerState *state, Ast *ast,
     }
 }
 
-void compile_cnd_stmt(CompilerState *state, Ast *ast,
-                      SymbolTable *scope) {
+void compile_cnd_stmt(CompilerState *state, Ast *ast, Scope *scope) {
+    assert(map_contains(scope->child_scopes, ast));
     CndStmt *stmt = &ast->data.cnd_stmt;
+    Scope *cnd_scope = scope->child_scopes[ast];
 
-    compile_ast(state, stmt->condition, scope->block_scopes[stmt->block]);
+    compile_ast(state, stmt->condition, cnd_scope);
     asm_add_label(state->code, TRUE_LABEL(stmt->condition));
-    compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
+    compile_block(state, stmt->block, cnd_scope);
     asm_add_instruction(state->code, "jmp", END_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(stmt->condition));
     if (stmt->otw) {
@@ -560,41 +550,42 @@ void compile_cnd_stmt(CompilerState *state, Ast *ast,
     asm_add_label(state->code, END_LABEL(stmt));
 }
 
-void compile_for_stmt(CompilerState *state, Ast *ast,
-                      SymbolTable *scope) {
+void compile_for_stmt(CompilerState *state, Ast *ast, Scope *scope) {
+    assert(map_contains(scope->child_scopes, ast));
     ForStmt *stmt = &ast->data.for_stmt;
     Ast *cnd = stmt->condition;
+    Scope *for_scope = scope->child_scopes[ast];
 
-    compile_ast(state, stmt->init, scope);
+    compile_ast(state, stmt->init, for_scope);
     asm_add_label(state->code, BEGIN_LABEL(stmt));
-    compile_ast(state, stmt->condition, scope);
+    compile_ast(state, stmt->condition, for_scope);
     asm_add_label(state->code, TRUE_LABEL(cnd));
-    compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
-    compile_ast(state, stmt->step, scope);
+    compile_block(state, stmt->block, for_scope);
+    compile_ast(state, stmt->step, for_scope);
     asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(cnd));
 }
 
-void compile_whl_stmt(CompilerState *state, Ast *ast,
-                      SymbolTable *scope) {
+void compile_whl_stmt(CompilerState *state, Ast *ast, Scope *scope) {
+    assert(map_contains(scope->child_scopes, ast));
     WhlStmt *stmt = &ast->data.whl_stmt;
     Ast *cnd = stmt->condition;
+    Scope *whl_scope = scope->child_scopes[ast];
 
     asm_add_label(state->code, BEGIN_LABEL(stmt));
-    compile_ast(state, stmt->condition, scope);
+    compile_ast(state, stmt->condition, whl_scope);
     asm_add_label(state->code, TRUE_LABEL(cnd));
-    compile_block(state, stmt->block, scope->block_scopes[stmt->block]);
+    compile_block(state, stmt->block, whl_scope);
     asm_add_instruction(state->code, "jmp", BEGIN_LABEL(stmt));
     asm_add_label(state->code, FALSE_LABEL(cnd));
 }
 
-void compile_ret_stmt(CompilerState *state, Ast *ast,
-                      SymbolTable *scope) {
+void compile_ret_stmt(CompilerState *state, Ast *ast, Scope *scope) {
     RetStmt *ret_ast = &ast->data.ret_stmt;
 
     compile_ast(state, ret_ast->expression, scope);
     if (ret_ast->expression->kind != AstKind::Value) {
-        if (is_flt(lookup_ast_type(scope, ret_ast->expression))) {
+        if (is_flt(scope_lookup_expr_type(scope, ret_ast->expression))) {
             asm_add_instruction(state->code, "movsd", "xmm0",
                                 asm_addr(state->last_expr_addr));
         } else {
@@ -607,11 +598,10 @@ void compile_ret_stmt(CompilerState *state, Ast *ast,
                         "epilogue_" + state->curr_function_id);
 }
 
-void compile_block(CompilerState *state, Ast *ast,
-                   SymbolTable *scope) {
+void compile_block(CompilerState *state, Ast *ast, Scope *scope) {
     Block *block_ast = &ast->data.block;
     for (auto instruction : block_ast->asts) {
-        compile_ast(state, instruction, scope);
+        compile_ast(state, instruction, scope->child_scopes[ast]);
     }
 }
 
@@ -621,8 +611,7 @@ void compile_block(CompilerState *state, Ast *ast,
  * should be implemented in the state to avoid systematically using the statck
  * for local variables when it's not necessary.
  */
-void allocate_arguments(CompilerState *state, Ast *ast,
-                        SymbolTable *scope) {
+void allocate_arguments(CompilerState *state, Ast *ast, Scope *scope) {
     // TODO: implement a system that avoid pushing arguments on the stack
     // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     auto args = ast->data.function.arguments;
@@ -630,7 +619,7 @@ void allocate_arguments(CompilerState *state, Ast *ast,
     for (size_t idx = 0; idx < args.len; idx++) {
         // TODO: check the rules for structs
         auto *var_ast = &args[idx]->data.variable_definition;
-        auto type = lookup_id(scope, var_ast->name.ptr)->type;
+        auto type = scope_lookup_symbol(scope, var_ast->name.ptr)->type;
         std::string reg = "";
 
         if (is_int(type) || is_chr(type)) {
@@ -664,10 +653,10 @@ void allocate_arguments(CompilerState *state, Ast *ast,
     }
 }
 
-void compile_function_definition(CompilerState *state, Ast *ast,
-                                 SymbolTable *scope) {
+void compile_function_definition(CompilerState *state, Ast *ast, Scope *scope) {
+    assert(map_contains(scope->child_scopes, ast));
     Function *fund_def_ast = &ast->data.function;
-    SymbolTable *function_scope = scope->symbols[fund_def_ast->name.ptr].scope;
+    Scope *function_scope = scope->child_scopes[ast];
     state->curr_function_id = fund_def_ast->name.ptr;
     state->frame_offset = 8;
 
@@ -687,12 +676,11 @@ void compile_function_definition(CompilerState *state, Ast *ast,
     asm_add_instruction(state->code, "ret");
 }
 
-void compile_function_declaration(CompilerState *state, Ast *ast,
-                                  SymbolTable *) {
+void compile_function_declaration(CompilerState *state, Ast *ast, Scope *) {
     asm_add_instruction(state->code, ".extern", ast->data.function.name.ptr);
 }
 
-void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope) {
+void compile_ast(CompilerState *state, Ast *ast, Scope *scope) {
     switch (ast->kind) {
     case AstKind::Value:
         compile_value(state, ast, scope);
@@ -732,7 +720,7 @@ void compile_ast(CompilerState *state, Ast *ast, SymbolTable *scope) {
         compile_ret_stmt(state, ast, scope);
         break;
     case AstKind::Block:
-        compile_block(state, ast, scope->block_scopes[ast]);
+        compile_block(state, ast, scope);
         break;
     case AstKind::ArithmeticOperation:
         compile_arithmetic_operation(state, ast, scope);
@@ -762,7 +750,7 @@ void compile(CompilerState *state, Program const &program) {
     for (auto ast : program.code) {
         compile_ast(state, ast, program.scope);
     }
-    if (lookup_id(program.scope, "main")) {
+    if (scope_lookup_symbol(program.scope, "main")) {
         make_start(state);
     }
 }

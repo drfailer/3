@@ -1,6 +1,6 @@
 #ifndef TOOLS_S3C_H
 #define TOOLS_S3C_H
-#include "symbol_table.hpp"
+#include "scope.hpp"
 #include "ast.hpp"
 #include "type.hpp"
 #include "tools/mem.hpp"
@@ -13,7 +13,7 @@
 struct State {
     int status;
     std::string curr_filename;
-    SymbolTable *symtable;
+    Scope *global_scope;
     std::vector<Ast *> program;
     MemPool<Ast> ast_pool;
     MemPool<Type> type_pool;

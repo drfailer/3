@@ -184,7 +184,7 @@ void allocate_stack_variable(CompilerState *state, std::string const &id,
     addr.type = type;
     addr.register_name = base_name;
     state->variables_addresses[id].push(addr);
-    state->frame_offset += size;
+    state->frame_offset += (int)size;
 }
 
 Address get_address(CompilerState *state, std::string const &id) {

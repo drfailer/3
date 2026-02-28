@@ -33,13 +33,13 @@ set(files
     src/main.cpp
     src/preprocessor/preprocessor.cpp
     src/s3c.cpp
-    src/symbol_table.cpp
     src/tools/messages.cpp
     src/tools/string.cpp
     src/tools/mem.cpp
     src/ast.cpp
     src/type.cpp
     src/checks.cpp
+    src/scope.cpp
 )
 
 add_executable(s3c src/parser/parser.cpp src/parser/lexer.cpp ${files})

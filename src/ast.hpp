@@ -28,7 +28,7 @@ enum class TypeSpecifierKind {
 };
 struct TypeSpecifier {
     TypeSpecifierKind kind;
-    String obj_id;
+    String name;
     size_t size; // size used for arrays (we only support 1D static arrays for now)
 };
 

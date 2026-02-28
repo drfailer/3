@@ -149,8 +149,8 @@ bool compile(Options const &opts) {
         return false;
     }
 
-    CheckState check_state = {"", &state->type_pool, state->allocator};
-    if (!check(&check_state, state->program, state->symtable)) {
+    CheckState check_state = {"", &state->type_pool, state->allocator, state->global_scope};
+    if (!check(&check_state, Program{state->program, state->global_scope})) {
         return false;
     }
 
@@ -164,7 +164,7 @@ bool compile(Options const &opts) {
         auto asm_file = compiler::asm_filename(base_name);
         compiler::compile(asm_file, compiler::Arch::X86_64,
                           compiler::Platform::GNULinux,
-                          Program{state->program, state->symtable});
+                          Program{state->program, state->global_scope});
     } else {
         auto base_name =
             opts.build_directory_name + compiler::base_name(opts.input_file);
@@ -173,7 +173,7 @@ bool compile(Options const &opts) {
 
         compiler::compile(asm_file, compiler::Arch::X86_64,
                           compiler::Platform::GNULinux,
-                          Program{state->program, state->symtable});
+                          Program{state->program, state->global_scope});
         int assembler_success = compiler::run_cmd("as", "-g", "-msyntax=intel",
                                                   asm_file, "-o", obj_file);
         if (assembler_success == 0) {

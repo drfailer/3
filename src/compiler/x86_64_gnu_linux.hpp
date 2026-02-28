@@ -2,7 +2,7 @@
 #define COMPILER_X86_64_GNU_LINUX
 
 #include "compiler/compiler.hpp"
-#include "symbol_table.hpp"
+#include "scope.hpp"
 #include "ast.hpp"
 
 namespace compiler {

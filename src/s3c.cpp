@@ -1,26 +1,37 @@
 #include "s3c.hpp"
-#include "symbol_table.hpp"
+#include "scope.hpp"
 #include "tools/messages.hpp"
 #include "ast.hpp"
 #include "type.hpp"
 #include "type.hpp"
 #include <sstream>
 
+// create type table entries for the builtin types
+// Note: doing this avoid allocating multiple pointers to the same primitive
+// type. It is also more coherent
+void init_global_scope(State *state) {
+    scope_add_type(state->global_scope, "nil", new_type(&state->type_pool, TypeKind::Nil, {}));
+    scope_add_type(state->global_scope, "chr", new_type(&state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Chr));
+    scope_add_type(state->global_scope, "int", new_type(&state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Int));
+    scope_add_type(state->global_scope, "flt", new_type(&state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Flt));
+    scope_add_type(state->global_scope, "str", new_type(&state->type_pool, TypeKind::Primitive, .primitive = PrimitiveType::Str));
+}
+
 State *state_create() {
     auto *state = new State();
-    state->symtable = symbol_table_create(nullptr);
+    state->global_scope = scope_create();
     state->status = 0;
     state->arena = arena_create();
     state->allocator = arena_allocator(&state->arena);
     // TODO: use the default pool size (should be a define)
     mem_pool_init(&state->ast_pool, 100);
     mem_pool_init(&state->type_pool, 100);
+    init_global_scope(state);
     return state;
 }
 
 void state_destroy(State *state) {
-    // BUG: does not work, the memory must get corrupted somewhere
-    symbol_table_destroy(state->symtable);
+    scope_destroy(state->global_scope);
     mem_pool_destroy(&state->ast_pool);
     mem_pool_destroy(&state->type_pool);
     arena_destroy(&state->arena);
@@ -68,7 +79,7 @@ Ast *new_boolean_operation(State *state, Ast *lhs, Ast *rhs,
 }
 
 bool try_verify_main_type(State *state) {
-    auto sym = lookup_id(state->symtable, "main");
+    auto sym = scope_lookup_symbol(state->global_scope, "main");
 
     if (!sym) {
         return true; // when compiling libraries or object files
