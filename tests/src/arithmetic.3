@@ -49,56 +49,56 @@ nil integers() bgn
 end
 
 ~~~ TODO: segfault in printlib
-~~~ nil floats() bgn
-~~~     flt a
-~~~     flt b
-~~~     flt c
-~~~
-~~~     shw("testing floats:\n")
-~~~
-~~~     ~~~ setup
-~~~     mov(a, 1.618)
-~~~     mov(b, 3.14)
-~~~     mov(c, 0.0)
-~~~     shw("a = ")
-~~~     print_flt(a)
-~~~     shw("\n")
-~~~     shw("b = ")
-~~~     print_flt(b)
-~~~     shw("\n")
-~~~     shw("c = ")
-~~~     print_flt(c)
-~~~     shw("\n")
-~~~
-~~~     ~~~ add
-~~~     shw("a + b = ")
-~~~     print_flt(add(a, b))
-~~~     shw("\n")
-~~~
-~~~     ~~~ sub
-~~~     shw("a - b = ")
-~~~     print_flt(sub(a, b))
-~~~     shw("\n")
-~~~
-~~~     ~~~ mul
-~~~     shw("a * b = ")
-~~~     print_flt(mul(a, b))
-~~~     shw("\n")
-~~~
-~~~     ~~~ div
-~~~     shw("b / a = ")
-~~~     print_flt(div(b, a))
-~~~     shw("\n")
-~~~
-~~~     ~~~ multiple operations
-~~~     shw("c + (a * 2 * 2) / (b - a) = ")
-~~~     mov(c, add(c, div(mul(a, mul(2, 2)), sub(b, a))))
-~~~     print_flt(c)
-~~~     shw("\n")
-~~~ end
+nil floats() bgn
+    flt a
+    flt b
+    flt c
+
+    shw("testing floats:\n")
+
+    ~~~ setup
+    mov(a, 1.618)
+    mov(b, 3.14)
+    mov(c, 0.0)
+    shw("a = ")
+    print_flt(a)
+    shw("\n")
+    shw("b = ")
+    print_flt(b)
+    shw("\n")
+    shw("c = ")
+    print_flt(c)
+    shw("\n")
+
+    ~~~ add
+    shw("a + b = ")
+    print_flt(add(a, b))
+    shw("\n")
+
+    ~~~ sub
+    shw("a - b = ")
+    print_flt(sub(a, b))
+    shw("\n")
+
+    ~~~ mul
+    shw("a * b = ")
+    print_flt(mul(a, b))
+    shw("\n")
+
+    ~~~ div
+    shw("b / a = ")
+    print_flt(div(b, a))
+    shw("\n")
+
+    ~~~ multiple operations
+    shw("c + (a * 2 * 2) / (b - a) = ")
+    mov(c, add(c, div(mul(a, mul(2, 2)), sub(b, a))))
+    print_flt(c)
+    shw("\n")
+end
 
 int main() bgn
     integers()
-    ~~~floats()
+    floats()
     ret 0
 end
