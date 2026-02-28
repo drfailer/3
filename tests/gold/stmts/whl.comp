@@ -1,2 +1,2 @@
 running: as -g -msyntax=intel build/whl.asm -o build/whl.o
-running: ld -o out/stmts/whl build/whl.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2
+running: ld -o out/stmts/whl build/whl.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2 -L../utilities/print -lprint -rpath=../utilities/print
