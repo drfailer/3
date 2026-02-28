@@ -15,14 +15,32 @@ void error(Ts ...args) {
 }
 
 static bool files_equal(std::string const& gold_path, std::string const& out_path) {
-  std::ifstream fgold(gold_path);
-  std::ifstream fout(out_path);
-  assert(fgold.good());
-  assert(fout.good());
-  return std::equal(
-          std::istreambuf_iterator<char>(fgold.rdbuf()),
-          std::istreambuf_iterator<char>(),
-          std::istreambuf_iterator<char>(fout.rdbuf()));
+    size_t gold_size = std::filesystem::file_size(gold_path);
+    size_t out_size = std::filesystem::file_size(out_path);
+
+    if (gold_size != out_size) {
+        std::cout << "error: file size differ." << std::endl;
+        return false;
+    }
+    std::ifstream fgold(gold_path);
+    std::ifstream fout(out_path);
+    assert(fgold.good());
+    assert(fout.good());
+    return std::equal(
+            std::istreambuf_iterator<char>(fgold.rdbuf()),
+            std::istreambuf_iterator<char>(),
+            std::istreambuf_iterator<char>(fout.rdbuf()));
+}
+
+static void print_file(std::string const &path) {
+    std::ifstream file(path);
+    char line[1024];
+    assert(file.good());
+
+    while (!file.eof()) {
+        file.read(line, sizeof(line));
+        std::cout << "\t" << line;
+    }
 }
 
 void list_tests(std::string const &pattern) {
@@ -64,6 +82,10 @@ static bool run_test(TestConfig const &config) {
     }
     if (!files_equal(gold_comp, comp)) {
         error("compiler output missmatch for test `", config.title , "'.");
+        std::cout << "\t\tvvvvv EXPECTED vvvvv" << std::endl;
+        print_file(gold_comp);
+        std::cout << "\t\tvvvvv FOUND vvvvv" << std::endl;
+        print_file(comp);
         return false;
     }
     timer_report(build);
@@ -86,6 +108,10 @@ static bool run_test(TestConfig const &config) {
     }
     if (!files_equal(gold_out, out)) {
         error("out file does not correspond to gold file for test `", config.title, "'.");
+        std::cout << "\t\tvvvvv EXPECTED vvvvv" << std::endl;
+        print_file(gold_out);
+        std::cout << "\t\tvvvvv FOUND vvvvv" << std::endl;
+        print_file(out);
         return false;
     }
     timer_report(run);
