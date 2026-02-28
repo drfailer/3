@@ -10,7 +10,7 @@
 #include <iostream>
 
 /*
- * Convetions:
+ * Conventions:
  * - the result of evaluated expressions are stored in rax
  */
 
@@ -26,17 +26,23 @@ const std::array<std::string, 6> ARG_REGISTERS_INTEGER = {"rdi", "rsi", "rdx",
 const std::array<std::string, 8> ARG_REGISTERS_FLOAT = {
     "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"};
 
-void mov_result_to_register(CompilerState *state, std::string const &register_name) {
-    if (!(state->last_expr_addr.addressing_mode == AddressingMode::Register &&
-          state->last_expr_addr.register_name == register_name)) {
-        if (starts_with(register_name, "xmm")) {
-            asm_add_instruction(state->code, "movsd", register_name,
-                                asm_addr(state->last_expr_addr));
-        } else {
-            asm_add_instruction(state->code, "mov", register_name,
-                                asm_addr(state->last_expr_addr));
-        }
+void asm_mov(CompilerState *state, std::string dest, std::string const &src) {
+    if (dest == src) {
+        return;
     }
+    if (starts_with(src, "xmm") || starts_with(dest, "xmm")) {
+        asm_add_instruction(state->code, "movsd", dest, src);
+    } else {
+        asm_add_instruction(state->code, "mov", dest, src);
+    }
+}
+
+void asm_mov(CompilerState *state, Address const &dest_addr, std::string const &src) {
+    asm_mov(state, asm_addr(dest_addr), src);
+}
+
+void mov_result_to_register(CompilerState *state, std::string const &register_name) {
+    asm_mov(state, register_name, asm_addr(state->last_expr_addr));
 }
 
 Address create_tmp_str_value(CompilerState *state, Ast *value, Address addr) {
@@ -70,20 +76,18 @@ void compile_value(CompilerState *state, Ast *ast, Scope *scope) {
 
     switch (value_ast->kind) {
     case ValueKind::Character:
-        asm_add_instruction(state->code, "mov", "al",
-                            std::to_string(value_ast->value.character));
+        asm_mov(state, "al", std::to_string(value_ast->value.character));
         asm_addr_register(state, "al", type);
         break;
     case ValueKind::Integer:
-        asm_add_instruction(state->code, "mov", "rax",
-                            std::to_string(value_ast->value.integer));
+        asm_mov(state, "rax", std::to_string(value_ast->value.integer));
         asm_addr_register(state, "rax", type);
         break;
     case ValueKind::Real: {
         auto flt_id = asm_create_data_id(state->code, "flt");
         asm_add_data(state->code, flt_id, ".double",
                      std::to_string(value_ast->value.real));
-        asm_add_instruction(state->code, "movsd", "xmm0", flt_id);
+        asm_mov(state, "xmm0", flt_id);
         asm_addr_register(state, "xmm0", type);
     } break;
     case ValueKind::String: {
@@ -99,6 +103,7 @@ void compile_variable_definition(CompilerState *state, Ast *ast, Scope *scope) {
     auto type = scope_lookup_symbol(scope, var_ast->name.ptr)->type;
     auto size = size_of(type);
 
+    size += size % 16; // ensure alignment
     allocate_stack_variable(state, var_ast->name.ptr, size, type, "rbp");
     asm_add_instruction(state->code, "sub", "rsp", std::to_string(size));
     asm_comment_last_instruction(state->code, var_ast->name.ptr);
@@ -113,9 +118,6 @@ void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
     compile_ast(state, assignment_ast->target, scope);
     target = state->last_expr_addr;
 
-    // TODO: handle float case
-    // TODO: implicit convertion from float or to float
-    // TODO: clean this function
     if (target.addressing_mode == AddressingMode::RegisterIndirect) {
         asm_add_instruction(state->code, "push", target.register_name);
         compile_ast(state, assignment_ast->value, scope);
@@ -123,14 +125,12 @@ void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
         if (is_flt(target_type)) {
             std::string value_addr = asm_addr(state->last_expr_addr);
             if (!is_flt(value_type)) {
-                asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
-                                    value_addr);
+                asm_add_instruction(state->code, "cvtsi2sd", "xmm0", value_addr);
                 value_addr = "xmm0";
             }
-            asm_add_instruction(state->code, "movsd", "[rdx]", value_addr);
+            asm_mov(state, "[rdx]", value_addr);
         } else if (is_int(target_type)) {
-            asm_add_instruction(state->code, "mov", "[rdx]",
-                                asm_addr(state->last_expr_addr));
+            asm_mov(state, "[rdx]", asm_addr(state->last_expr_addr));
         } else if (is_str(target_type)) {
             throw std::logic_error(
                 "error: str type does not support direct addressing mode.");
@@ -143,15 +143,12 @@ void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
         if (is_flt(target_type)) {
             auto value_addr = asm_addr(state->last_expr_addr);
             if (!is_flt(value_type)) {
-                asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
-                                    value_addr);
+                asm_add_instruction(state->code, "cvtsi2sd", "xmm0", value_addr);
                 value_addr = "xmm0";
             }
-            asm_add_instruction(state->code, "movsd", asm_addr(target),
-                                value_addr);
+            asm_mov(state, target, value_addr);
         } else if (is_int(target_type)) {
-            asm_add_instruction(state->code, "mov", asm_addr(target),
-                                asm_addr(state->last_expr_addr));
+            asm_mov(state, asm_addr(target), asm_addr(state->last_expr_addr));
         } else if (is_str(target_type)) {
             // str is store backward as followed on the stack:
             // [nb bytes] <- effective address of the string
@@ -161,40 +158,30 @@ void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
                 std::string value_str(
                     assignment_ast->value->data.value.value.string.ptr);
                 // nb bytes
-                asm_add_instruction(state->code, "mov", "rdx",
-                                    std::to_string(value_str.size()));
-                asm_add_instruction(state->code, "mov", asm_addr(target),
-                                    "rdx");
+                asm_mov(state, "rdx", std::to_string(value_str.size()));
+                asm_mov(state, asm_addr(target), "rdx");
                 // data ptr
                 target.offset -= 8;
-                asm_add_instruction(state->code, "lea", "rdx",
-                                    asm_addr(value_addr));
-                asm_add_instruction(state->code, "mov", asm_addr(target),
-                                    "rdx");
+                asm_add_instruction(state->code, "lea", "rdx", asm_addr(value_addr));
+                asm_mov(state, asm_addr(target), "rdx");
             } else {
                 auto value_addr = state->last_expr_addr;
                 if (value_addr.addressing_mode == AddressingMode::Based) {
                     // nb bytes
-                    asm_add_instruction(state->code, "mov", "rax",
-                                        asm_addr(value_addr));
-                    asm_add_instruction(state->code, "mov", asm_addr(target),
-                                        "rax");
+                    asm_mov(state, "rax", asm_addr(value_addr));
+                    asm_mov(state, asm_addr(target), "rax");
                     // data ptr
                     target.offset -= 8;
                     value_addr.offset -= 8;
-                    asm_add_instruction(state->code, "lea", "rax",
-                                        asm_addr(value_addr));
-                    asm_add_instruction(state->code, "mov", asm_addr(target),
-                                        "rax");
+                    asm_add_instruction(state->code, "lea", "rax", asm_addr(value_addr));
+                    asm_mov(state, asm_addr(target), "rax");
                 } else {
                     // nb bytes
-                    asm_add_instruction(state->code, "mov", asm_addr(target),
-                                        asm_addr(value_addr));
+                    asm_mov(state, asm_addr(target), asm_addr(value_addr));
                     // data ptr
                     target.offset -= 8;
                     value_addr.offset -= 8;
-                    asm_add_instruction(state->code, "mov", asm_addr(target),
-                                        asm_addr(value_addr));
+                    asm_mov(state, asm_addr(target), asm_addr(value_addr));
                 }
             }
         } else {
@@ -273,25 +260,25 @@ void compile_arithmetic_operation_flt(CompilerState *state,
                                       Scope *scope, std::string const &op,
                                       Type *type) {
     compile_ast(state, ast->rhs, scope);
+    asm_add_instruction(state->code, "sub", "rsp", "16");
     // implicit convertion to double
     if (is_flt(scope->expr_types[ast->rhs])) {
-        asm_add_instruction(state->code, "movsd", "[rsp-8]",
-                            asm_addr(state->last_expr_addr));
+        asm_mov(state, "xmm0", asm_addr(state->last_expr_addr));
+        asm_mov(state, "[rsp]", "xmm0");
     } else {
-        asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
-                            asm_addr(state->last_expr_addr));
-        asm_add_instruction(state->code, "movsd", "[rsp-8]", "xmm0");
+        asm_add_instruction(state->code, "cvtsi2sd", "xmm0", asm_addr(state->last_expr_addr));
+        asm_mov(state, "[rsp]", "xmm0");
     }
     compile_ast(state, ast->lhs, scope);
     if (is_flt(scope->expr_types[ast->lhs])) {
         mov_result_to_register(state, "xmm0");
     } else {
-        asm_add_instruction(state->code, "cvtsi2sd", "xmm0",
-                            asm_addr(state->last_expr_addr));
+        asm_add_instruction(state->code, "cvtsi2sd", "xmm0", asm_addr(state->last_expr_addr));
     }
-    asm_add_instruction(state->code, "movsd", "xmm1", "[rsp-8]");
+    asm_mov(state, "xmm1", "[rsp]");
     asm_add_instruction(state->code, op, "xmm0", "xmm1");
     asm_addr_register(state, "xmm0", type);
+    asm_add_instruction(state->code, "add", "rsp", "16");
 }
 
 void compile_arithmetic_operation(CompilerState *state, Ast *ast, Scope *scope) {
@@ -471,18 +458,14 @@ void compile_function_call(CompilerState *state, Ast *ast, Scope *scope) {
 
         if (is_flt(args_type[i])) {
             if (int_idx < ARG_REGISTERS_FLOAT.size()) {
-                asm_add_instruction(state->code, "movsd",
-                                    ARG_REGISTERS_FLOAT[flt_idx],
-                                    asm_addr(value_addr));
+                asm_mov(state, ARG_REGISTERS_FLOAT[flt_idx], asm_addr(value_addr));
             } else {
                 args_addr.push(value_addr);
             }
             flt_idx++;
         } else if (is_int(args_type[i])) {
             if (int_idx < ARG_REGISTERS_INTEGER.size()) {
-                asm_add_instruction(state->code, "mov",
-                                    ARG_REGISTERS_INTEGER[int_idx],
-                                    asm_addr(value_addr));
+                asm_mov(state, ARG_REGISTERS_INTEGER[int_idx], asm_addr(value_addr));
             } else {
                 args_addr.push(value_addr);
             }
@@ -498,9 +481,7 @@ void compile_function_call(CompilerState *state, Ast *ast, Scope *scope) {
                                         ARG_REGISTERS_INTEGER[int_idx],
                                         asm_addr(value_addr));
                 } else {
-                    asm_add_instruction(state->code, "mov",
-                                        ARG_REGISTERS_INTEGER[int_idx],
-                                        asm_addr(value_addr));
+                    asm_mov(state, ARG_REGISTERS_INTEGER[int_idx], asm_addr(value_addr));
                 }
             } else {
                 args_addr.push(value_addr);
@@ -511,11 +492,17 @@ void compile_function_call(CompilerState *state, Ast *ast, Scope *scope) {
                                    type_to_string(args_type[i]));
         }
     }
+    // preentively substract to rsp to maintain the alignment
+    stack_size_to_release = 8 * args_addr.size(); // TODO: works because the size of the arguments is 8, but we might compute the size at some point
+    if (stack_size_to_release % 16 != 0) {
+        assert(stack_size_to_release % 16 == 8);
+        asm_add_instruction(state->code, "sub", "rsp", "8");
+        stack_size_to_release += 8;
+    }
     // push the remaining argument on the stack in the reverse order
     while (!args_addr.empty()) {
         asm_add_instruction(state->code, "push", asm_addr(args_addr.top()));
         args_addr.pop();
-        stack_size_to_release += 8;
     }
     // call the function
     asm_add_instruction(state->code, "xor", "rax", "rax");
@@ -528,8 +515,7 @@ void compile_function_call(CompilerState *state, Ast *ast, Scope *scope) {
         asm_addr_register(state, "rax", function_type->data.function.return_type);
     }
     if (stack_size_to_release > 0) {
-        asm_add_instruction(state->code, "add", "rsp",
-                            std::to_string(stack_size_to_release));
+        asm_add_instruction(state->code, "add", "rsp", std::to_string(stack_size_to_release));
     }
 }
 
@@ -586,11 +572,9 @@ void compile_ret_stmt(CompilerState *state, Ast *ast, Scope *scope) {
     compile_ast(state, ret_ast->expression, scope);
     if (ret_ast->expression->kind != AstKind::Value) {
         if (is_flt(scope_lookup_expr_type(scope, ret_ast->expression))) {
-            asm_add_instruction(state->code, "movsd", "xmm0",
-                                asm_addr(state->last_expr_addr));
+            asm_mov(state, "xmm0", asm_addr(state->last_expr_addr));
         } else {
-            asm_add_instruction(state->code, "mov", "rax",
-                                asm_addr(state->last_expr_addr));
+            asm_mov(state, "rax", asm_addr(state->last_expr_addr));
         }
     }
     // TODO: this is not required if the return is at the end of the block
@@ -605,19 +589,10 @@ void compile_block(CompilerState *state, Ast *ast, Scope *scope) {
     }
 }
 
-/*
- * For now, the arguments are systematically saved on the stack event though we
- * use the C calling convetion (to faciliate C FFI). Later, a better system
- * should be implemented in the state to avoid systematically using the statck
- * for local variables when it's not necessary.
- */
 void allocate_arguments(CompilerState *state, Ast *ast, Scope *scope) {
-    // TODO: implement a system that avoid pushing arguments on the stack
-    // [arg_{N}, arg_{N - 1}, arg_{N - 2}, ret_addr, rbp]
     auto args = ast->data.function.arguments;
     size_t int_idx = 0, flt_idx = 0;
     for (size_t idx = 0; idx < args.len; idx++) {
-        // TODO: check the rules for structs
         auto *var_ast = &args[idx]->data.variable_definition;
         auto type = scope_lookup_symbol(scope, var_ast->name.ptr)->type;
         std::string reg = "";
@@ -628,8 +603,8 @@ void allocate_arguments(CompilerState *state, Ast *ast, Scope *scope) {
             } else {
                 reg = "[rbp+" +
                       std::to_string(
-                          8 + 8 +
-                          8 * (int_idx - ARG_REGISTERS_INTEGER.size() + 1)) +
+                          8 /* (saved rsp) */ + 8 /* (sizeof of the varible (all 8 for now)) */ +
+                          8 /* (again, size of type) */ * (int_idx - ARG_REGISTERS_INTEGER.size() + 1)) +
                       "]";
             }
             int_idx++;
@@ -639,8 +614,8 @@ void allocate_arguments(CompilerState *state, Ast *ast, Scope *scope) {
             } else {
                 reg = "[rbp+" +
                       std::to_string(
-                          8 + 8 +
-                          8 * (flt_idx - ARG_REGISTERS_FLOAT.size() + 1)) +
+                          8 /* (saved rsp) */ + 8 /* (sizeof of the varible (all 8 for now)) */ +
+                          8 /* (again, size of type) */ * (flt_idx - ARG_REGISTERS_FLOAT.size() + 1)) +
                       "]";
             }
             flt_idx++;
@@ -648,8 +623,7 @@ void allocate_arguments(CompilerState *state, Ast *ast, Scope *scope) {
             std::cerr << "error: not implemented" << std::endl;
         }
         compile_variable_definition(state, args[idx], scope);
-        asm_add_instruction(state->code, "mov",
-                            asm_addr(get_address(state, var_ast->name.ptr)), reg);
+        asm_mov(state, asm_addr(get_address(state, var_ast->name.ptr)), reg);
     }
 }
 
