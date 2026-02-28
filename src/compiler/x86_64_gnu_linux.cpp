@@ -115,7 +115,7 @@ void compile_variable_definition(CompilerState *state, Ast *ast, Scope *scope) {
     asm_comment_last_instruction(state->code, var_ast->name.ptr);
 }
 
-void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
+void compile_assignment(CompilerState *state, Ast *ast, Scope *scope) {
     Assignment *assignment_ast = &ast->data.assignment;
     Address target;
     auto target_type = scope->expr_types[assignment_ast->target];
@@ -141,7 +141,7 @@ void compile_assignement(CompilerState *state, Ast *ast, Scope *scope) {
             throw std::logic_error(
                 "error: str type does not support direct addressing mode.");
         } else {
-            throw std::logic_error("unknown assignment target tyep: " +
+            throw std::logic_error("unknown assignment target type: " +
                                    type_to_string(target_type));
         }
     } else if (target.addressing_mode == AddressingMode::Based) {
@@ -672,7 +672,7 @@ void compile_ast(CompilerState *state, Ast *ast, Scope *scope) {
         compile_variable_reference(state, ast, scope);
         break;
     case AstKind::Assignment:
-        compile_assignement(state, ast, scope);
+        compile_assignment(state, ast, scope);
         break;
     case AstKind::IndexExpression:
         compile_index_expression(state, ast, scope);
