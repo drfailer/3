@@ -32,6 +32,12 @@ void asm_mov(CompilerState *state, std::string dest, std::string const &src) {
     }
     if (starts_with(src, "xmm") || starts_with(dest, "xmm")) {
         asm_add_instruction(state->code, "movsd", dest, src);
+    } else if (src[0] == '[' && dest[0] == '[') {
+        // when using the intel syntax, GNU assembler does not support size
+        // specifier on mov, so we need to use an extra register in that case
+        // WARN: rcx should not be used elsewhere in order for this to work
+        asm_add_instruction(state->code, "mov", "rcx", src);
+        asm_add_instruction(state->code, "mov", dest, "rcx");
     } else {
         asm_add_instruction(state->code, "mov", dest, src);
     }
