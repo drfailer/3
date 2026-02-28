@@ -210,7 +210,7 @@ void compile_index_expression(CompilerState *state, Ast *ast, Scope *scope) {
     auto index_result_addr = state->last_expr_addr;
     asm_add_instruction(state->code, "mov", "rdi", asm_addr(index_result_addr));
     asm_add_instruction(state->code, "lea", "rax", asm_addr(element_addr));
-    asm_add_instruction(state->code, "add", "rax", "rdi");
+    asm_add_instruction(state->code, "sub", "rax", "rdi");
     asm_addr_register_indirect(state, "rax", type);
 }
 
@@ -477,6 +477,7 @@ void compile_function_call(CompilerState *state, Ast *ast, Scope *scope) {
             }
             int_idx++;
         } else if (is_str(args_type[i])) {
+            // TODO: the strings are struct, therefore this is wrong
             if (value_addr.addressing_mode == AddressingMode::ImmediateValue) {
                 value_addr = create_tmp_str_value(state, args[i], value_addr);
                 stack_size_to_release += 16;
