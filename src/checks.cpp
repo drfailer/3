@@ -299,6 +299,10 @@ bool check_boolean_operation(CheckState *state, Ast *ast, Scope *scope) {
     Ast *lhs = ast->data.boolean_operation.lhs;
     Ast *rhs = ast->data.boolean_operation.rhs;
 
+    if (rhs == nullptr) {
+        return check(state, lhs, scope);
+    }
+
     if (!check(state, lhs, scope) || !check(state, rhs, scope)) {
         return false;
     }
