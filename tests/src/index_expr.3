@@ -1,6 +1,20 @@
+use ../../utilities/print/print
+
 int main() bgn
-    int arr[10]
-    mov(arr[0], 1)
-    shw("array init\n")
-    ret arr[0]
+    int i
+    int arr[10] ~~~ TODO: the len function is not implemented yet
+
+    ~~~ test init
+    for mov(i, 0); inf(i, 10); add(i, 1) bgn
+        mov(arr[i], i)
+    end
+
+    ~~~ test print
+    for mov(i, 0); inf(i, 10); add(i, 1) bgn
+        print_int(i)
+        shw(" - ")
+        print_int(arr[i])
+        shw("\n")
+    end
+    ret 0
 end

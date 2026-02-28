@@ -1,0 +1,2 @@
+running: as -g -msyntax=intel build/index_expr.asm -o build/index_expr.o
+running: ld -o out//index_expr build/index_expr.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2 -L../utilities/print -lprint -rpath=../utilities/print
