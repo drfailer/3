@@ -38,12 +38,13 @@ static bool files_equal(std::string const& gold_path, std::string const& out_pat
 
 static void print_file(std::string const &path) {
     std::ifstream file(path);
-    char line[1024];
-    assert(file.good());
-
-    while (!file.eof()) {
-        file.read(line, sizeof(line));
-        std::cout << "\t" << line;
+    if (!file.good()) {
+        std::cout << "error: cannot read " << path << "." << std::endl;
+        return;
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        std::cout << "\t" << line << std::endl;
     }
 }
 
@@ -64,11 +65,9 @@ static bool run_test(TestConfig const &config) {
     std::string exec  = out_dir + "/" + base_name;
     std::string comp  = out_dir + "/" + base_name + ".comp";
     std::string out  = out_dir + "/" + base_name + ".out";
-    std::string err  = out_dir + "/" + base_name + ".err";
     std::string src  = src_dir + "/" + config.files.src;
     std::string gold_comp  = gold_dir + "/" + base_name + ".comp";
     std::string gold_out  = gold_dir + "/" + base_name + ".out";
-    std::string gold_err  = gold_dir + "/" + base_name + ".err";
 
     std::filesystem::create_directories(out_dir);
 
@@ -80,21 +79,10 @@ static bool run_test(TestConfig const &config) {
     timer_start(build);
     int build_res = run_cmd("../build/s3c", "-o",
                             exec, src, config.compiler.flags, config.compiler.ldflags,
-                            ">", comp , "2>", err);
+                            ">", comp, "2>&1");
     timer_end(build);
-    if (!config.results.should_compile) {
-        if (!files_equal(gold_err, err)) {
-            error("compiler output missmatch for test `", config.title , "'.");
-            std::cout << "\t\tvvvvv EXPECTED vvvvv" << std::endl;
-            print_file(gold_comp);
-            std::cout << "\t\tvvvvv FOUND vvvvv" << std::endl;
-            print_file(comp);
-            return false;
-        }
-    } else if (build_res != 0) {
-        error("failed to compile test '", config.title, "'.");
-        return false;
-    }
+    timer_report(build);
+
     if (!files_equal(gold_comp, comp)) {
         error("compiler output missmatch for test `", config.title , "'.");
         std::cout << "\t\tvvvvv EXPECTED vvvvv" << std::endl;
@@ -103,7 +91,15 @@ static bool run_test(TestConfig const &config) {
         print_file(comp);
         return false;
     }
-    timer_report(build);
+
+    if (!config.results.should_compile) {
+        return true;
+    }
+
+    if (build_res != 0) {
+        error("failed to compile test '", config.title, "'.");
+        return false;
+    }
 
     // run
     if (!config.results.should_run) {
@@ -116,6 +112,7 @@ static bool run_test(TestConfig const &config) {
     timer_start(run);
     int run_res = run_cmd(exec, ">", out);
     timer_end(run);
+    timer_report(run);
     if (run_res != config.results.exit_code) {
         error("wrong exit code for program `", config.title, "', expected ",
               config.results.exit_code, " but found ", run_res, ".");
@@ -129,7 +126,6 @@ static bool run_test(TestConfig const &config) {
         print_file(out);
         return false;
     }
-    timer_report(run);
     return true;
 }
 
@@ -158,18 +154,19 @@ static void update_test_gold_files(std::string const &path_to_config) {
     std::string src  = src_dir + "/" + config.files.src;
     std::string comp  = gold_dir + "/" + base_name + ".comp";
     std::string out  = gold_dir + "/" + base_name + ".out";
-    std::string err  = gold_dir + "/" + base_name + ".err";
 
     std::cout << "update gold file for test `" << config.title << "'" << std::endl;
 
     std::filesystem::create_directories(gold_dir);
     int build_res = run_cmd("../build/s3c", "-o",
                             exec, src, config.compiler.flags, config.compiler.ldflags,
-                            ">", comp, "2>", err);
+                            ">", comp, "2>&1");
 
     if (!config.results.should_compile) {
         return;
-    } else if (build_res != 0) {
+    }
+
+    if (build_res != 0) {
         error("failed to compile test '", config.title, "'.");
         return;
     }

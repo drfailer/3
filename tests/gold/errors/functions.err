@@ -1,8 +1,0 @@
-[[1;33mWARN[0m]: src/errors/functions.3(4:0): implicit convertion from '[1;34mflt[0m' to '[1;34mint[0m'.
-[[1;31mERROR[0m]: src/errors/functions.3(9:0): value returned in '[1;34mbar[0m' which should return nil.
-[[1;33mWARN[0m]: src/errors/functions.3(9:0): implicit convertion from '[1;34mint[0m' to '[1;34mnil[0m'.
-[[1;31mERROR[0m]: src/errors/functions.3(14:0): invalid nil return in '[1;34mbaz[0m', expected value of type '[1;34mint[0m'.
-[[1;33mWARN[0m]: src/errors/functions.3(25:0): implicit convertion from '[1;34mint[0m' to '[1;34mchr[0m'.
-[[1;31mERROR[0m]: src/errors/functions.3(26:0): wrong number of argument for '[1;34mfoo[0m' which is of type '[1;34mint()[0m'.
-[[1;31mERROR[0m]: src/errors/functions.3(29:0): wrong number of argument for '[1;34mbar[0m' which is of type '[1;34mnil(int, flt, chr)[0m'.
-Compilation failed!

@@ -133,14 +133,30 @@ bool check_index_expr(CheckState *state, Ast *ast, Scope *scope) {
 }
 
 bool check_function_definition(CheckState *state, Ast *ast, Scope *scope) {
+    std::string function_name = std::string(ast->data.function.name.ptr);
+    Symbol *sym = scope_lookup_symbol(state->global_scope, function_name);
     Scope *function_scope = scope_add_child(scope, ast);
 
+    assert(sym != nullptr);
     state->curr_function = ast;
 
     for (size_t i = 0; i < ast->data.function.arguments.len; ++i) {
         check_variable_definition(state, ast->data.function.arguments[i], function_scope);
     }
-    return check_block(state, ast->data.function.body, function_scope);
+    if (!check_block(state, ast->data.function.body, function_scope)) {
+        return false;
+    }
+    Array<Ast *> body = ast->data.function.body->data.block.asts;
+    if (!is_nil(sym->type->data.function.return_type)
+            && (body.len == 0 || body[body.len - 1]->kind != AstKind::RetStmt)) {
+        Location loc = ast->location;
+        if (body.len > 0) {
+            loc = body[body.len - 1]->location;
+        }
+        ERROR(loc, "missing return statement in a non nil function.")
+        return false;
+    }
+    return true;
 }
 
 bool check_function_call(CheckState *state, Ast *ast, Scope *scope) {
