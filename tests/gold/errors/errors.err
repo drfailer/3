@@ -1,0 +1,7 @@
+[[1;33mWARN[0m]: src/errors/errors.3(4:0): implicit convertion from '[1;34mflt[0m' to '[1;34mint[0m'.
+[[1;33mWARN[0m]: src/errors/errors.3(10:0): implicit convertion from '[1;34mchr[0m' to '[1;34mint[0m'.
+[[1;31mERROR[0m]: src/errors/errors.3(11:0): undefined symbol '[1;34mb[0m'. /home/failer/Programming/projects/s3c/src/checks.cpp:80
+[[1;33mWARN[0m]: src/errors/errors.3(12:0): implicit convertion from '[1;34mint[0m' to '[1;34mchr[0m'.
+[[1;31mERROR[0m]: src/errors/errors.3(13:0): wrong number of argument for '[1;34mfoo[0m' which is of type '[1;34mint(int)[0m'.
+[[1;31mERROR[0m]: src/errors/errors.3(15:0): undefined symbol '[1;34mfuction[0m'. /home/failer/Programming/projects/s3c/src/checks.cpp:152
+Compilation failed!

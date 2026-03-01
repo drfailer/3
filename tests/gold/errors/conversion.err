@@ -1,0 +1,7 @@
+[[1;33mWARN[0m]: src/errors/conversion.3(9:0): implicit convertion from '[1;34mchr[0m' to '[1;34mint[0m'.
+[[1;33mWARN[0m]: src/errors/conversion.3(10:0): implicit convertion from '[1;34mint[0m' to '[1;34mchr[0m'.
+[[1;33mWARN[0m]: src/errors/conversion.3(11:0): implicit convertion from '[1;34mflt[0m' to '[1;34mint[0m'.
+[[1;33mWARN[0m]: src/errors/conversion.3(12:0): implicit convertion from '[1;34mflt[0m' to '[1;34mchr[0m'.
+[[1;33mWARN[0m]: src/errors/conversion.3(13:0): implicit convertion from '[1;34mchr[0m' to '[1;34mflt[0m'.
+terminate called after throwing an instance of 'std::logic_error'
+  what():  unknown assignment target tyep: chr

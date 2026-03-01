@@ -1,0 +1,2 @@
+[[1;31mERROR[0m]: src/errors/function_redefinition.3(5:0): redifinition definition of symbol '[1;34mhello[0m' (previously defined here: ''[1;34msrc/errors/function_redefinition.3(1:0)[0m'').
+Compilation failed!
