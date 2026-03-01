@@ -38,7 +38,7 @@ void Preprocessor::process_rec(std::string fileName) {
 
     if (!currentFile.is_open()) {
         std::ostringstream oss;
-        oss << fileName << " doesn't exist." << std::endl;
+        oss << fileName << " doesn't exist.";
         throw std::logic_error(oss.str());
     }
 
@@ -50,8 +50,7 @@ void Preprocessor::process_rec(std::string fileName) {
         // sure that the program is not parsed
         if (std::regex_match(line, fileIndicator)) {
             std::ostringstream oss;
-            oss << fileName << ":" << lineCount << ": synctax error."
-                << std::endl;
+            oss << fileName << "(" << lineCount << ":0): synctax error.";
             throw std::logic_error(oss.str());
         }
         // search for include statement

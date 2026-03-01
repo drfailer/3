@@ -11,7 +11,7 @@ Location location_create(std::string const &filename, size_t row, size_t col) {
 }
 
 std::ostream &operator<<(std::ostream &os, Location const &location) {
-    os << location.filename << ':' << location.row << ':' << location.col;
+    os << location.filename << '(' << location.row << ':' << location.col << ')';
     return os;
 }
 std::string operator_name(ArithmeticOperationKind kind) {

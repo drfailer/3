@@ -63,7 +63,7 @@ void warning(std::string const &msg);
 #define WRONG_NUMBER_OF_ARGUMENT_ERROR(loc, function_name, function_type)      \
     ERROR(loc, "wrong number of argument for "                                 \
                    << QUOTE(function_name) << " which is of type "             \
-                   << QUOTE(type_to_string(function_type)) << ".\n")
+                   << QUOTE(type_to_string(function_type)) << ".")
 
 #define ARGUMENT_TYPE_ERROR(loc, function_name, arg_idx, found_type,           \
                             expected_type)                                     \

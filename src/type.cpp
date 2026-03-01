@@ -169,9 +169,12 @@ std::string type_to_string(Type *type) {
         oss << " }";
         break;
     case TypeKind::Function:
-        oss << type_to_string(type->data.function.return_type) << " (";
-        for (auto argument : type->data.function.arguments_types) {
-            oss << type_to_string(argument) << " ";
+        oss << type_to_string(type->data.function.return_type) << "(";
+        if (type->data.function.arguments_types.len > 0) {
+            oss << type_to_string(type->data.function.arguments_types[0]);
+            for (size_t i = 1; i < type->data.function.arguments_types.len; ++i) {
+                oss << ", " << type_to_string(type->data.function.arguments_types[i]);
+            }
         }
         oss << ")";
         break;
