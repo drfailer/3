@@ -135,7 +135,7 @@ void compile_assignment(CompilerState *state, Ast *ast, Scope *scope) {
                 value_addr = "xmm0";
             }
             asm_mov(state, "[rdx]", value_addr);
-        } else if (is_int(target_type)) {
+        } else if (is_int(target_type) || is_chr(target_type)) {
             asm_mov(state, "[rdx]", asm_addr(state->last_expr_addr));
         } else if (is_str(target_type)) {
             throw std::logic_error(
@@ -153,7 +153,7 @@ void compile_assignment(CompilerState *state, Ast *ast, Scope *scope) {
                 value_addr = "xmm0";
             }
             asm_mov(state, target, value_addr);
-        } else if (is_int(target_type)) {
+        } else if (is_int(target_type) || is_chr(target_type)) {
             asm_mov(state, asm_addr(target), asm_addr(state->last_expr_addr));
         } else if (is_str(target_type)) {
             // str is store backward as followed on the stack:
