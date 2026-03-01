@@ -85,7 +85,7 @@ void compile(std::string const &filename, Arch arch, Platform platform,
              Program const &program) {
     CompilerState state{
         .code = {},
-        .curr_function_id = "",
+        .curr_function = nullptr,
         .variables_addresses = {},
         .frame_offset = 0,
         .last_expr_addr = {},

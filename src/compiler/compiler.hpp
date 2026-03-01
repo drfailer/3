@@ -49,7 +49,7 @@ struct Address {
 
 struct CompilerState {
     Asm code;
-    std::string curr_function_id;
+    Ast *curr_function;
     std::map<std::string, std::stack<Address>> variables_addresses;
     signed int frame_offset;
     Address last_expr_addr;

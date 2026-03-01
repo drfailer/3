@@ -135,7 +135,7 @@ bool check_index_expr(CheckState *state, Ast *ast, Scope *scope) {
 bool check_function_definition(CheckState *state, Ast *ast, Scope *scope) {
     Scope *function_scope = scope_add_child(scope, ast);
 
-    state->current_function = std::string(ast->data.function.name.ptr);
+    state->curr_function = ast;
 
     for (size_t i = 0; i < ast->data.function.arguments.len; ++i) {
         check_variable_definition(state, ast->data.function.arguments[i], function_scope);
@@ -234,16 +234,17 @@ bool check_whl_stmt(CheckState *state, Ast *ast, Scope *scope) {
 }
 
 bool check_ret_stmt(CheckState *state, Ast *ast, Scope *scope) {
-    Symbol *sym = scope_lookup_symbol(scope, state->current_function);
+    std::string function_name = state->curr_function->data.function.name.ptr;
+    Symbol *sym = scope_lookup_symbol(scope, function_name);
     assert(sym && "current function not inserted in the symbol table.");
     auto expected_type = sym->type->data.function.return_type;
     Ast *expr = ast->data.ret_stmt.expression;
 
     if (is_nil(expected_type) && expr != nullptr) {
-        ERROR(ast->location, "value returned in " << QUOTE(state->current_function)
+        ERROR(ast->location, "value returned in " << QUOTE(function_name)
                 << " which should return nil.")
     } else if (!is_nil(expected_type) && expr == nullptr) {
-        ERROR(ast->location, "invalid nil return in " << QUOTE(state->current_function)
+        ERROR(ast->location, "invalid nil return in " << QUOTE(function_name)
                 << ", expected value of type "
                 << QUOTE(type_to_string(expected_type)) << ".")
     }
@@ -258,7 +259,7 @@ bool check_ret_stmt(CheckState *state, Ast *ast, Scope *scope) {
 
     auto expr_type = scope_lookup_expr_type(scope, expr);
     if (!is_convertible(expr_type, expected_type)) {
-        INVALID_RETURN_TYPE_ERROR(ast->location, state->current_function, expr_type,
+        INVALID_RETURN_TYPE_ERROR(ast->location, function_name, expr_type,
                                   sym->type->data.function.return_type);
         return false;
     } else if (!equal(expr_type, expected_type)) {

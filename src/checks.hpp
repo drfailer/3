@@ -13,7 +13,7 @@
  */
 
 struct CheckState {
-    std::string current_function; // TODO: use the ast node here instead of a string
+    Ast *curr_function;
     MemPool<Type> *type_pool;
     Allocator allocator;
     Scope *global_scope;

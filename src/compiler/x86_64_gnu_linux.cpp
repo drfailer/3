@@ -586,13 +586,14 @@ void compile_ret_stmt(CompilerState *state, Ast *ast, Scope *scope) {
     }
     // TODO: this is not required if the return is at the end of the block
     asm_add_instruction(state->code, "jmp",
-                        "epilogue_" + state->curr_function_id);
+                        "epilogue_" + std::string(state->curr_function->data.function.name.ptr));
 }
 
 void compile_block(CompilerState *state, Ast *ast, Scope *scope) {
     Block *block_ast = &ast->data.block;
     for (auto instruction : block_ast->asts) {
         compile_ast(state, instruction, scope->child_scopes[ast]);
+        // TODO: free the memory allocated on the stack in this block (unless this is a function block)
     }
 }
 
@@ -638,7 +639,7 @@ void compile_function_definition(CompilerState *state, Ast *ast, Scope *scope) {
     assert(map_contains(scope->child_scopes, ast));
     Function *fund_def_ast = &ast->data.function;
     Scope *function_scope = scope->child_scopes[ast];
-    state->curr_function_id = fund_def_ast->name.ptr;
+    state->curr_function = ast;
     state->frame_offset = 8;
 
     asm_add_label(state->code, fund_def_ast->name.ptr);

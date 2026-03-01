@@ -149,7 +149,7 @@ bool compile(Options const &opts) {
         return false;
     }
 
-    CheckState check_state = {"", &state->type_pool, state->allocator, state->global_scope};
+    CheckState check_state = {nullptr, &state->type_pool, state->allocator, state->global_scope};
     if (!check(&check_state, Program{state->program, state->global_scope})) {
         return false;
     }
