@@ -239,13 +239,16 @@ bool check_ret_stmt(CheckState *state, Ast *ast, Scope *scope) {
     auto expected_type = sym->type->data.function.return_type;
     Ast *expr = ast->data.ret_stmt.expression;
 
+    if (is_nil(expected_type) && expr != nullptr) {
+        ERROR(ast->location, "value returned in " << QUOTE(state->current_function)
+                << " which should return nil.")
+    } else if (!is_nil(expected_type) && expr == nullptr) {
+        ERROR(ast->location, "invalid nil return in " << QUOTE(state->current_function)
+                << ", expected value of type "
+                << QUOTE(type_to_string(expected_type)) << ".")
+    }
+
     if (expr == nullptr) {
-        if (!is_nil(expected_type)) {
-            INVALID_RETURN_TYPE_ERROR(
-                ast->location, state->current_function,
-                sym->type->data.function.return_type, expected_type);
-            return false;
-        }
         return true;
     }
 
