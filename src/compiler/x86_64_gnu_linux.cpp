@@ -191,7 +191,7 @@ void compile_assignment(CompilerState *state, Ast *ast, Scope *scope) {
                 }
             }
         } else {
-            throw std::logic_error("unknown assignment target tyep: " +
+            throw std::logic_error("unknown assignment target type: " +
                                    type_to_string(target_type));
         }
     } else {
