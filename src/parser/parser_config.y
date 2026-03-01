@@ -87,6 +87,7 @@
 %nterm <Ast*> builtinFunctionCall
 %nterm <Ast*> controlStructure
 %nterm <std::vector<Ast*>> code
+%nterm <std::vector<Ast*>> instructions
 %nterm <CndContent> cndContent
 %nterm <Ast*> optOtw
 
@@ -170,8 +171,16 @@ block:
     ;
 
 code:
+    instructions[ops] ret {
+        $ops.push_back($ret);
+        $$ = $ops;
+    }
+    | instructions
+    ;
+
+instructions:
     %empty { $$ = std::vector<Ast*>(); }
-    | code instruction {
+    | instructions instruction {
         $1.push_back($instruction);
         $$ = $1;
     }
@@ -183,7 +192,6 @@ instruction:
     | assignment
     | functionCall
     | controlStructure
-    | ret
     ;
 
 ret:
@@ -195,7 +203,7 @@ ret:
             .ret_stmt = { $expr }
         );
     }
-    | RET NIL { // Note: we need NIL here to avoid grammar confilicts (a possible fix would be to stop ignoring EOL)
+    | RET {
         $$ = new_ast(
             &state->ast_pool,
             location_create(state->curr_filename, @1.begin.line),
