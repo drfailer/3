@@ -8,6 +8,10 @@
 #include <cassert>
 #include <fstream>
 
+#define RED "\033[1;31m"
+#define GRN "\033[1;32m"
+#define COLOR_RESET "\033[0m"
+
 template <typename ...Ts>
 void error(Ts ...args) {
     std::cerr << "error: ";
@@ -60,9 +64,11 @@ static bool run_test(TestConfig const &config) {
     std::string exec  = out_dir + "/" + base_name;
     std::string comp  = out_dir + "/" + base_name + ".comp";
     std::string out  = out_dir + "/" + base_name + ".out";
+    std::string err  = out_dir + "/" + base_name + ".err";
     std::string src  = src_dir + "/" + config.files.src;
     std::string gold_comp  = gold_dir + "/" + base_name + ".comp";
     std::string gold_out  = gold_dir + "/" + base_name + ".out";
+    std::string gold_err  = gold_dir + "/" + base_name + ".err";
 
     std::filesystem::create_directories(out_dir);
 
@@ -74,9 +80,18 @@ static bool run_test(TestConfig const &config) {
     timer_start(build);
     int build_res = run_cmd("../build/s3c", "-o",
                             exec, src, config.compiler.flags, config.compiler.ldflags,
-                            ">", comp);
+                            ">", comp , "2>", err);
     timer_end(build);
-    if (build_res != 0 && config.results.should_compile) {
+    if (!config.results.should_compile) {
+        if (!files_equal(gold_err, err)) {
+            error("compiler output missmatch for test `", config.title , "'.");
+            std::cout << "\t\tvvvvv EXPECTED vvvvv" << std::endl;
+            print_file(gold_comp);
+            std::cout << "\t\tvvvvv FOUND vvvvv" << std::endl;
+            print_file(comp);
+            return false;
+        }
+    } else if (build_res != 0) {
         error("failed to compile test '", config.title, "'.");
         return false;
     }
@@ -125,9 +140,9 @@ void run_tests(std::string const& pattern) {
         TestConfig config = parse_config_file(path);
         std::cout << "-------------------------------------------" << std::endl;
         if (run_test(config)) {
-            std::cout << "success: " << config.title << std::endl;
+            std::cout << GRN "success" COLOR_RESET ": " << config.title << std::endl;
         } else {
-            std::cout << "failure: " << config.title << std::endl;
+            std::cout << RED "failure" COLOR_RESET ": " << config.title << std::endl;
         }
         std::cout << "-------------------------------------------" << std::endl;
     }
@@ -143,18 +158,18 @@ static void update_test_gold_files(std::string const &path_to_config) {
     std::string src  = src_dir + "/" + config.files.src;
     std::string comp  = gold_dir + "/" + base_name + ".comp";
     std::string out  = gold_dir + "/" + base_name + ".out";
-
-    if (!config.results.should_compile || !config.results.should_run) {
-        return;
-    }
+    std::string err  = gold_dir + "/" + base_name + ".err";
 
     std::cout << "update gold file for test `" << config.title << "'" << std::endl;
 
     std::filesystem::create_directories(gold_dir);
     int build_res = run_cmd("../build/s3c", "-o",
                             exec, src, config.compiler.flags, config.compiler.ldflags,
-                            ">", comp);
-    if (build_res != 0 && config.results.should_compile) {
+                            ">", comp, "2>", err);
+
+    if (!config.results.should_compile) {
+        return;
+    } else if (build_res != 0) {
         error("failed to compile test '", config.title, "'.");
         return;
     }
