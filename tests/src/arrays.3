@@ -1,0 +1,22 @@
+use ../../utilities/print/print
+
+int main() bgn
+  int a[5]
+  int b
+  chr c
+
+  for mov(b, 0); inf(b, 5); add(b, 1) bgn
+    mov(a[b], b)
+  end
+  mov(a[4], 97)
+
+  ~~~ test assignment to c
+  mov(c, a[4])
+  print_int(c) ~~~ for now we need to print the char as an int (shw should be updated)
+  shw("\n")
+  for mov(b, 0); inf(b, 5); add(b, 1) bgn
+    print_int(a[b])
+    shw("\n")
+  end
+  ret 0
+end

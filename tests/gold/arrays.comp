@@ -1,0 +1,3 @@
+[[1;33mWARN[0m]: src//arrays.3(14:0): implicit convertion from '[1;34mint[0m' to '[1;34mchr[0m'.
+running: as -g -msyntax=intel build/arrays.asm -o build/arrays.o
+running: ld -o out//arrays build/arrays.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2 -L../utilities/print -lprint -rpath=../utilities/print

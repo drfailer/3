@@ -1,0 +1,38 @@
+use ../../../utilities/print/print
+
+nil test(chr string[100]) bgn
+  shw(string)
+  shw("\n")
+  shw(string[2])
+  shw("\n")
+end
+
+nil main() bgn
+  int a[5]
+  chr string[10]
+  int b
+  chr c
+
+  ~~~ test assignment to string
+  mov(string, "hello")
+
+  shw(string)
+  shw("\n")
+  test(string)
+  test("hello")
+  ~~~ shw(a): error (todo: make a second test)
+
+  for b rng(0, 5, 1) bgn
+    mov(a[b], b)
+  end
+  mov(a[4], 97)
+
+  ~~~ test assignment to c
+  mov(c, a[4])
+  shw(c)
+  shw("\n")
+  for b rng(0, 5, 1) bgn
+    shw(a[b])
+    shw("\n")
+  end
+end
