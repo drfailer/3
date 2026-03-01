@@ -1,0 +1,16 @@
+int foo(int a) bgn
+  flt b
+  mov(b, mul(1.3, a))
+  ret b ~~~ warning: wrong return type (warning because flt castable to int)
+end
+
+nil main() bgn
+  int a
+  chr c
+  mov(a, 'a') ~~~ warning: a is of type int (warning because chr castable to int)
+  mov(b, 5) ~~~ error: undefined symbol b
+  mov(c, foo(4)) ~~~ warning: foo returns an int and expected a char
+  mov(c, foo(4, 3)) ~~~ error: wrong arguments for foo
+
+  fuction(a, b) ~~~ error: undefined symbol
+end

@@ -1,37 +1,46 @@
 cmake_minimum_required(VERSION 3.25.2)
 
-project(transpiler)
+project(s3c)
 
 # configuration
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
+set(CMAKE_VERBOSE_MAKEFILE TRUE)
+
 # compiler options
-add_compile_options(-Wall -Wextra -Wuninitialized -g)
+add_compile_options(-Wall -Wextra -Wuninitialized -Wconversion -g)
 
 include_directories(src)
 
 # generate lexer and parser using flex and bison
-add_custom_target(parser ALL bison -Wconflicts-sr -Wcounterexamples main_cpp.y
-                  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/main_cpp.y
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
+add_custom_target(parser COMMAND bison -Wconflicts-sr -Wcounterexamples parser_config.y
+                  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser_config.y
+                  BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/parser.cpp
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/
                   COMMENT "building parser")
-add_custom_target(lexer ALL flex main_cpp.l
-                  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/main_cpp.l
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/
+add_custom_target(lexer COMMAND flex lexer_config.l
+                  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/lexer_config.l
+                  BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/lexer.cpp
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/parser/
                   COMMENT "building lexer")
 
 set(files
-  src/ast/ast.cpp
-  src/ast/program.cpp
-  src/symtable/symtable.cpp
-  src/symtable/context_manager.cpp
-  src/type_system/types.cpp
-  src/tools/errors_manager.cpp
-  src/tools/program_builder.cpp
-  src/tools/checks.cpp
-  src/preprocessor/preprocessor.cpp
+    src/compiler/compiler.cpp
+    src/compiler/tools.cpp
+    src/compiler/x86_64_gnu_linux.cpp
+    src/main.cpp
+    src/preprocessor/preprocessor.cpp
+    src/s3c.cpp
+    src/tools/messages.cpp
+    src/tools/string.cpp
+    src/tools/mem.cpp
+    src/ast.cpp
+    src/type.cpp
+    src/checks.cpp
+    src/scope.cpp
 )
 
-add_executable(s3c src/parser.cpp src/lexer.cpp ${files})
+add_executable(s3c src/parser/parser.cpp src/parser/lexer.cpp ${files})
+# add_dependencies(s3c parser lexer)

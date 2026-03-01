@@ -1,0 +1,45 @@
+use ../../../utilities/print/print
+
+nil hello() bgn
+    int i
+
+    shw("print hello 10 times using a for loop:\n")
+    for mov(i, 0); inf(i, 10); add(i, 1) bgn
+        shw("hello\n")
+    end
+end
+
+nil forward() bgn
+    int i
+    shw("forward:\n")
+    for mov(i, 0); inf(i, 10); add(i, 1) bgn
+        print_int(i)
+        shw("\n")
+    end
+end
+
+nil backward() bgn
+    int i
+    shw("backward:\n")
+    for mov(i, 9); seq(i, 0); sub(i, 1) bgn
+        print_int(i)
+        shw("\n")
+    end
+end
+
+nil step() bgn
+    int i
+    shw("step:\n")
+    for mov(i, 0); ieq(i, 20); add(i, 2) bgn
+        print_int(i)
+        shw("\n")
+    end
+end
+
+int main() bgn
+    hello()
+    forward()
+    backward()
+    step()
+    ret 0
+end

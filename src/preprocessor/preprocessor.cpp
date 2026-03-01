@@ -1,5 +1,6 @@
 #include "preprocessor.hpp"
 #include <algorithm>
+#include <filesystem>
 #include <regex>
 
 /**
@@ -8,11 +9,12 @@
  * @param  pathToMain  Just the path to the file given to the transpiler.
  */
 void Preprocessor::process(std::string pathToMain) {
-    std::string tmp = pathToMain;
-
-    while (tmp[tmp.length() - 1] != '/')
-        tmp.pop_back();
-    pathToProject = tmp;
+    auto path = std::filesystem::path(pathToMain);
+    pathToProject =
+        std::filesystem::path(pathToMain).parent_path().string();
+    if (!pathToProject.empty()) {
+        pathToProject += "/";
+    }
     process_rec(pathToMain);
 }
 
@@ -36,7 +38,7 @@ void Preprocessor::process_rec(std::string fileName) {
 
     if (!currentFile.is_open()) {
         std::ostringstream oss;
-        oss << fileName << " doesn't exist." << std::endl;
+        oss << fileName << " doesn't exist.";
         throw std::logic_error(oss.str());
     }
 
@@ -48,8 +50,7 @@ void Preprocessor::process_rec(std::string fileName) {
         // sure that the program is not parsed
         if (std::regex_match(line, fileIndicator)) {
             std::ostringstream oss;
-            oss << fileName << ":" << lineCount << ": synctax error."
-                << std::endl;
+            oss << fileName << "(" << lineCount << ":0): synctax error.";
             throw std::logic_error(oss.str());
         }
         // search for include statement
@@ -65,7 +66,7 @@ void Preprocessor::process_rec(std::string fileName) {
                 outputFile << "-->" << fileName << "-" << (lineCount - 1)
                            << std::endl;
             }
-            outputFile << "# " << line << std::endl;
+            outputFile << "~~~ " << line << std::endl;
         } else {
             // put the line in the output file
             outputFile << line << std::endl;

@@ -1,0 +1,34 @@
+use raylib
+use ../../utilities/string/string
+
+int main() bgn
+    int window_width
+    int window_height
+    str text
+    int text_width
+    int font_size
+    int textx
+    int texty
+
+    mov(window_width, 800)
+    mov(window_height, 400)
+    mov(font_size, 50)
+    mov(text, "Hello from 3!")
+
+    ~~~ MeasureText doesn't work with the default font, and I can't load a font
+    ~~~ because 3 doesn't have structs yet :(
+    mov(text_width, MeasureText(to_c_string(text), font_size))
+    mov(textx, div(sub(window_width, text_width), 2))
+    mov(texty, div(sub(window_height, font_size), 2))
+
+    InitWindow(window_width, window_height, "raylib.3")
+
+    whl eql(WindowShouldClose(), 0) bgn
+        BeginDrawing()
+            ClearBackground(0)
+            DrawText(to_c_string(text), textx, texty, font_size, 4294967295)
+        EndDrawing()
+    end
+    CloseWindow()
+    ret 0
+end

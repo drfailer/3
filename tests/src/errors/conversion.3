@@ -1,0 +1,15 @@
+int foo(int a) bgn
+    ret 0
+end
+
+int main() bgn
+    chr c
+    int a
+    flt f
+    mov(a, 'a')    ~~~ warning: a is of type int (warning because chr castable to int)
+    mov(c, foo(4)) ~~~ warning: foo returns an int and expected a char
+    mov(a, f)      ~~~ warning: convertion from flt to int
+    mov(c, f)      ~~~ warning: we can convert flt to chr for now (flt -> int -> chr)
+    mov(f, c)      ~~~ warning: we can convert chr to flt for now (chr -> int -> flt)
+    ret 0
+end

@@ -1,0 +1,6 @@
+#ifndef CONSTANTS
+#define CONSTANTS
+
+#define MAX_IDENTIFIER_LENGTH 128
+
+#endif

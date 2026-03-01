@@ -1,0 +1,14 @@
+use ../../../utilities/print/print
+
+int main() bgn
+    int i
+
+    mov(i, 0)
+    whl inf(i, 10) bgn
+        shw("i = ")
+        print_int(i)
+        shw("\n")
+        mov(i, add(i, 1))
+    end
+    ret 0
+end

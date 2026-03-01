@@ -1,0 +1,2 @@
+running: as -g -msyntax=intel build/main.asm -o build/main.o
+running: ld -o out/use/main build/main.o -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2
